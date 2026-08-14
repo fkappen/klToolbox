@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Klöschinski – Optionen</title>
+    <style>
+        /* Klöschinski CI: Blau #1F8CBB, Grün #B2C956 */
+        body { font: 14px/1.5 system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #26323a; background: #fafcfd; }
+        h1 { font-size: 22px; color: #17719A; display: flex; align-items: center; gap: 10px; }
+        h1 img { width: 28px; height: 28px; }
+        h2 { font-size: 17px; margin: 34px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #B2C956; color: #1F8CBB; }
+        fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px; padding: 12px 16px; }
+        legend { font-weight: 600; padding: 0 6px; }
+        label { display: block; margin: 10px 0 4px; font-weight: 600; }
+        input[type=text], input[type=password], textarea, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font: inherit; }
+        textarea { min-height: 100px; font-family: Consolas, monospace; font-size: 13px; resize: vertical; }
+        .radio-row { display: flex; gap: 24px; margin-top: 6px; }
+        .radio-row label { font-weight: 400; margin: 0; display: flex; align-items: center; gap: 6px; }
+        .hint { color: #777; font-size: 12px; margin-top: 4px; }
+        button { border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; font: inherit; font-weight: 600; }
+        .primary { background: #1F8CBB; color: #fff; }
+        .primary:hover { background: #17719A; }
+        .secondary { background: #eee; }
+        .danger { background: transparent; color: #b3261e; border: 1px solid #b3261e; }
+        .toolbar { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
+        .status { color: #1a7f37; font-weight: 600; }
+        code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
+        .tpl { border: 1px solid #ddd; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+        .tpl input[type=text] { font-weight: 600; margin-bottom: 8px; }
+        .tpl .row { display: flex; justify-content: space-between; margin-top: 8px; }
+        .mod-list label { font-weight: 600; margin: 10px 0 2px; display: flex; align-items: center; gap: 8px; }
+        .mod-list label:first-child { margin-top: 0; }
+        .mod-list label input { width: auto; }
+        .mod-desc { color: #777; font-size: 12px; margin-left: 24px; }
+    </style>
+</head>
+<body>
+    <h1><img src="icon32.png" alt="">Klöschinski – Optionen</h1>
+
+    <!-- ================================================== Module -->
+    <h2>Module</h2>
+    <p class="hint">Nicht benötigte Bereiche hier abschalten. Änderungen speichern sofort und wirken ohne Browser-Neustart.</p>
+    <fieldset>
+        <div class="mod-list">
+            <label><input type="checkbox" id="modKi"> KI-Umformulierer</label>
+            <div class="mod-desc">Markierten Text per Rechtsklick mit KI umformulieren, korrigieren oder übersetzen – das Ergebnis ersetzt die Markierung direkt im Feld.</div>
+            <label><input type="checkbox" id="modSuche"> Kontextmenü-Suchen</label>
+            <div class="mod-desc">Markierten Text (z. B. eine Fehlermeldung) per Rechtsklick in der DATEV Wissensplattform, bei Google oder in InnoGPT nachschlagen.</div>
+            <label><input type="checkbox" id="modVorlagen"> Ticket-Vorlagen</label>
+            <div class="mod-desc">Vorlagen-Button im „Email senden“-Fenster des Ticketsystems: Textbausteine mit einem Klick vor der Signatur einfügen.</div>
+            <label><input type="checkbox" id="modTermin"> Ticket-Termin &amp; Wartezeit</label>
+            <div class="mod-desc">Buttons in der Ticket-Toolbar: Outlook-Termin aus dem Ticket erstellen (inkl. Status „Termin vereinbart“), „Nicht erreicht“-Eintrag anlegen, Anfahrt planen – plus Wartezeit-Ampel oben links im Ticket.</div>
+            <label><input type="checkbox" id="modCleaner"> MS Account Cleaner</label>
+            <div class="mod-desc">Button auf der Microsoft-Kontoauswahl (login.microsoftonline.com): entfernt alle gemerkten Konten in einem Rutsch. Konten „Mit Windows verbunden“ und Whitelist-Konten (siehe unten) bleiben erhalten.</div>
+            <label><input type="checkbox" id="modChat"> KI-Chat</label>
+            <div class="mod-desc">Chat-Seite mit dem konfigurierten KI-Anbieter, erreichbar über das Popup. Wird auch von der InnoGPT-Suche verwendet – bei Deaktivierung verschwindet auch der InnoGPT-Suchbutton.</div>
+        </div>
+        <span id="statusModule" class="status"></span>
+    </fieldset>
+
+    <!-- ================================================== KI-Umformulierer -->
+    <h2>KI-Umformulierer (Rechtsklick auf markierten Text)</h2>
+
+    <fieldset>
+        <legend>Anbieter</legend>
+        <div class="radio-row">
+            <label><input type="radio" name="provider" value="claude"> Claude (Anthropic)</label>
+            <label><input type="radio" name="provider" value="openai"> ChatGPT (OpenAI)</label>
+            <label><input type="radio" name="provider" value="innogpt"> InnoGPT</label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Kontext / Stilvorgabe</legend>
+        <textarea id="kiKontext" style="min-height:60px;"></textarea>
+        <div class="hint">Wird der KI bei jeder Umformulierung mitgegeben, z. B. Branche und gewünschter Ton. Leer lassen = ohne Kontext.</div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Claude (Anthropic)</legend>
+        <label for="claudeApiKey">API-Key</label>
+        <input type="password" id="claudeApiKey" placeholder="sk-ant-...">
+        <label for="claudeModel">Modell</label>
+        <input type="text" id="claudeModel" placeholder="claude-opus-5">
+        <div class="hint">Standard: claude-opus-5 &middot; günstiger/schneller: claude-haiku-4-5</div>
+    </fieldset>
+
+    <fieldset>
+        <legend>ChatGPT (OpenAI)</legend>
+        <label for="openaiApiKey">API-Key</label>
+        <input type="password" id="openaiApiKey" placeholder="sk-...">
+        <label for="openaiModel">Modell</label>
+        <input type="text" id="openaiModel" placeholder="gpt-4o-mini">
+    </fieldset>
+
+    <fieldset>
+        <legend>InnoGPT</legend>
+        <label for="innogptApiKey">API-Key</label>
+        <input type="password" id="innogptApiKey" placeholder="sk_live_...">
+        <label for="innogptModel">Modell</label>
+        <input type="text" id="innogptModel" placeholder="gpt-5">
+        <div class="hint">OpenAI-kompatible API unter app.innogpt.de (Beta-Zugang erforderlich)</div>
+    </fieldset>
+
+    <div class="toolbar">
+        <button id="saveKi" class="primary">KI-Einstellungen speichern</button><span id="statusKi" class="status"></span>
+    </div>
+
+    <!-- ================================================== Ticket-Termin -->
+    <h2>Ticket-Termin (Outlook-Termin aus Ticket)</h2>
+    <p class="hint">Platzhalter: <code>%KUNDE%</code>, <code>%KUNDENAME%</code>, <code>%KUNDENR%</code>, <code>%TICKETNR%</code>, <code>%BEZEICHNUNG%</code>, <code>%ANSPRECHPARTNER%</code>, <code>%TELEFON%</code>, <code>%EMAIL%</code>, <code>%TICKETLINK%</code></p>
+
+    <label for="subjectTemplate">Betreff-Vorlage</label>
+    <input type="text" id="subjectTemplate">
+
+    <label for="bodyTemplate">Text-Vorlage (Terminbeschreibung)</label>
+    <textarea id="bodyTemplate"></textarea>
+
+    <label for="linkTemplate">Ticketlink-Vorlage</label>
+    <input type="text" id="linkTemplate" placeholder="https://…/tickets?id=%TICKETNR%">
+    <div class="hint">Wird für <code>%TICKETLINK%</code> und die Ticket-Suche verwendet; <code>%TICKETNR%</code> wird ersetzt. Kommt normalerweise per Settings-Import.</div>
+
+    <label for="kundenLinkTemplate">Kundenlink-Vorlage (Kundensuche im Popup)</label>
+    <input type="text" id="kundenLinkTemplate" placeholder="https://…?customerReference=%KDNR%">
+    <div class="hint"><code>%KDNR%</code> wird durch die eingegebene Kundennummer ersetzt. Kommt normalerweise per Settings-Import.</div>
+
+    <label for="datevSearchTemplate">DATEV-Wissensplattform-Suche (Popup)</label>
+    <input type="text" id="datevSearchTemplate" placeholder="https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%">
+    <div class="hint"><code>%SUCHE%</code> wird durch den Suchbegriff ersetzt. Falls die Ergebnisseite bei euch eine andere URL hat: einmal manuell suchen und die Adresszeile hier übernehmen.</div>
+
+    <label for="selBezeichnung">CSS-Selektor „Bezeichnung"</label>
+    <input type="text" id="selBezeichnung">
+
+    <label for="selAnsprechpartner">CSS-Selektor „Ansprechpartner"</label>
+    <input type="text" id="selAnsprechpartner">
+    <div class="hint">Selektoren nur anpassen, falls das Ticketsystem nach einem Update Felder nicht mehr findet.</div>
+
+    <label style="font-weight:400; display:flex; align-items:center; gap:8px; margin-top:14px;">
+        <input type="checkbox" id="autoStatus" style="width:auto;"> Status nach Termin-Erstellung automatisch auf „Termin vereinbart" setzen
+    </label>
+
+    <label for="nichtErreichtText">Text für „Nicht erreicht"-Eintrag</label>
+    <input type="text" id="nichtErreichtText">
+
+    <label for="firmenAdresse">Firmenadresse (Startpunkt für „Anfahrt planen")</label>
+    <input type="text" id="firmenAdresse" placeholder="Straße Nr, PLZ Ort">
+    <div class="hint">Kommt normalerweise per Settings-Import.</div>
+
+
+    <label for="defaultTerminart">Standard-Terminart</label>
+    <select id="defaultTerminart">
+        <option value="telefon">Telefon</option>
+        <option value="teams">Teams</option>
+        <option value="vorort">Vor Ort</option>
+    </select>
+    <div class="hint">Bei „Vor Ort" wird die Kundenadresse in das Ort-Feld des Termins übernommen.</div>
+
+    <label for="defaultDurationMin">Standard-Termindauer</label>
+    <select id="defaultDurationMin">
+        <option value="15">15 Minuten</option>
+        <option value="30">30 Minuten</option>
+        <option value="45">45 Minuten</option>
+        <option value="60">60 Minuten</option>
+        <option value="90">90 Minuten</option>
+        <option value="120">120 Minuten</option>
+    </select>
+
+    <div class="toolbar">
+        <button id="saveTermin" class="primary">Termin-Einstellungen speichern</button><span id="statusTermin" class="status"></span>
+    </div>
+
+    <!-- ================================================== Ticket-Vorlagen -->
+    <h2>Ticket-Vorlagen (E-Mail-Textbausteine)</h2>
+    <p class="hint">Platzhalter: <code>{datum}</code> = heutiges Datum, <code>{zeit}</code> = aktuelle Uhrzeit.</p>
+
+    <div id="tplList"></div>
+
+    <div class="toolbar">
+        <button id="tplAdd" class="secondary">+ Neue Vorlage</button>
+        <button id="tplSave" class="primary">Vorlagen speichern</button>
+        <button id="tplExport" class="secondary">Export (JSON)</button>
+        <button id="tplImport" class="secondary">Import (JSON)</button>
+        <input type="file" id="tplImportFile" accept=".json" style="display:none">
+        <span id="statusTpl" class="status"></span>
+    </div>
+
+    <!-- ================================================== Schnellzugriffe -->
+    <h2>Schnellzugriffe (Popup)</h2>
+    <p class="hint">Links im Extension-Popup. Häkchen „Start" = wird vom Start-Button mit geöffnet.</p>
+    <div id="quickList"></div>
+    <div class="toolbar">
+        <button id="quickAdd" class="secondary">+ Neuer Schnellzugriff</button>
+    </div>
+
+    <h2>M365 Admin (Popup, öffnet im privaten Fenster)</h2>
+    <p class="hint">Hinweis: Damit private Fenster geöffnet werden können, muss unter <code>brave://extensions</code> bei dieser Extension „Im Inkognito-Modus zulassen" aktiviert sein.</p>
+    <div id="m365List"></div>
+    <div class="toolbar">
+        <button id="m365Add" class="secondary">+ Neuer M365-Link</button>
+    </div>
+
+    <h2>DATEV (Popup)</h2>
+    <div id="datevList"></div>
+    <div class="toolbar">
+        <button id="datevAdd" class="secondary">+ Neuer DATEV-Link</button>
+        <button id="linksSave" class="primary">Links speichern</button>
+        <span id="statusLinks" class="status"></span>
+    </div>
+
+    <!-- ================================================== MS Account Cleaner -->
+    <h2>MS Account Cleaner</h2>
+    <label for="cleanerWhitelist">Whitelist – diese Konten werden NIE entfernt</label>
+    <textarea id="cleanerWhitelist" style="min-height:80px;" placeholder="max.mustermann@firma.de&#10;@kloeschinski.de"></textarea>
+    <div class="hint">Ein Eintrag pro Zeile. Exakte E-Mail-Adresse schützt ein Konto, ein Teilstring wie <code>@kloeschinski.de</code> schützt alle Konten der Domain. Groß-/Kleinschreibung egal. Konten „Mit Windows verbunden“ sind immer geschützt.</div>
+    <div class="toolbar">
+        <button id="saveCleaner" class="primary">Cleaner-Einstellungen speichern</button><span id="statusCleaner" class="status"></span>
+    </div>
+
+    <!-- ================================================== Sicherung -->
+    <h2>Sicherung (alle Einstellungen)</h2>
+    <p class="hint">Exportiert sämtliche Einstellungen aller Module als eine JSON-Datei — inklusive API-Keys, Vorlagen und Termin-Konfiguration. Zum Verteilen im Team oder als Backup. Der Import führt zusammen: Nur die in der Datei enthaltenen Einstellungen werden überschrieben, alle übrigen (z. B. API-Keys) bleiben erhalten.</p>
+
+    <div class="toolbar">
+        <button id="settingsExport" class="primary">Alle Einstellungen exportieren</button>
+        <button id="settingsImport" class="secondary">Alle Einstellungen importieren</button>
+        <input type="file" id="settingsImportFile" accept=".json" style="display:none">
+        <span id="statusSettings" class="status"></span>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>

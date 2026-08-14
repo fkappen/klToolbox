@@ -1,0 +1,76 @@
+{
+    "manifest_version": 3,
+    "name": "Klöschinski Toolbox",
+    "version": "__VERSION__",
+    "description": "KI-Umformulierer, Ticket-Vorlagen & -Termine (Venabo), M365-Schnellzugriffe, MS Account Cleaner und KI-Chat.",
+    "author": "Felix Kappen",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "toolbox@kloeschinski.de",
+            "strict_min_version": "140.0",
+            "update_url": "__UPDATE_URL__",
+            "data_collection_permissions": {
+                "required": ["websiteContent"]
+            }
+        }
+    },
+    "permissions": [
+        "contextMenus",
+        "storage",
+        "scripting",
+        "activeTab",
+        "clipboardWrite"
+    ],
+    "host_permissions": [
+        "https://api.anthropic.com/*",
+        "https://api.openai.com/*",
+        "https://app.innogpt.de/*"
+    ],
+    "icons": {
+        "16": "icon16.png",
+        "32": "icon32.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Ticket öffnen (Nummer eingeben)",
+        "default_icon": {
+            "16": "icon16.png",
+            "32": "icon32.png",
+            "48": "icon48.png",
+            "128": "icon128.png"
+        }
+    },
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [
+        {
+            "matches": ["https://sc.kloeschinski.de/*"],
+            "js": ["content-vorlagen.js", "content-termin.js"],
+            "css": ["content.css"],
+            "all_frames": true,
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "https://login.microsoftonline.com/*",
+                "https://login.live.com/*",
+                "https://login.microsoft.com/*"
+            ],
+            "js": ["content-accountcleaner.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    },
+    "web_accessible_resources": [
+        {
+            "resources": ["options.html"],
+            "matches": ["https://sc.kloeschinski.de/*"]
+        }
+    ]
+}

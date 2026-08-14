@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <style>
+        /* Klöschinski CI: Blau #1F8CBB, Grün #B2C956 (aus dem Logo gesampelt) */
+        :root {
+            --kl-blau: #1F8CBB;
+            --kl-blau-dunkel: #17719A;
+            --kl-gruen: #B2C956;
+            --kl-gruen-dunkel: #8FAE2E;
+        }
+        body { font: 13px/1.4 system-ui, sans-serif; width: 372px; margin: 0; padding: 0 12px 10px; color: #26323a; background: #fafcfd; }
+
+        .brand { display: flex; align-items: center; gap: 8px; padding: 8px 2px 6px; margin-bottom: 6px; border-bottom: 2px solid var(--kl-gruen); }
+        .brand img { width: 22px; height: 22px; }
+        .brand b { font-size: 14px; color: var(--kl-blau-dunkel); font-weight: 700; letter-spacing: .01em; }
+        .brand span { color: #9aa7b0; font-size: 11px; margin-top: 2px; }
+
+        h2 { font-size: 11px; margin: 10px 0 5px; color: var(--kl-blau); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+        .row { display: flex; gap: 6px; }
+        input { flex: 1; padding: 6px 10px; border: 1px solid #d5dde2; border-radius: 8px; font: inherit; box-sizing: border-box; background: #fff; }
+        input:focus { outline: 2px solid var(--kl-blau); outline-offset: -1px; border-color: var(--kl-blau); }
+        button { background: var(--kl-blau); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; font: inherit; font-weight: 600; }
+        button:hover { background: var(--kl-blau-dunkel); }
+        #hint { color: #b3261e; font-size: 12px; margin-top: 4px; min-height: 14px; }
+
+        #startBar { display: flex; margin-bottom: 4px; }
+        #startBtn { width: 100%; background: linear-gradient(135deg, var(--kl-gruen), var(--kl-gruen-dunkel)); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(143, 174, 46, .35); }
+        #startBtn:hover { filter: brightness(1.05); }
+
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+        .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 2px 5px; border-radius: 10px; cursor: pointer; background: #fff; border: 1px solid #e3eaef; color: #26323a; font: 10.5px/1.2 system-ui, sans-serif; transition: box-shadow .12s, transform .12s, border-color .12s; }
+        .tile:hover { border-color: var(--kl-blau); box-shadow: 0 3px 10px rgba(31, 140, 187, .18); transform: translateY(-1px); background: #fff; }
+        .tile img { width: 22px; height: 22px; border-radius: 5px; }
+        .tile span { max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tile.private { border-style: dashed; }
+        .tile.private span { color: var(--kl-blau-dunkel); }
+
+        .search-btns button { flex: 1; padding: 6px 4px; font-size: 12px; background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; }
+        .search-btns button:hover { background: var(--kl-blau); color: #fff; border-color: var(--kl-blau); }
+
+        #hint { min-height: 0; }
+        #hint:empty { display: none; }
+
+        .links { margin-top: 8px; padding-top: 6px; border-top: 1px solid #e3eaef; }
+        .links a { color: var(--kl-blau); text-decoration: none; font-size: 12px; font-weight: 600; }
+        .links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="brand"><img src="icon32.png" alt=""><b>klöschinski</b><span>toolbox</span></div>
+    <div id="startBar"><button id="startBtn">▶ Start – alle öffnen</button></div>
+
+    <h2>Schnellzugriffe</h2>
+    <div class="grid" id="quickGrid"></div>
+
+    <h2>M365 Admin <span style="color:#9aa7b0; text-transform:none;">(gestrichelt = privates Fenster)</span></h2>
+    <div class="grid" id="m365Grid"></div>
+
+    <h2>DATEV</h2>
+    <div class="grid" id="datevGrid"></div>
+
+    <h2>Suche</h2>
+    <div class="row" style="margin-bottom:6px;">
+        <input type="text" id="ticketNr" placeholder="Ticketnummer, z. B. 123456" autofocus>
+        <button id="open">Ticket</button>
+    </div>
+    <div class="row" style="margin-bottom:6px;">
+        <input type="text" id="kundenNr" placeholder="Kundennummer, z. B. 12345">
+        <button id="openKunde">Kunde</button>
+    </div>
+    <div class="row" style="margin-bottom:6px;">
+        <input type="text" id="webSuche" placeholder="Suche… (Enter = DATEV)">
+    </div>
+    <div class="row search-btns">
+        <button id="sDatev" title="DATEV Wissensplattform">DATEV</button>
+        <button id="sGoogle" title="Google-Suche">Google</button>
+        <button id="sInno" title="InnoGPT">InnoGPT</button>
+    </div>
+    <div id="hint"></div>
+
+    <div class="links">
+        <a href="#" id="openChat">🤖 KI-Chat</a><span id="chatSep"> &middot; </span><a href="#" id="clearData" title="Öffnet den Browser-Dialog „Browserdaten löschen“">🧹 Browserdaten</a> &middot;
+        <a href="#" id="openOptions">Optionen</a>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+﻿{
+  "addons": {
+    "toolbox@kloeschinski.de": {
+      "updates": [
+        {
+          "update_link": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v2.15.5.xpi",
+          "version": "2.15.5"
+        }
+      ]
+    }
+  }
+}
