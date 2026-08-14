@@ -770,6 +770,85 @@
 
     let panelOpen = false;
 
+    // ---------------------------------------------------------- Abonnieren
+
+    // Nativer "Abonnieren"-Button: <button class="ap-button light">
+    // <i class="... ap-icon-add ..."></i>Abonnieren</button>.
+    // Eigene Toolbar-Buttons (__tt_tbtn) sind ausgeschlossen.
+    function findAbonnierenButton() {
+        for (const b of document.querySelectorAll("button")) {
+            if (b.classList.contains("__tt_tbtn")) {
+                continue;
+            }
+            if ((b.textContent || "").trim() === "Abonnieren" && isVisible(b)) {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    // Reiter (z. B. "Abonnenten (3)", "Ticket") ueber den Text finden;
+    // moeglichst tiefes Element nehmen (Eltern-Container matchen auch).
+    function findTab(re) {
+        let best = null;
+        for (const el of document.querySelectorAll("li, [role='tab'], a, button, div, span")) {
+            const t = (el.textContent || "").trim();
+            if (t.length > 30 || !re.test(t) || !isVisible(el)) {
+                continue;
+            }
+            if (!best || best.contains(el)) {
+                best = el;
+            }
+        }
+        if (!best) {
+            return null;
+        }
+        return best.closest("li, [role='tab']") || best;
+    }
+
+    // Klickt den nativen Abonnieren-Button. Der ist teils erst im DOM,
+    // wenn der Tab "Abonnenten" geoeffnet wurde - dann Tab oeffnen,
+    // abonnieren und zurueck zum Ticket-Tab wechseln.
+    async function subscribeTicket(btn) {
+        try {
+            let native = findAbonnierenButton();
+            let switchedTab = false;
+            if (!native) {
+                const aboTab = findTab(/^Abonnenten( \(\d+\))?$/);
+                if (!aboTab) {
+                    alert("Abonnenten-Bereich nicht gefunden - bitte manuell abonnieren.");
+                    return;
+                }
+                realClick(aboTab);
+                switchedTab = true;
+                for (let i = 0; i < 10 && !native; i++) {
+                    await sleep(200);
+                    native = findAbonnierenButton();
+                }
+            }
+            if (native) {
+                realClick(native);
+                await sleep(400);
+                if (btn) {
+                    const old = btn.textContent;
+                    btn.textContent = "✓ Abonniert";
+                    setTimeout(() => { btn.textContent = old; }, 2500);
+                }
+            } else {
+                console.warn("Ticket-Termin: 'Abonnieren'-Button nicht gefunden (schon abonniert?).");
+                alert("'Abonnieren'-Button nicht gefunden - vermutlich ist das Ticket bereits abonniert.");
+            }
+            if (switchedTab) {
+                const ticketTab = findTab(/^Ticket$/);
+                if (ticketTab) {
+                    realClick(ticketTab);
+                }
+            }
+        } catch (err) {
+            console.warn("Ticket-Termin: Abonnieren fehlgeschlagen:", err);
+        }
+    }
+
     // Bevorzugt: Button in der Ticketsystem-Toolbar (stabile Klasse
     // ap-toolbar--fullscreen-at-top), im nativen Look (ap-button light).
     // Fallback: schwebender Button unten rechts.
@@ -799,6 +878,15 @@
                 neBtn.textContent = "📵 Nicht erreicht";
                 neBtn.addEventListener("click", () => createNichtErreichtEintrag());
                 host.appendChild(neBtn);
+            }
+            if (!tb.querySelector(".__tt_abo_tbtn")) {
+                const aboBtn = document.createElement("button");
+                aboBtn.type = "button";
+                aboBtn.className = "ap-button light __tt_tbtn __tt_abo_tbtn";
+                aboBtn.title = "Dieses Ticket abonnieren (klickt den nativen Abonnieren-Button, bei Bedarf über den Abonnenten-Tab)";
+                aboBtn.textContent = "🔔 Abo";
+                aboBtn.addEventListener("click", (e) => subscribeTicket(e.currentTarget));
+                host.appendChild(aboBtn);
             }
             if (!tb.querySelector(".__tt_route_tbtn")) {
                 const rBtn = document.createElement("button");
