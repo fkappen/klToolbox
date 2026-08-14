@@ -181,8 +181,11 @@ function shadeColor(hex, pct) {
 }
 
 function applyBrand() {
-    chrome.storage.local.get({ brandName: "", brandPrimary: "", brandAccent: "" }, (items) => {
+    chrome.storage.local.get({ brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "" }, (items) => {
         const root = document.documentElement;
+        if (items.brandIcon) {
+            document.querySelector(".brand img").src = items.brandIcon;
+        }
         if (items.brandPrimary) {
             root.style.setProperty("--kl-blau", items.brandPrimary);
             root.style.setProperty("--kl-blau-dunkel", shadeColor(items.brandPrimary, -0.2));

@@ -34,7 +34,17 @@ function addBubble(cls, text) {
 }
 
 function updateMeta() {
-    chrome.storage.local.get({ provider: "claude", claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini", innogptModel: "gpt-5", brandPrimary: "", brandAccent: "" }, (s) => {
+    chrome.storage.local.get({ provider: "claude", claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini", innogptModel: "gpt-5", brandPrimary: "", brandAccent: "", brandIcon: "" }, (s) => {
+        if (s.brandIcon) {
+            const img = document.querySelector("header img");
+            if (img) {
+                img.src = s.brandIcon;
+            }
+            const fav = document.querySelector("link[rel='icon']");
+            if (fav) {
+                fav.href = s.brandIcon;
+            }
+        }
         // Branding (per Settings-Import) auf die CSS-Variablen anwenden
         if (s.brandPrimary) {
             const m = /^#?([0-9a-f]{6})$/i.exec(String(s.brandPrimary).trim());

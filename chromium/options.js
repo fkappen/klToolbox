@@ -21,7 +21,7 @@ const KI_DEFAULTS = {
 
 // Branding (Name + zwei Farben) kommt per Settings-Import; ohne Import
 // bleibt der neutrale Look. Dunkle Variante wird automatisch abgeleitet.
-const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "" };
+const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "" };
 
 function shadeColor(hex, pct) {
     const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
@@ -47,6 +47,12 @@ function applyBrand(items) {
         const t = document.getElementById("brandTitle");
         if (t) {
             t.textContent = items.brandName + " – Optionen";
+        }
+    }
+    if (items.brandIcon) {
+        const img = document.querySelector("h1 img");
+        if (img) {
+            img.src = items.brandIcon;
         }
     }
 }
@@ -401,7 +407,7 @@ function exportAllSettings() {
 // Host-Berechtigung fuer das (per Import konfigurierte) Ticketsystem: Das
 // Ticketsystem steht bewusst NICHT im Manifest - erst die optionale
 // Berechtigung (Nutzer-Klick) aktiviert die Ticket-Module dort.
-function updateHostPermissionUi() {
+function updateHostPermissionUi(highlight) {
     chrome.storage.local.get({ linkTemplate: "" }, (items) => {
         let origin = null;
         try {
@@ -418,7 +424,21 @@ function updateHostPermissionUi() {
         chrome.permissions.contains({ origins: [match] }, (granted) => {
             row.style.display = granted ? "none" : "flex";
             if (!granted) {
-                document.getElementById("grantHost").textContent = "Zugriff auf " + new URL(origin).hostname + " erlauben";
+                const host = new URL(origin).hostname;
+                document.getElementById("grantHost").textContent = "Zugriff auf " + host + " erlauben";
+                if (highlight) {
+                    // Nach dem Import unuebersehbar machen: Die Browser-
+                    // Berechtigungsabfrage darf erst auf einen echten Klick
+                    // folgen (User-Geste), automatisch geht es nicht.
+                    row.scrollIntoView({ behavior: "smooth", block: "center" });
+                    row.style.outline = "3px solid #b58900";
+                    row.style.outlineOffset = "4px";
+                    setTimeout(() => {
+                        row.style.outline = "";
+                        row.style.outlineOffset = "";
+                    }, 6000);
+                    alert("Fast fertig!\n\nDamit die Ticket-Module (Vorlagen, Termin, Wartezeit) aktiv werden, bitte jetzt den markierten Button\n\n„Zugriff auf " + host + " erlauben“\n\nklicken und die Abfrage des Browsers bestätigen.");
+                }
             }
         });
     });
@@ -437,6 +457,7 @@ function grantTicketHostPermission() {
                 chrome.runtime.sendMessage({ type: "syncTicketScripts" }, () => {
                     flashStatus("statusSettings");
                     updateHostPermissionUi();
+                    alert("Zugriff erteilt - die Ticket-Module sind jetzt aktiv.\n\nBereits geöffnete Ticket-Tabs bitte einmal neu laden (F5).");
                 });
             }
         });
@@ -465,7 +486,7 @@ function importAllSettings(file, mode) {
                     chrome.storage.local.set(settings, () => {
                         flashStatus("statusSettings");
                         loadAll();
-                        updateHostPermissionUi();
+                        updateHostPermissionUi(true);
                     });
                 });
                 return;
@@ -476,7 +497,7 @@ function importAllSettings(file, mode) {
             chrome.storage.local.set(settings, () => {
                 flashStatus("statusSettings");
                 loadAll();
-                updateHostPermissionUi();
+                updateHostPermissionUi(true);
             });
         } catch (err) {
             alert("Import fehlgeschlagen: " + err.message);
@@ -523,6 +544,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
     document.getElementById("grantHost").addEventListener("click", grantTicketHostPermission);
     updateHostPermissionUi();
+    // Falls die Ticket-URL erst spaeter ankommt (z. B. GPO-Vorgaben)
+    chrome.storage.onChanged.addListener((ch, area) => {
+        if (area === "local" && ch.linkTemplate) {
+            updateHostPermissionUi();
+        }
+    });
     let importMode = "merge";
     document.getElementById("settingsImport").addEventListener("click", () => {
         importMode = "merge";
