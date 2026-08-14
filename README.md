@@ -43,8 +43,8 @@ Die Erweiterung wird bewusst als **neutrale Hülle** ausgeliefert — ohne inter
 Links und URL-Vorlagen. Nach der Installation:
 
 1. Optionen öffnen → **Sicherung → Alle Einstellungen importieren**
-2. Die intern verteilte Settings-Datei auswählen (nicht in diesem Repo;
-   Struktur siehe [`settings-example.json`](settings-example.json))
+2. [`releases/kloeschinski-defaults.json`](releases/kloeschinski-defaults.json)
+   herunterladen und auswählen
 3. Eigene API-Keys für die KI-Module eintragen
 4. Für private M365-Fenster: in der Erweiterungsverwaltung „Im Inkognito-Modus
    zulassen“ bzw. „In privaten Fenstern ausführen“ aktivieren
@@ -57,7 +57,8 @@ Der Import führt zusammen: Nur die in der Datei enthaltenen Einstellungen werde
 ```
 chromium/     Quellcode + Manifest fuer Chrome/Brave/Edge (fuehrende Variante)
 firefox/      generierte Firefox-Variante (Build-Script, eigenes Manifest)
-releases/     Verteil-Artefakte: chromium-ZIP, signierte Firefox-.xpi, updates.json
+releases/     Verteil-Artefakte: chromium-ZIP, signierte Firefox-.xpi,
+              updates.json, kloeschinski-defaults.json (Settings-Import)
 Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
 ```
 

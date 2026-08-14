@@ -1,0 +1,28 @@
+{
+    "_extension": "Kloeschinski",
+    "_hinweis": "Vorbelegung fuer den Settings-Import (Optionen -> Sicherung -> Alle Einstellungen importieren). Gehoert NICHT in die Store-Pakete - die Extension wird als neutrale Huelle ausgeliefert. API-Keys nach dem Import individuell eintragen.",
+    "settings": {
+        "linkTemplate": "https://sc.kloeschinski.de/tickets?id=%TICKETNR%",
+        "kundenLinkTemplate": "https://sc.kloeschinski.de/addresses/open?customerReference=%KDNR%",
+        "quickLinks": [
+            { "name": "Venabo", "url": "https://sc.kloeschinski.de", "start": true },
+            { "name": "SupportConnect", "url": "https://support.kloudservice.de", "start": true },
+            { "name": "PSU Control", "url": "https://ps.kloeschinski.de:5050/CONTROL", "start": true },
+            { "name": "ninjaOne", "url": "https://eu.ninjarmm.com/#/systemDashboard/overview", "start": true },
+            { "name": "KL-Knowledgebase", "url": "https://kloeschinskide.sharepoint.com/sites/Techniker/_layouts/15/Doc.aspx?sourcedoc={61b8ebec-3835-4ccd-be4e-940cb148d0be}&action=edit&wd=target%28Office.one%7C32d18a8c-1127-4e2c-8c8f-82c7b1a3d753%2F6.1%20Exchange%20Hybrid%7C7da406b0-2528-49dc-a17e-ba529a294c4e%2F%29&wdorigin=NavigationUrl", "start": true },
+            { "name": "KeePass", "url": "https://pps.kloeschinski.de/", "start": false },
+            { "name": "Outlook", "url": "https://outlook.office.com/mail/", "start": false },
+            { "name": "KLOUD", "url": "https://monitoring.kloudservice.de:6443/group.htm?id=0&tabid=1", "start": false },
+            { "name": "klASP", "url": "https://monitoring.klasp.de:6443/group.htm?id=0&tabid=1", "start": false },
+            { "name": "DATEV Updates", "url": "https://planner.cloud.microsoft/webui/v1/plan/h3ZIDIprT0qB-tuWL5FOKpcAC5cb?tid=b6dc8f1a-4f12-4f56-ac4d-d22d93fa7702", "start": false }
+        ],
+        "m365Links": [
+            { "name": "CIPP", "url": "https://cipp.kloeschinski.de", "privat": false },
+            { "name": "M365 Admin", "url": "https://admin.microsoft.com", "privat": true },
+            { "name": "Exchange Online", "url": "https://admin.exchange.microsoft.com", "privat": true },
+            { "name": "Entra", "url": "https://entra.microsoft.com", "privat": true }
+        ],
+        "kiKontext": "Wir sind ein IT-Dienstleister. Formuliere freundlich und professionell.",
+        "firmenAdresse": "In der Pützgewann 10, 56218 Mülheim-Kärlich"
+    }
+}
