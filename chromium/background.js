@@ -140,6 +140,61 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
 });
 
+// ---------------------------------------------------------------- Managed Storage (GPO)
+//
+// Administratoren koennen per Richtlinie den Schluessel "defaultsJson"
+// setzen (Chromium: 3rdparty-Extension-Policy, Firefox: 3rdparty-Policy;
+// siehe gpo/ im Repo). Inhalt: JSON im Format der kloeschinski-defaults.json
+// (komplette Datei oder nur das settings-Objekt). Die Vorgaben werden in
+// storage.local uebernommen, sobald sich der Richtlinienwert aendert -
+// danach darf der Benutzer weiter anpassen, bis der Admin eine neue
+// Version der Vorgaben verteilt (Verhalten wie der Settings-Import).
+
+function applyManagedDefaults() {
+    if (!chrome.storage.managed) {
+        return;
+    }
+    chrome.storage.managed.get(null, (items) => {
+        // Firefox wirft hier einen Fehler, wenn keine Richtlinie existiert
+        if (chrome.runtime.lastError) {
+            return;
+        }
+        const raw = items && items.defaultsJson;
+        if (!raw || typeof raw !== "string") {
+            return;
+        }
+        let parsed = null;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (err) {
+            console.error("[Toolbox] GPO-defaultsJson ist kein gueltiges JSON:", err);
+            return;
+        }
+        const settings = (parsed && typeof parsed === "object" && parsed.settings && typeof parsed.settings === "object")
+            ? parsed.settings
+            : parsed;
+        if (!settings || typeof settings !== "object") {
+            return;
+        }
+        chrome.storage.local.get({ managedDefaultsApplied: "" }, (st) => {
+            if (st.managedDefaultsApplied === raw) {
+                return; // dieser Richtlinien-Stand wurde schon uebernommen
+            }
+            const update = Object.assign({}, settings, { managedDefaultsApplied: raw });
+            chrome.storage.local.set(update, () => {
+                console.log("[Toolbox] GPO-Vorgaben uebernommen (" + Object.keys(settings).length + " Schluessel)");
+            });
+        });
+    });
+}
+
+applyManagedDefaults();
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "managed") {
+        applyManagedDefaults();
+    }
+});
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // DATEV-Suche: markierten Text an die Wissensplattform uebergeben
     if (info.menuItemId === "datev_suche") {

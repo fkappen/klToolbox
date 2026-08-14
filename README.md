@@ -52,6 +52,9 @@ Links und URL-Vorlagen. Nach der Installation:
 Der Import führt zusammen: Nur die in der Datei enthaltenen Einstellungen werden
 überschrieben, vorhandene API-Keys bleiben erhalten.
 
+**Zentrale Verteilung:** Installation und Vorgabe-Einstellungen lassen sich per
+Gruppenrichtlinie ausrollen (alle vier Browser) — siehe [`gpo/`](gpo/).
+
 ## Repo-Struktur
 
 ```
@@ -59,6 +62,7 @@ chromium/     Quellcode + Manifest fuer Chrome/Brave/Edge (fuehrende Variante)
 firefox/      generierte Firefox-Variante (Build-Script, eigenes Manifest)
 releases/     Verteil-Artefakte: chromium-ZIP, signierte Firefox-.xpi,
               updates.json, kloeschinski-defaults.json (Settings-Import)
+gpo/          GPO-Verteilung: Force-Install + Vorgaben via Managed Storage
 Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
 ```
 
