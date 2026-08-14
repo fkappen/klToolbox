@@ -214,6 +214,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         syncTicketContentScripts().then(() => sendResponse({ ok: true }));
         return true;
     }
+    if (msg && msg.type === "resetIncognito") {
+        // Inkognito-Reset: Die private Sitzung wird nur verworfen, wenn
+        // KURZ kein privates Fenster existiert. Also: alle schliessen,
+        // dann sofort ein frisches oeffnen - fuer den Nutzer ein "Reset"
+        // ohne manuelles Schliessen/Neuoeffnen. Laeuft hier im Background,
+        // weil das Popup mit seinem Fenster stirbt.
+        (async () => {
+            try {
+                const wins = await chrome.windows.getAll({});
+                for (const w of wins.filter((x) => x.incognito)) {
+                    try {
+                        await chrome.windows.remove(w.id);
+                    } catch (err) {
+                        console.warn("klToolbox: Fenster schliessen fehlgeschlagen:", err);
+                    }
+                }
+                await chrome.windows.create({ incognito: true });
+                sendResponse({ ok: true });
+            } catch (err) {
+                console.error("klToolbox: Inkognito-Reset fehlgeschlagen:", err);
+                sendResponse({ ok: false, error: String(err) });
+            }
+        })();
+        return true;
+    }
     return false;
 });
 

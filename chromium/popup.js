@@ -317,26 +317,14 @@ function doSearch(target) {
     });
 }
 
-// Inkognito-Reset: alle privaten Fenster schliessen - damit verwirft der
-// Browser die komplette Inkognito-Sitzung (Cookies, Logins, Storage).
-// Das eigene Fenster zuletzt, sonst stirbt das Popup vor dem Aufraeumen.
+// Inkognito-Reset: der Background schliesst alle privaten Fenster und
+// oeffnet sofort ein frisches - die Sitzung (Cookies, Logins) ist damit
+// zurueckgesetzt, ohne dass der Nutzer manuell schliessen/neu oeffnen muss.
 function resetIncognito() {
-    if (!confirm("Alle privaten Fenster schließen?\n\nDamit wird die Inkognito-Sitzung (Cookies, Logins, gespeicherte Website-Daten) zurückgesetzt.")) {
+    if (!confirm("Inkognito-Sitzung zurücksetzen?\n\nCookies, Logins und Website-Daten der privaten Sitzung werden verworfen; ein frisches privates Fenster öffnet sich automatisch. Offene private Tabs gehen dabei verloren.")) {
         return;
     }
-    chrome.windows.getCurrent((cur) => {
-        chrome.windows.getAll({}, (wins) => {
-            const priv = wins.filter((w) => w.incognito);
-            for (const w of priv) {
-                if (!cur || w.id !== cur.id) {
-                    chrome.windows.remove(w.id);
-                }
-            }
-            if (cur && cur.incognito) {
-                chrome.windows.remove(cur.id);
-            }
-        });
-    });
+    chrome.runtime.sendMessage({ type: "resetIncognito" });
 }
 
 // Kundensuche: URL-Vorlage kommt per Settings-Import (Platzhalter %KDNR%)
