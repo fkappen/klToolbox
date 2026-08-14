@@ -23,6 +23,7 @@
             { "name": "Entra", "url": "https://entra.microsoft.com", "privat": true }
         ],
         "kiKontext": "Wir sind ein IT-Dienstleister. Formuliere freundlich und professionell.",
-        "firmenAdresse": "In der Pützgewann 10, 56218 Mülheim-Kärlich"
+        "firmenAdresse": "In der Pützgewann 10, 56218 Mülheim-Kärlich",
+        "cleanerWhitelist": ["@kloeschinski.de"]
     }
 }
