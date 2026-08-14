@@ -1,8 +1,3 @@
-#Version
-$version = "2.0.0"
-$datum = "2026-08-14"
-$autor = "FK"
-
 # Verteilt die klToolbox per Richtlinien-Registry (HKLM) an Chrome, Edge,
 # Brave und Firefox:
 #   - Force-Install der Extension (Chromium: Chrome Web Store, Firefox: xpi aus dem Repo)
@@ -27,6 +22,11 @@ param(
     [string]$DefaultsPath,
     [string]$ExtensionId = "NEUE_STORE_ID_HIER_EINTRAGEN"
 )
+
+#Version
+$version = "2.0.0"
+$datum = "2026-08-14"
+$autor = "FK"
 
 Set-StrictMode -Version Latest
 

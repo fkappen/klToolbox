@@ -23,7 +23,28 @@ verteilt und liegt bewusst nicht in diesem Repo.
 Es respektiert vorhandene `ExtensionInstallForcelist`-Nummern und merged eine
 bestehende Firefox-`ExtensionSettings`-Richtlinie, statt sie zu überschreiben.
 
-## Variante B: GPP-Registrierungseinträge (manuell in der GPO)
+## Variante B: GPP-Import-Datei (empfohlen für die GPO)
+
+[`New-GpoRegistryXml.ps1`](New-GpoRegistryXml.ps1) erzeugt aus
+[`Registry.template.xml`](Registry.template.xml) eine fertige GPP-Registry-Datei
+mit allen Einträgen (Force-Install + `defaultsJson` für alle vier Browser):
+
+```powershell
+.\New-GpoRegistryXml.ps1 -DefaultsPath "\\pfad\zur\defaults.json" -ExtensionId "<Store-ID>"
+```
+
+Import: GPO-Editor → **Computerkonfiguration → Einstellungen →
+Windows-Einstellungen → Registrierung** → die erzeugte XML-Datei per
+**Drag & Drop** in die rechte Fläche ziehen (legt die Sammlung „klToolbox" an).
+
+Hinweise:
+- Die erzeugte Datei enthält die interne Defaults-JSON → **nicht** ins Repo.
+- Der Firefox-`ExtensionSettings`-Eintrag **überschreibt** eine ggf. vorhandene
+  ExtensionSettings-Richtlinie — in dem Fall Variante A verwenden (die merged).
+- Solange noch keine signierte Firefox-xpi im Repo liegt, wird der
+  ExtensionSettings-Eintrag automatisch weggelassen.
+
+## Variante C: GPP-Registrierungseinträge (manuell in der GPO)
 
 `<ID>` = Chrome-Web-Store-ID der klToolbox (nach Einreichung aus der Devconsole) ·
 Firefox-ID: `app@kltoolbox.dev`

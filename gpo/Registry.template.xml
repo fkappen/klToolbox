@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GPP-Registry-Vorlage klToolbox: Platzhalter werden von New-GpoRegistryXml.ps1
+     gefuellt (__EXTENSION_ID__, __DEFAULTS_JSON__, __FF_EXTENSION_SETTINGS__).
+     Die GEFUELLTE Datei enthaelt interne Daten und gehoert NICHT in dieses Repo. -->
+<RegistrySettings clsid="{A3CCFC41-DFDB-43a5-8D26-0FE8B954DA51}">
+  <Collection clsid="{53B533F5-224C-47e3-B01B-CA3B3F3FF4BF}" name="klToolbox" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0001-4B6B-9E5A-000000000000}">
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="klToolbox" status="klToolbox" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0002-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\Google\Chrome\ExtensionInstallForcelist" name="klToolbox" type="REG_SZ" value="__EXTENSION_ID__;https://clients2.google.com/service/update2/crx"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="klToolbox" status="klToolbox" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0003-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" name="klToolbox" type="REG_SZ" value="__EXTENSION_ID__;https://clients2.google.com/service/update2/crx"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="klToolbox" status="klToolbox" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0004-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\BraveSoftware\Brave\ExtensionInstallForcelist" name="klToolbox" type="REG_SZ" value="__EXTENSION_ID__;https://clients2.google.com/service/update2/crx"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="defaultsJson" status="defaultsJson" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0005-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\Google\Chrome\3rdparty\extensions\__EXTENSION_ID__\policy" name="defaultsJson" type="REG_SZ" value="__DEFAULTS_JSON__"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="defaultsJson" status="defaultsJson" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0006-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\Microsoft\Edge\3rdparty\extensions\__EXTENSION_ID__\policy" name="defaultsJson" type="REG_SZ" value="__DEFAULTS_JSON__"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="defaultsJson" status="defaultsJson" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0007-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\BraveSoftware\Brave\3rdparty\extensions\__EXTENSION_ID__\policy" name="defaultsJson" type="REG_SZ" value="__DEFAULTS_JSON__"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="ExtensionSettings" status="ExtensionSettings" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0008-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\Mozilla\Firefox" name="ExtensionSettings" type="REG_SZ" value="__FF_EXTENSION_SETTINGS__"/>
+    </Registry>
+    <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="defaultsJson" status="defaultsJson" image="7" changed="2026-08-14 12:00:00" uid="{1B9A2C10-0009-4B6B-9E5A-000000000000}">
+      <Properties action="U" displayDecimal="0" default="0" hive="HKEY_LOCAL_MACHINE" key="SOFTWARE\Policies\Mozilla\Firefox\3rdparty\Extensions\app@kltoolbox.dev" name="defaultsJson" type="REG_SZ" value="__DEFAULTS_JSON__"/>
+    </Registry>
+  </Collection>
+</RegistrySettings>
