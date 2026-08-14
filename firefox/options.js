@@ -35,26 +35,62 @@ function shadeColor(hex, pct) {
 }
 
 function applyBrand(items) {
+    // Symmetrisch: leere Werte setzen den neutralen Zustand wieder her
+    // (wichtig fuer "Alles zuruecksetzen", solange die Seite offen ist).
     const root = document.documentElement;
     if (items.brandPrimary) {
         root.style.setProperty("--klt-p", items.brandPrimary);
         root.style.setProperty("--klt-pd", shadeColor(items.brandPrimary, -0.2));
+    } else {
+        root.style.removeProperty("--klt-p");
+        root.style.removeProperty("--klt-pd");
     }
     if (items.brandAccent) {
         root.style.setProperty("--klt-a", items.brandAccent);
+    } else {
+        root.style.removeProperty("--klt-a");
     }
-    if (items.brandName) {
-        const t = document.getElementById("brandTitle");
-        if (t) {
-            t.textContent = items.brandName + " – Optionen";
+    const t = document.getElementById("brandTitle");
+    if (t) {
+        t.textContent = (items.brandName ? items.brandName : "klToolbox") + " – Optionen";
+    }
+    const img = document.querySelector("h1 img");
+    if (img) {
+        img.src = items.brandIcon ? items.brandIcon : "icon32.png";
+    }
+}
+
+// Kompletter Reset in den neutralen Auslieferungszustand - inkl. Widerruf
+// der Ticketsystem-Berechtigung. Hinweis: Sind GPO-Vorgaben (Managed
+// Storage) aktiv, werden diese beim naechsten Browserstart neu uebernommen.
+function resetAllSettings() {
+    if (!confirm("Wirklich ALLE Einstellungen zurücksetzen?\n\nEntfernt werden: API-Keys, Links, Vorlagen, Branding und die Ticketsystem-Konfiguration samt Website-Berechtigung. Die Extension ist danach wieder im neutralen Auslieferungszustand.")) {
+        return;
+    }
+    chrome.storage.local.get({ linkTemplate: "" }, (items) => {
+        let origin = null;
+        try {
+            origin = new URL(items.linkTemplate).origin;
+        } catch (err) {
+            origin = null;
         }
-    }
-    if (items.brandIcon) {
-        const img = document.querySelector("h1 img");
-        if (img) {
-            img.src = items.brandIcon;
+        const finish = () => {
+            chrome.storage.local.clear(() => {
+                // background raeumt auf: Ticket-Scripts deregistrieren,
+                // Toolbar-Icon zurueck auf neutral (via storage.onChanged)
+                chrome.runtime.sendMessage({ type: "syncTicketScripts" }, () => {
+                    flashStatus("statusSettings");
+                    loadAll();
+                    updateHostPermissionUi();
+                });
+            });
+        };
+        if (origin) {
+            chrome.permissions.remove({ origins: [origin + "/*"] }, finish);
+        } else {
+            finish();
         }
-    }
+    });
 }
 
 const TERMIN_DEFAULTS = {
@@ -543,6 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("linksSave").addEventListener("click", saveLinks);
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
     document.getElementById("grantHost").addEventListener("click", grantTicketHostPermission);
+    document.getElementById("settingsReset").addEventListener("click", resetAllSettings);
     updateHostPermissionUi();
     // Falls die Ticket-URL erst spaeter ankommt (z. B. GPO-Vorgaben)
     chrome.storage.onChanged.addListener((ch, area) => {
