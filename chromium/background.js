@@ -91,7 +91,7 @@ const MODULE_DEFAULTS = {
 };
 
 function rebuildMenus() {
-    chrome.storage.local.get(MODULE_DEFAULTS, (mods) => {
+    chrome.storage.local.get(Object.assign({}, MODULE_DEFAULTS, { customKiActions: [] }), (mods) => {
         chrome.contextMenus.removeAll(() => {
             if (mods.modKi !== false) {
                 chrome.contextMenus.create({
@@ -107,6 +107,18 @@ function rebuildMenus() {
                         contexts: ["selection"]
                     });
                 }
+                // Eigene Aktionen (Optionen -> KI -> Eigene Aktionen)
+                const custom = Array.isArray(mods.customKiActions) ? mods.customKiActions : [];
+                custom.forEach((a, i) => {
+                    if (a && a.name && a.prompt) {
+                        chrome.contextMenus.create({
+                            id: "kic_" + i,
+                            parentId: "ki_parent",
+                            title: a.name,
+                            contexts: ["selection"]
+                        });
+                    }
+                });
             }
             if (mods.modSuche !== false) {
                 // Markierten Text (z. B. Fehlermeldung) in der DATEV Wissensplattform suchen
@@ -135,9 +147,9 @@ if (chrome.runtime.onStartup) {
     chrome.runtime.onStartup.addListener(rebuildMenus);
 }
 
-// Modul-Schalter geaendert -> Menues sofort anpassen
+// Modul-Schalter oder eigene Aktionen geaendert -> Menues sofort anpassen
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && (changes.modKi || changes.modSuche)) {
+    if (area === "local" && (changes.modKi || changes.modSuche || changes.customKiActions)) {
         rebuildMenus();
     }
 });
@@ -374,9 +386,23 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         return;
     }
 
-    const actionId = String(info.menuItemId).replace(/^ki_/, "");
-    const action = ACTIONS[actionId];
-    if (!action || !tab || !tab.id) {
+    // Anweisung ermitteln: eingebaute Aktion (ki_*) oder eigene (kic_<index>)
+    let instruction = null;
+    if (String(info.menuItemId).startsWith("kic_")) {
+        const idx = parseInt(String(info.menuItemId).slice(4), 10);
+        const stored = await new Promise((resolve) => {
+            chrome.storage.local.get({ customKiActions: [] }, (s) => resolve(s.customKiActions));
+        });
+        if (Array.isArray(stored) && stored[idx] && stored[idx].prompt) {
+            instruction = stored[idx].prompt;
+        }
+    } else {
+        const action = ACTIONS[String(info.menuItemId).replace(/^ki_/, "")];
+        if (action) {
+            instruction = action.instruction;
+        }
+    }
+    if (!instruction || !tab || !tab.id) {
         return;
     }
 
@@ -397,7 +423,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         await showToast(tab.id, "KI formuliert um…", false);
 
         const settings = await getSettings();
-        const result = await callProvider(settings, action.instruction, text);
+        const result = await callProvider(settings, instruction, text);
 
         await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -426,9 +452,9 @@ function buildChatSystem(settings) {
     return kontext ? CHAT_SYSTEM + "\n\nKontext: " + kontext : CHAT_SYSTEM;
 }
 
-async function chatProvider(settings, messages) {
-    let system = buildChatSystem(settings);
-    if (settings.provider === "innogpt") {
+async function chatProvider(settings, messages, systemOverride) {
+    let system = systemOverride || buildChatSystem(settings);
+    if (!systemOverride && settings.provider === "innogpt") {
         // Laut InnoGPT-Doku wird die Websuche per Prompt aktiviert
         system += "\nNutze bei Bedarf die Websuche für aktuelle Informationen.";
     }
@@ -502,6 +528,36 @@ async function chatProvider(settings, messages) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    // KI-Antwortentwurf: Ticketverlauf rein, E-Mail-Entwurf raus.
+    // Anrede/Grussformel macht das Content-Script bzw. die Signatur im Feld.
+    if (msg && msg.type === "kiDraft" && typeof msg.history === "string") {
+        (async () => {
+            try {
+                const settings = await getSettings();
+                const kontext = (settings.kiKontext || "").trim();
+                let system =
+                    "Du bist Assistent für Kundenservice-E-Mails eines IT-Dienstleisters. " +
+                    "Verfasse aus dem gegebenen Ticketverlauf einen Antwortentwurf an den Kunden: " +
+                    "deutsch, freundlich, professionell, präzise, keine Floskeln. " +
+                    "Gehe auf den letzten offenen Punkt ein; erfinde keine Fakten oder Zusagen. " +
+                    "Gib AUSSCHLIESSLICH den E-Mail-Text zurück - OHNE Anrede am Anfang und " +
+                    "OHNE Grußformel/Signatur am Ende (beides wird automatisch ergänzt). " +
+                    "Keine Markdown-Formatierung.";
+                if (kontext) {
+                    system += "\n\nKontext zum Absender: " + kontext;
+                }
+                const text = await chatProvider(settings, [{
+                    role: "user",
+                    content: "Ticketverlauf (Reihenfolge wie im Ticket angezeigt):\n\n" + msg.history +
+                        "\n\nBitte verfasse jetzt den Antwortentwurf an den Kunden."
+                }], system);
+                sendResponse({ ok: true, text: text });
+            } catch (err) {
+                sendResponse({ ok: false, error: (err && err.message) ? err.message : String(err) });
+            }
+        })();
+        return true;
+    }
     if (msg && msg.type === "kiChat" && Array.isArray(msg.messages)) {
         (async () => {
             try {

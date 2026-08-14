@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>klToolbox – Hilfe</title>
+    <link rel="icon" href="icon32.png">
+    <style>
+        :root { --klt-p: #46626F; --klt-pd: #35505C; --klt-a: #7D939E; }
+        body { font: 14px/1.6 system-ui, sans-serif; max-width: 820px; margin: 40px auto; padding: 0 16px 60px; color: #26323a; background: #fafcfd; }
+        h1 { font-size: 24px; color: var(--klt-pd); display: flex; align-items: center; gap: 10px; }
+        h1 img { width: 30px; height: 30px; }
+        h2 { font-size: 18px; margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--klt-a); color: var(--klt-p); }
+        h3 { font-size: 15px; margin: 22px 0 6px; color: var(--klt-pd); }
+        code { background: #eef1f3; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #dde4e8; padding: 7px 10px; text-align: left; vertical-align: top; }
+        th { background: #f0f3f5; }
+        .tip { background: #eef4f7; border-left: 4px solid var(--klt-p); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+        ul { padding-left: 22px; }
+        a { color: var(--klt-p); }
+    </style>
+</head>
+<body>
+    <h1><img src="icon32.png" alt=""><span id="brandTitle">klToolbox – Hilfe</span></h1>
+    <p>Alle Funktionen im Überblick. Die Einstellungen dazu findest du in den
+    <a href="options.html" target="_blank">Optionen</a>; dort lassen sich alle Module auch einzeln abschalten.</p>
+
+    <h2>Erste Einrichtung</h2>
+    <ul>
+        <li><b>Konfiguration importieren:</b> Optionen → Sicherung → „Importieren (aktualisieren)“ mit der intern verteilten Konfigurationsdatei (bringt Links, Vorlagen, Branding und die Ticketsystem-URL mit).</li>
+        <li><b>Ticketsystem freigeben:</b> Nach dem Import erscheint der Button „Zugriff auf … erlauben“ — einmal klicken und die Browser-Abfrage bestätigen. Erst dann sind die Ticket-Module aktiv (offene Ticket-Tabs einmal neu laden).</li>
+        <li><b>API-Key eintragen:</b> Optionen → KI-Umformulierer → beim gewählten Anbieter den eigenen API-Key hinterlegen.</li>
+        <li><b>Private Fenster erlauben:</b> In der Erweiterungsverwaltung „Im Inkognito-Modus zulassen“ (Chromium) bzw. „In privaten Fenstern ausführen“ (Firefox) aktivieren — nötig für die Links, die im privaten Fenster öffnen, und den Inkognito-Reset.</li>
+    </ul>
+
+    <h2>KI-Funktionen</h2>
+    <h3>Text bearbeiten (Rechtsklick)</h3>
+    <p>Text auf einer beliebigen Webseite markieren → Rechtsklick → „KI: Text bearbeiten“. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld; ist das Feld nicht beschreibbar, erscheint ein Overlay mit Kopieren-Button. Eingebaute Aktionen: Umformulieren, Formeller, Lockerer, Kürzer, Rechtschreibkorrektur, Übersetzen (DE/EN). <b>Eigene Aktionen</b> mit eigenem Prompt lassen sich in den Optionen ergänzen.</p>
+    <h3>KI-Antwort im Ticket</h3>
+    <p>Im „Email senden“-Fenster den Button <b>„✨ KI-Antwort“</b> klicken: Die KI liest den sichtbaren Ticketverlauf und entwirft eine Antwort — mit automatischer Anrede aus dem An-Feld, eingefügt vor der Signatur. Der Entwurf ist zum Nachbearbeiten gedacht, nicht zum Blindversand.</p>
+    <h3>KI-Chat</h3>
+    <p>Über das Popup („🤖 KI-Chat“). Nutzt den konfigurierten Anbieter; unterstützt Mehrrunden-Gespräche, einfache Formatierung (fett, Code) und behält den Verlauf gespeichert — „Neuer Chat“ löscht ihn. Die Kontextmenü-Suche „In InnoGPT fragen“ nutzt dieselbe Seite.</p>
+    <h3>Suchen (Rechtsklick oder Popup)</h3>
+    <p>Markierten Text (z. B. eine Fehlermeldung) in der DATEV Wissensplattform, bei Google oder per KI nachschlagen. Im Popup gibt es dafür das Suchfeld mit drei Buttons (Enter = DATEV).</p>
+
+    <h2>Ticketsystem</h2>
+    <h3>Vorlagen</h3>
+    <p>Button <b>„📋 Vorlagen“</b> im „Email senden“-Fenster <i>und</i> am Eintrags-Editor (neben „Speichern“). Vorlagen werden vor der Signatur bzw. an der Cursor-Position eingefügt und in den Optionen gepflegt (Reihenfolge, Import/Export als JSON).</p>
+    <table>
+        <tr><th>Platzhalter</th><th>Wird ersetzt durch</th></tr>
+        <tr><td><code>{anrede}</code></td><td>„Frau/Herr Nachname“ aus dem An-Feld; unbekannter Vorname → voller Name; kein Empfänger → entfällt</td></tr>
+        <tr><td><code>{datum}</code></td><td>heutiges Datum</td></tr>
+        <tr><td><code>{zeit}</code></td><td>aktuelle Uhrzeit</td></tr>
+    </table>
+    <h3>Termin aus dem Ticket</h3>
+    <p>Button <b>„📅 Termin“</b> in der Ticket-Toolbar: übernimmt Kunde, Ticketnummer, Bezeichnung, Ansprechpartner, Telefon und E-Mail. Terminart wählbar (Telefon/Teams/Vor Ort — bei „Vor Ort“ wandert die Kundenadresse ins Ort-Feld). Ausgabe wahlweise als ICS-Datei (Outlook Desktop) oder direkt in Outlook Web. Auf Wunsch wird der Ticketstatus danach automatisch auf „Termin vereinbart“ gesetzt (abschaltbar in den Optionen).</p>
+    <h3>Weitere Ticket-Buttons</h3>
+    <ul>
+        <li><b>📵 Nicht erreicht:</b> legt einen Ticket-Eintrag mit konfigurierbarem Text an und speichert ihn.</li>
+        <li><b>🔔 Abo:</b> abonniert das Ticket (öffnet bei Bedarf kurz den Abonnenten-Tab und kehrt zurück).</li>
+        <li><b>🚗 Anfahrt:</b> Google-Maps-Route zur Kundenadresse — vom aktuellen Standort oder von der Firmenadresse.</li>
+        <li><b>⚡ Makros:</b> selbst konfigurierte Aktionsketten (siehe unten). Der Button erscheint nur, wenn Makros angelegt sind.</li>
+    </ul>
+    <h3>Aktions-Makros</h3>
+    <p>In den Optionen unter „Aktions-Makros“ definierst du Ketten aus: Eintragstext anlegen und/oder Status setzen (beides wird als <b>ein</b> Ticket-Eintrag gespeichert) und/oder Ticket abonnieren. Der Statusname muss exakt dem Text im Status-Dropdown entsprechen. Beispiel: „Nicht erreicht + Wiedervorlage“ = Eintrag „Kunde nicht erreicht ({datum} {zeit})“ + Status „Wiedervorlage“.</p>
+    <h3>Wartezeit-Ampel</h3>
+    <p>Oben links im Ticket: Zeit seit Ticketerstellung (Basis: ältester sichtbarer Eintrag). Farben bei normaler Priorität: grün &lt; 1 Tag, gelb &lt; 3 Tage, rot ab 3 Tagen. Bei Priorität „Hoch“: grün &lt; 15 Min, gelb &lt; 1 Std, rot ab 1 Std.</p>
+
+    <h2>Popup (Klick aufs Toolbar-Icon)</h2>
+    <ul>
+        <li><b>Start-Leiste:</b> öffnet alle als „Start“ markierten Schnellzugriffe auf einmal.</li>
+        <li><b>Schnellzugriffe / M365 / DATEV:</b> konfigurierbare Link-Kacheln; gestrichelte Kacheln öffnen im privaten Fenster.</li>
+        <li><b>Suche:</b> Ticketnummer → Ticket öffnen, Kundennummer → Kunde öffnen, Freitext → DATEV/Google/InnoGPT.</li>
+        <li><b>🧹 Browserdaten:</b> öffnet den Browser-Dialog „Browserdaten löschen“ (Firefox: Strg+Umschalt+Entf).</li>
+        <li><b>🕶 Inkognito-Reset:</b> nur in privaten Fenstern sichtbar — verwirft die private Sitzung (Cookies, Logins) und öffnet automatisch ein frisches privates Fenster.</li>
+    </ul>
+
+    <h2>MS Account Cleaner</h2>
+    <p>Auf der Microsoft-Kontoauswahl (login.microsoftonline.com u. a.) erscheint unten rechts „Alle Konten entfernen“: entfernt gemerkte Konten über das seiteneigene „Abmelden und vergessen“-Menü. Geschützt sind Konten „Mit Windows verbunden“ sowie alle Einträge der <b>Whitelist</b> (Optionen → MS Account Cleaner; exakte Adresse oder Domain-Teilstring wie <code>@firma.de</code>).</p>
+
+    <h2>Sicherung &amp; Verwaltung</h2>
+    <ul>
+        <li><b>Export:</b> alle Einstellungen (inkl. API-Keys) als JSON-Datei — als Backup oder zur Team-Verteilung.</li>
+        <li><b>Importieren (aktualisieren):</b> führt zusammen — nur Schlüssel aus der Datei werden ersetzt, API-Keys bleiben erhalten.</li>
+        <li><b>Importieren (überschreiben):</b> ersetzt sämtliche Einstellungen durch den Dateiinhalt (Vorsicht: nicht enthaltene Schlüssel, z. B. API-Keys, gehen verloren).</li>
+        <li><b>Alles zurücksetzen:</b> neutraler Auslieferungszustand inkl. Widerruf der Ticketsystem-Berechtigung.</li>
+        <li><b>Status:</b> ganz oben in den Optionen — zeigt Version, API-Key, Ticketsystem-Berechtigung, Module und GPO-Vorgaben auf einen Blick.</li>
+    </ul>
+    <div class="tip">Zentrale Verteilung: Installation und Vorgaben können per Gruppenrichtlinie ausgerollt werden (Managed Storage). Details im <code>gpo/</code>-Ordner des Repos.</div>
+
+    <h2>Häufige Fragen</h2>
+    <table>
+        <tr><th>Problem</th><th>Lösung</th></tr>
+        <tr><td>Ticket-Buttons/Wartezeit fehlen</td><td>Optionen → Status prüfen: Ticketsystem konfiguriert und Zugriff erteilt? Danach Ticket-Tab neu laden (F5).</td></tr>
+        <tr><td>„Kein API-Key hinterlegt“</td><td>Optionen → KI-Umformulierer → Key beim gewählten Anbieter eintragen und speichern.</td></tr>
+        <tr><td>Private Fenster öffnen nicht</td><td>Erweiterungsverwaltung → „Im Inkognito-Modus zulassen“ / „In privaten Fenstern ausführen“ aktivieren.</td></tr>
+        <tr><td>Vorlage landet an falscher Stelle</td><td>Vorlagen zielen immer auf den Mail-Editor; mit Klick in den Text lässt sich die Einfüge-Position setzen.</td></tr>
+        <tr><td>{anrede} bleibt leer/voller Name</td><td>Ohne Empfänger im An-Feld entfällt die Anrede; bei unbekanntem Vornamen wird bewusst der volle Name verwendet statt das Geschlecht zu raten.</td></tr>
+        <tr><td>Wartezeit wirkt zu kurz</td><td>Basis ist der älteste <i>sichtbare</i> Eintrag — bei gefiltertem oder teilgeladenem Verlauf fehlt der Anfang.</td></tr>
+    </table>
+
+    <script src="help.js"></script>
+</body>
+</html>

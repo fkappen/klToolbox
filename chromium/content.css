@@ -238,6 +238,35 @@
 
 /* ============================================================ Termin */
 
+/* Makro-Auswahl (Dropdown unter dem Toolbar-Button) */
+#__tt_makro_panel {
+    position: fixed;
+    z-index: 2147483646;
+    background: #fff;
+    border: 1px solid #d5dde2;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .22);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+}
+#__tt_makro_panel button {
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font: 13px/1.4 system-ui, sans-serif;
+    color: #26323a;
+}
+#__tt_makro_panel button:hover {
+    background: var(--klt-p, #46626F);
+    color: #fff;
+}
+
 /* Wartezeit-Badge ganz links im Toolbar-Band (Farbe setzt das Script) */
 .__tt_wait_badge {
     position: absolute;

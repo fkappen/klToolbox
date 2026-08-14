@@ -255,6 +255,11 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.runtime.openOptionsPage();
         window.close();
     });
+    document.getElementById("openHelp").addEventListener("click", (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: chrome.runtime.getURL("help.html") });
+        window.close();
+    });
 
     // Modul "KI-Chat" deaktiviert -> Chat-Link und InnoGPT-Suche ausblenden
     // (die InnoGPT-Suche laeuft ueber dieselbe Chat-Seite)

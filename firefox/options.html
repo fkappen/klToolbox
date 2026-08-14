@@ -38,10 +38,22 @@
         .mod-list label:first-child { margin-top: 0; }
         .mod-list label input { width: auto; }
         .mod-desc { color: #777; font-size: 12px; margin-left: 24px; }
+        .status-list div { display: flex; gap: 8px; padding: 3px 0; }
+        .status-list .ok { color: #1a7f37; font-weight: 700; }
+        .status-list .warn { color: #b3261e; font-weight: 700; }
+        .mk-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+        .mk-row label { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 6px; }
+        .mk-row input[type=checkbox] { width: auto; }
     </style>
 </head>
 <body>
-    <h1><img src="icon32.png" alt=""><span id="brandTitle">klToolbox – Optionen</span></h1>
+    <h1><img src="icon32.png" alt=""><span id="brandTitle">klToolbox – Optionen</span><a href="help.html" target="_blank" style="margin-left:auto; font-size:14px; font-weight:600; color:var(--klt-p); text-decoration:none;">❓ Hilfe</a></h1>
+
+    <!-- ================================================== Status -->
+    <h2>Status</h2>
+    <fieldset>
+        <div id="statusList" class="status-list"></div>
+    </fieldset>
 
     <!-- ================================================== Module -->
     <h2>Module</h2>
@@ -106,6 +118,15 @@
         <label for="innogptModel">Modell</label>
         <input type="text" id="innogptModel" placeholder="gpt-5">
         <div class="hint">OpenAI-kompatible API unter app.innogpt.de (Beta-Zugang erforderlich)</div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Eigene KI-Aktionen (Kontextmenü)</legend>
+        <p class="hint">Zusätzliche Einträge unter „KI: Text bearbeiten“. Der Prompt beschreibt die Aufgabe; der markierte Text wird mitgeschickt und das Ergebnis ersetzt die Markierung. Beispiel: „Fasse den Text in Stichpunkten zusammen.“</p>
+        <div id="kiActionList"></div>
+        <div class="toolbar">
+            <button id="kiActionAdd" class="secondary">+ Neue Aktion</button>
+        </div>
     </fieldset>
 
     <div class="toolbar">
@@ -188,6 +209,16 @@
         <button id="tplImport" class="secondary">Import (JSON)</button>
         <input type="file" id="tplImportFile" accept=".json" style="display:none">
         <span id="statusTpl" class="status"></span>
+    </div>
+
+    <!-- ================================================== Aktions-Makros -->
+    <h2>Aktions-Makros (Ticket-Toolbar)</h2>
+    <p class="hint">Aktionsketten mit einem Klick über den „⚡ Makros“-Button in der Ticket-Toolbar. Eintragstext und Status werden zusammen als EIN Ticket-Eintrag gespeichert; Platzhalter <code>{datum}</code>/<code>{zeit}</code> funktionieren im Eintragstext. Statusname muss exakt einem Eintrag des Status-Dropdowns entsprechen (z. B. „Termin vereinbart“).</p>
+    <div id="makroList"></div>
+    <div class="toolbar">
+        <button id="makroAdd" class="secondary">+ Neues Makro</button>
+        <button id="makroSave" class="primary">Makros speichern</button>
+        <span id="statusMakro" class="status"></span>
     </div>
 
     <!-- ================================================== Schnellzugriffe -->

@@ -558,27 +558,43 @@
     function ensureButtons() {
         const toolbars = findMailToolbars();
 
-        // Buttons in nicht (mehr) zustaendigen Leisten entfernen
-        for (const b of document.querySelectorAll(".__vorlagen_tbtn")) {
+        // Buttons in nicht (mehr) zustaendigen Mail-Leisten entfernen
+        // (Eintrags-Buttons __vorlagen_ebtn haben eigene Aufraeum-Logik)
+        for (const b of document.querySelectorAll(".__vorlagen_tbtn, .__ki_draft_tbtn")) {
+            if (b.classList.contains("__vorlagen_ebtn")) {
+                continue;
+            }
             if (!toolbars.some((t) => t.bar.contains(b))) {
                 b.remove();
             }
         }
 
         for (const t of toolbars) {
-            if (t.bar.querySelector(".__vorlagen_tbtn")) {
-                continue;
+            if (!t.bar.querySelector(".__vorlagen_tbtn")) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "__vorlagen_tbtn";
+                btn.title = "Textvorlagen einfügen";
+                btn.textContent = "📋 Vorlagen";
+                btn.__editor = t.editor || null;
+                btn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
+                btn.addEventListener("click", () => togglePanel(btn));
+                t.bar.appendChild(btn);
             }
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "__vorlagen_tbtn";
-            btn.title = "Textvorlagen einfügen";
-            btn.textContent = "📋 Vorlagen";
-            btn.__editor = t.editor || null;
-            btn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
-            btn.addEventListener("click", () => togglePanel(btn));
-            t.bar.appendChild(btn);
+            if (!t.bar.querySelector(".__ki_draft_tbtn")) {
+                const kBtn = document.createElement("button");
+                kBtn.type = "button";
+                kBtn.className = "__vorlagen_tbtn __ki_draft_tbtn";
+                kBtn.title = "KI liest den sichtbaren Ticketverlauf und entwirft eine Antwort (mit Anrede, vor der Signatur eingefügt)";
+                kBtn.textContent = "✨ KI-Antwort";
+                kBtn.__editor = t.editor || null;
+                kBtn.addEventListener("mousedown", (e) => e.preventDefault());
+                kBtn.addEventListener("click", () => draftReply(kBtn));
+                t.bar.appendChild(kBtn);
+            }
         }
+
+        ensureEntryButtons();
 
         const floating = document.getElementById("__vorlagen_btn");
         if (toolbars.length > 0) {
@@ -591,6 +607,139 @@
         } else if (floating) {
             floating.remove();
         }
+    }
+
+    // ------------------------------------------- Vorlagen im Eintrags-Editor
+    // Eintragsformular = sichtbarer CKEditor mit "Speichern"-Button im Umfeld
+    // (Mail-Fenster: Senden/Verwerfen OHNE Speichern -> ausgeschlossen).
+    // Der Vorlagen-Button wird direkt vor den Speichern-Button gesetzt.
+    function ensureEntryButtons() {
+        const isVis = (e) => {
+            const r = e.getBoundingClientRect();
+            return r.width > 0 && r.height > 0;
+        };
+        // Verwaiste Eintrags-Buttons entfernen (Editor weg/neu gerendert)
+        for (const b of document.querySelectorAll(".__vorlagen_ebtn")) {
+            if (!b.__editor || !b.__editor.isConnected) {
+                b.remove();
+            }
+        }
+        for (const ed of document.querySelectorAll(".ck-editor__editable")) {
+            if (!isVis(ed)) {
+                continue;
+            }
+            let node = ed.parentElement;
+            let saveBtn = null;
+            let depth = 0;
+            while (node && node !== document.body && depth < 10) {
+                const t = node.textContent || "";
+                if (t.includes("Verwerfen") && t.includes("Senden") && !t.includes("Speichern")) {
+                    break; // Mail-Fenster
+                }
+                saveBtn = Array.from(node.querySelectorAll("button")).find((b) =>
+                    (b.textContent || "").trim() === "Speichern" && isVis(b)
+                ) || null;
+                if (saveBtn) {
+                    break;
+                }
+                node = node.parentElement;
+                depth++;
+            }
+            if (!saveBtn || !saveBtn.parentElement) {
+                continue;
+            }
+            if (saveBtn.parentElement.querySelector(".__vorlagen_ebtn")) {
+                continue;
+            }
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "__vorlagen_tbtn __vorlagen_ebtn";
+            btn.title = "Textvorlagen in den Eintrag einfügen";
+            btn.textContent = "📋 Vorlagen";
+            btn.__editor = ed;
+            btn.addEventListener("mousedown", (e) => e.preventDefault());
+            btn.addEventListener("click", (e) => {
+                e.preventDefault();
+                togglePanel(btn);
+            });
+            saveBtn.parentElement.insertBefore(btn, saveBtn);
+        }
+    }
+
+    // ------------------------------------------- KI-Antwortentwurf
+
+    // Sichtbaren Ticketverlauf einsammeln: Eintrags-Header ("... aktualisiert
+    // am <strong>Fr. 14.08.2026</strong> ...") -> umgebender Eintrags-Container.
+    // Heuristisch, aber failsafe: schlimmstenfalls fehlt Kontext.
+    function collectTicketHistory() {
+        const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*\d{1,2}\.\d{1,2}\.\d{4}$/;
+        const blocks = [];
+        const used = [];
+        for (const s of document.querySelectorAll("strong")) {
+            if (!dateRe.test((s.textContent || "").trim())) {
+                continue;
+            }
+            const header = s.parentElement;
+            if (!header || !(header.textContent || "").includes("aktualisiert am")) {
+                continue;
+            }
+            // Container: aufwaerts, bis deutlich mehr Text als der Header allein
+            let container = header;
+            let depth = 0;
+            while (container.parentElement && depth < 4) {
+                const parent = container.parentElement;
+                if ((parent.innerText || "").length > (header.innerText || "").length + 60) {
+                    container = parent;
+                    break;
+                }
+                container = parent;
+                depth++;
+            }
+            if (used.some((u) => u === container || u.contains(container) || container.contains(u))) {
+                continue;
+            }
+            used.push(container);
+            let txt = (container.innerText || "").replace(/\n{3,}/g, "\n\n").trim();
+            if (txt.length > 1500) {
+                txt = txt.slice(0, 1500) + " […]";
+            }
+            blocks.push(txt);
+        }
+        let history = blocks.join("\n\n--- naechster Eintrag ---\n\n");
+        if (history.length > 12000) {
+            history = history.slice(0, 12000) + " […]";
+        }
+        return history;
+    }
+
+    function draftReply(btn) {
+        if (btn.__busy) {
+            return;
+        }
+        const history = collectTicketHistory();
+        if (!history) {
+            showHint("Kein Ticketverlauf gefunden - KI-Antwort braucht sichtbare Ticket-Einträge.");
+            return;
+        }
+        btn.__busy = true;
+        const old = btn.textContent;
+        btn.textContent = "✨ entwirft…";
+        chrome.runtime.sendMessage({ type: "kiDraft", history: history }, (resp) => {
+            btn.__busy = false;
+            btn.textContent = old;
+            if (chrome.runtime.lastError || !resp || !resp.ok) {
+                const err = chrome.runtime.lastError
+                    ? chrome.runtime.lastError.message
+                    : (resp && resp.error ? resp.error : "keine Antwort");
+                showHint("KI-Antwort fehlgeschlagen: " + err);
+                return;
+            }
+            // Anrede deterministisch selbst voranstellen (kein KI-Raten)
+            const anrede = buildAnrede(btn.__editor);
+            const greeting = anrede ? "Guten Tag " + anrede + "," : "Guten Tag,";
+            panelEditor = btn.__editor || null;
+            insertTemplate(greeting + "\n\n" + String(resp.text).trim());
+        });
     }
 
     function buildFloatingButton() {

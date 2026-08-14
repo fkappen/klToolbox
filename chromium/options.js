@@ -136,6 +136,8 @@ let templates = [];
 let quickLinks = [];
 let m365Links = [];
 let datevLinks = [];
+let kiActions = [];
+let makros = [];
 
 // ---------------------------------------------------------------- Laden
 
@@ -145,9 +147,16 @@ function loadAll() {
         quickLinks: DEFAULT_QUICKLINKS,
         m365Links: DEFAULT_M365LINKS,
         datevLinks: DEFAULT_DATEVLINKS,
-        cleanerWhitelist: []
+        cleanerWhitelist: [],
+        customKiActions: [],
+        makros: []
     }), (items) => {
         applyBrand(items);
+        kiActions = Array.isArray(items.customKiActions) ? items.customKiActions : [];
+        renderKiActions();
+        makros = Array.isArray(items.makros) ? items.makros : [];
+        renderMakros();
+        renderStatus();
         // Module
         for (const key of Object.keys(MODULE_DEFAULTS)) {
             document.getElementById(key).checked = items[key] !== false;
@@ -197,6 +206,10 @@ function flashStatus(id) {
 // ---------------------------------------------------------------- KI
 
 function saveKi() {
+    const cleanActions = kiActions
+        .map((a) => ({ name: (a.name || "").trim(), prompt: (a.prompt || "").trim() }))
+        .filter((a) => a.name.length > 0 && a.prompt.length > 0);
+    kiActions = cleanActions;
     chrome.storage.local.set({
         provider: document.querySelector('input[name="provider"]:checked').value,
         claudeApiKey: document.getElementById("claudeApiKey").value.trim(),
@@ -205,8 +218,185 @@ function saveKi() {
         openaiModel: document.getElementById("openaiModel").value.trim() || KI_DEFAULTS.openaiModel,
         innogptApiKey: document.getElementById("innogptApiKey").value.trim(),
         innogptModel: document.getElementById("innogptModel").value.trim() || KI_DEFAULTS.innogptModel,
-        kiKontext: document.getElementById("kiKontext").value.trim()
-    }, () => flashStatus("statusKi"));
+        kiKontext: document.getElementById("kiKontext").value.trim(),
+        customKiActions: cleanActions
+    }, () => {
+        flashStatus("statusKi");
+        renderKiActions();
+    });
+}
+
+// ---------------------------------------------------------------- Eigene KI-Aktionen
+
+function renderKiActions() {
+    const list = document.getElementById("kiActionList");
+    list.textContent = "";
+    kiActions.forEach((a, i) => {
+        const box = document.createElement("div");
+        box.className = "tpl";
+
+        const name = document.createElement("input");
+        name.type = "text";
+        name.placeholder = "Name im Kontextmenü, z. B. „In Stichpunkte“";
+        name.value = a.name || "";
+        name.addEventListener("input", () => { kiActions[i].name = name.value; });
+
+        const prompt = document.createElement("textarea");
+        prompt.style.minHeight = "60px";
+        prompt.placeholder = "Aufgabe für die KI, z. B. „Fasse den Text in knappen Stichpunkten zusammen.“";
+        prompt.value = a.prompt || "";
+        prompt.addEventListener("input", () => { kiActions[i].prompt = prompt.value; });
+
+        const row = document.createElement("div");
+        row.className = "row";
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "Löschen";
+        del.addEventListener("click", () => {
+            kiActions.splice(i, 1);
+            renderKiActions();
+        });
+        row.appendChild(del);
+
+        box.appendChild(name);
+        box.appendChild(prompt);
+        box.appendChild(row);
+        list.appendChild(box);
+    });
+}
+
+// ---------------------------------------------------------------- Aktions-Makros
+
+function renderMakros() {
+    const list = document.getElementById("makroList");
+    list.textContent = "";
+    makros.forEach((m, i) => {
+        const box = document.createElement("div");
+        box.className = "tpl";
+
+        const name = document.createElement("input");
+        name.type = "text";
+        name.placeholder = "Makro-Name, z. B. „Nicht erreicht + wiedervorlegen“";
+        name.value = m.name || "";
+        name.addEventListener("input", () => { makros[i].name = name.value; });
+
+        const eintrag = document.createElement("textarea");
+        eintrag.style.minHeight = "60px";
+        eintrag.placeholder = "Eintragstext (optional, {datum}/{zeit} möglich)";
+        eintrag.value = m.eintrag || "";
+        eintrag.addEventListener("input", () => { makros[i].eintrag = eintrag.value; });
+
+        const row = document.createElement("div");
+        row.className = "mk-row";
+
+        const status = document.createElement("input");
+        status.type = "text";
+        status.style.flex = "1";
+        status.placeholder = "Status setzen (optional, exakter Dropdown-Text)";
+        status.value = m.status || "";
+        status.addEventListener("input", () => { makros[i].status = status.value; });
+
+        const aboLabel = document.createElement("label");
+        const abo = document.createElement("input");
+        abo.type = "checkbox";
+        abo.checked = m.abonnieren === true;
+        abo.addEventListener("change", () => { makros[i].abonnieren = abo.checked; });
+        aboLabel.appendChild(abo);
+        aboLabel.appendChild(document.createTextNode(" Abonnieren"));
+
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "Löschen";
+        del.addEventListener("click", () => {
+            makros.splice(i, 1);
+            renderMakros();
+        });
+
+        row.appendChild(status);
+        row.appendChild(aboLabel);
+        row.appendChild(del);
+
+        box.appendChild(name);
+        box.appendChild(eintrag);
+        box.appendChild(row);
+        list.appendChild(box);
+    });
+}
+
+function saveMakros() {
+    const clean = makros
+        .map((m) => ({
+            name: (m.name || "").trim(),
+            eintrag: (m.eintrag || "").trim(),
+            status: (m.status || "").trim(),
+            abonnieren: m.abonnieren === true
+        }))
+        .filter((m) => m.name.length > 0 && (m.eintrag.length > 0 || m.status.length > 0 || m.abonnieren));
+    makros = clean;
+    chrome.storage.local.set({ makros: clean }, () => {
+        flashStatus("statusMakro");
+        renderMakros();
+    });
+}
+
+// ---------------------------------------------------------------- Status-Uebersicht
+
+function renderStatus() {
+    const list = document.getElementById("statusList");
+    const row = (ok, label, detail) => {
+        const d = document.createElement("div");
+        const mark = document.createElement("span");
+        mark.className = ok ? "ok" : "warn";
+        mark.textContent = ok ? "✓" : "✗";
+        d.appendChild(mark);
+        d.appendChild(document.createTextNode(label + (detail ? " – " + detail : "")));
+        list.appendChild(d);
+    };
+    list.textContent = "";
+
+    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, MODULE_DEFAULTS, {
+        linkTemplate: "", brandName: ""
+    }), (s) => {
+        const version = chrome.runtime.getManifest().version;
+        row(true, "klToolbox v" + version);
+
+        const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey };
+        const hasKey = !!(keyMap[s.provider] || "").trim();
+        row(hasKey, "KI-Anbieter: " + s.provider, hasKey ? "API-Key hinterlegt" : "kein API-Key hinterlegt");
+
+        let origin = null;
+        try {
+            origin = new URL(s.linkTemplate).origin;
+        } catch (err) {
+            origin = null;
+        }
+        if (!origin) {
+            row(false, "Ticketsystem", "nicht konfiguriert (Einstellungen importieren)");
+            finishStatus(list, row, s);
+        } else {
+            chrome.permissions.contains({ origins: [origin + "/*"] }, (granted) => {
+                row(granted, "Ticketsystem: " + new URL(origin).hostname,
+                    granted ? "Zugriff erteilt, Module aktiv" : "Zugriff NICHT erteilt (Button unter Sicherung)");
+                finishStatus(list, row, s);
+            });
+        }
+    });
+}
+
+function finishStatus(list, row, s) {
+    const modKeys = Object.keys(MODULE_DEFAULTS);
+    const active = modKeys.filter((k) => s[k] !== false).length;
+    row(active > 0, "Module: " + active + " von " + modKeys.length + " aktiv");
+    row(!!s.brandName, "Branding", s.brandName ? "„" + s.brandName + "“ importiert" : "neutral (keine Vorgaben importiert)");
+    // GPO-Vorgaben (Managed Storage) - Firefox wirft ohne Richtlinie einen Fehler
+    try {
+        chrome.storage.managed.get(null, (items) => {
+            const hasGpo = !chrome.runtime.lastError && items && typeof items.defaultsJson === "string" && items.defaultsJson.length > 0;
+            row(true, "GPO-Vorgaben: " + (hasGpo ? "aktiv (Managed Storage)" : "keine"));
+        });
+    } catch (err) {
+        row(true, "GPO-Vorgaben: keine");
+    }
 }
 
 // ---------------------------------------------------------------- Termin
@@ -493,6 +683,7 @@ function grantTicketHostPermission() {
                 chrome.runtime.sendMessage({ type: "syncTicketScripts" }, () => {
                     flashStatus("statusSettings");
                     updateHostPermissionUi();
+                    renderStatus();
                     alert("Zugriff erteilt - die Ticket-Module sind jetzt aktiv.\n\nBereits geöffnete Ticket-Tabs bitte einmal neu laden (F5).");
                 });
             }
@@ -580,6 +771,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
     document.getElementById("grantHost").addEventListener("click", grantTicketHostPermission);
     document.getElementById("settingsReset").addEventListener("click", resetAllSettings);
+    document.getElementById("kiActionAdd").addEventListener("click", () => {
+        kiActions.push({ name: "", prompt: "" });
+        renderKiActions();
+    });
+    document.getElementById("makroAdd").addEventListener("click", () => {
+        makros.push({ name: "", eintrag: "", status: "", abonnieren: false });
+        renderMakros();
+    });
+    document.getElementById("makroSave").addEventListener("click", saveMakros);
     updateHostPermissionUi();
     // Falls die Ticket-URL erst spaeter ankommt (z. B. GPO-Vorgaben)
     chrome.storage.onChanged.addListener((ch, area) => {

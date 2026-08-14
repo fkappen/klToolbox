@@ -31,7 +31,9 @@
         defaultTerminart: "telefon",
         // Eigene Mail-Domain (ohne @): mailto-Fallback ignoriert diese
         // Adressen. Kommt per Settings-Import - neutral ausgeliefert.
-        ownEmailDomain: ""
+        ownEmailDomain: "",
+        // Aktions-Makros: [{name, eintrag, status, abonnieren}]
+        makros: []
     };
 
     const TERMINARTEN = [
@@ -294,76 +296,83 @@
     // Der Statuswechsel wird so als Ticket-Eintrag dokumentiert.
     // WICHTIG: Filter-Panels (Checkbox-Listen, z. B. Eintragsfilter) werden
     // ausgeschlossen - ein frueherer Ansatz hatte dort faelschlich geklickt.
+    // Status im Eintragsformular auswaehlen (OHNE zu speichern) - Baustein
+    // fuer die Termin-Automatik und die Aktions-Makros. Liefert true/false.
+    async function selectStatusInForm(form, statusText) {
+        const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const wanted = norm(statusText);
+
+        // 1. Status-Label im Formular -> zugehoeriges ap-select
+        const label = Array.from(form.container.querySelectorAll("div, label, span")).find((d) =>
+            d.childElementCount === 0 &&
+            /^status:?$/i.test((d.textContent || "").trim()) && isVisible(d)
+        );
+        let select = null;
+        if (label) {
+            if (label.nextElementSibling && label.nextElementSibling.classList.contains("ap-select")) {
+                select = label.nextElementSibling;
+            } else if (label.nextElementSibling) {
+                select = label.nextElementSibling.querySelector(".ap-select");
+            }
+            if (!select && label.parentElement) {
+                select = label.parentElement.querySelector(".ap-select");
+            }
+        }
+        if (!select || !isVisible(select)) {
+            console.warn("Ticket-Termin: Status-Feld im Eintragsformular nicht gefunden. " +
+                "ap-select-Typen im Formular: " + JSON.stringify(
+                    Array.from(form.container.querySelectorAll(".ap-select")).map((e) => e.getAttribute("type"))
+                ));
+            return false;
+        }
+
+        // 2. Dropdown oeffnen
+        realClick(select);
+        await sleep(400);
+
+        // 3. Gewuenschten Eintrag suchen - Checkbox-Listen (Filter!)
+        //    ausschliessen, nur echte Auswahl-Eintraege
+        const pick = () => Array.from(document.querySelectorAll(".one-liner, li, [role='option']"))
+            .filter(isVisible)
+            .filter((el) => !el.querySelector("input[type='checkbox']"))
+            .filter((el) => !el.closest("[class*='filter']"))
+            .find((el) => norm(el.textContent) === wanted);
+        let item = pick();
+        if (!item) {
+            await sleep(500);
+            item = pick();
+        }
+        if (!item) {
+            console.warn("Ticket-Termin: Status '" + statusText + "' nicht gefunden. Sichtbare Einträge: " +
+                JSON.stringify(Array.from(document.querySelectorAll(".one-liner")).filter(isVisible)
+                    .map((e) => norm(e.textContent)).slice(0, 30)));
+            realClick(select); // Dropdown wieder schliessen
+            return false;
+        }
+
+        // 4. Auswaehlen und pruefen, ob das Feld die Auswahl uebernommen hat
+        realClick(item);
+        await sleep(300);
+        if (!norm(select.textContent).includes(wanted)) {
+            console.warn("Ticket-Termin: Auswahl wurde nicht übernommen (Feld zeigt: " +
+                JSON.stringify((select.textContent || "").trim()) + ").");
+            return false;
+        }
+        return true;
+    }
+
     async function setStatusTerminVereinbart() {
         try {
-            const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
-
             const form = findEntryForm();
             if (!form) {
                 console.warn("Ticket-Termin: Eintragsformular nicht gefunden - Status bleibt unverändert.");
                 return;
             }
-
-            // 1. Status-Label im Formular -> zugehoeriges ap-select
-            const label = Array.from(form.container.querySelectorAll("div, label, span")).find((d) =>
-                d.childElementCount === 0 &&
-                /^status:?$/i.test((d.textContent || "").trim()) && isVisible(d)
-            );
-            let select = null;
-            if (label) {
-                if (label.nextElementSibling && label.nextElementSibling.classList.contains("ap-select")) {
-                    select = label.nextElementSibling;
-                } else if (label.nextElementSibling) {
-                    select = label.nextElementSibling.querySelector(".ap-select");
-                }
-                if (!select && label.parentElement) {
-                    select = label.parentElement.querySelector(".ap-select");
-                }
+            if (await selectStatusInForm(form, "Termin vereinbart")) {
+                // Eintrag speichern -> Statuswechsel wird wirksam und dokumentiert
+                realClick(form.saveBtn);
+                console.info("Ticket-Termin: Status 'Termin vereinbart' gesetzt und Eintrag gespeichert.");
             }
-            if (!select || !isVisible(select)) {
-                console.warn("Ticket-Termin: Status-Feld im Eintragsformular nicht gefunden. " +
-                    "ap-select-Typen im Formular: " + JSON.stringify(
-                        Array.from(form.container.querySelectorAll(".ap-select")).map((e) => e.getAttribute("type"))
-                    ));
-                return;
-            }
-
-            // 2. Dropdown oeffnen
-            realClick(select);
-            await sleep(400);
-
-            // 3. Eintrag "Termin vereinbart" suchen - Checkbox-Listen (Filter!)
-            //    ausschliessen, nur echte Auswahl-Eintraege
-            const pick = () => Array.from(document.querySelectorAll(".one-liner, li, [role='option']"))
-                .filter(isVisible)
-                .filter((el) => !el.querySelector("input[type='checkbox']"))
-                .filter((el) => !el.closest("[class*='filter']"))
-                .find((el) => norm(el.textContent) === "termin vereinbart");
-            let item = pick();
-            if (!item) {
-                await sleep(500);
-                item = pick();
-            }
-            if (!item) {
-                console.warn("Ticket-Termin: Eintrag 'Termin vereinbart' nicht gefunden. Sichtbare Einträge: " +
-                    JSON.stringify(Array.from(document.querySelectorAll(".one-liner")).filter(isVisible)
-                        .map((e) => norm(e.textContent)).slice(0, 30)));
-                realClick(select); // Dropdown wieder schliessen
-                return;
-            }
-
-            // 4. Auswaehlen und pruefen, ob das Feld die Auswahl uebernommen hat
-            realClick(item);
-            await sleep(300);
-            if (!norm(select.textContent).includes("termin vereinbart")) {
-                console.warn("Ticket-Termin: Auswahl wurde nicht übernommen (Feld zeigt: " +
-                    JSON.stringify((select.textContent || "").trim()) + ") - Speichern übersprungen.");
-                return;
-            }
-
-            // 5. Eintrag speichern -> Statuswechsel wird wirksam und dokumentiert
-            realClick(form.saveBtn);
-            console.info("Ticket-Termin: Status 'Termin vereinbart' gesetzt und Eintrag gespeichert.");
         } catch (err) {
             console.warn("Ticket-Termin: Status setzen fehlgeschlagen:", err);
         }
@@ -653,43 +662,138 @@
     // Legt unten im Eintrags-Editor einen Eintrag "Nicht erreicht" an und
     // speichert ihn. Der Eintrags-Editor ist der sichtbare CKEditor, in dessen
     // Umfeld ein "Speichern"-Button liegt (das Mail-Fenster hat "Senden").
+    // Text in den Eintrags-Editor einfuegen (OHNE zu speichern) - Baustein
+    // fuer "Nicht erreicht" und die Aktions-Makros. CKEditor-sichere
+    // Paste-Pipeline; mehrzeilige Texte als <p>-Absaetze.
+    async function pasteIntoEntryForm(form, text) {
+        const target = form.editor;
+        target.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const html = text.split("\n")
+            .map((line) => line.trim().length === 0 ? "<p>&nbsp;</p>" : "<p>" + escapeHtml(line) + "</p>")
+            .join("");
+        const dt = new DataTransfer();
+        dt.setData("text/html", html);
+        dt.setData("text/plain", text);
+        target.dispatchEvent(new ClipboardEvent("paste", {
+            clipboardData: dt,
+            bubbles: true,
+            cancelable: true
+        }));
+        await sleep(300);
+    }
+
     async function createNichtErreichtEintrag() {
         try {
             const text = settings.nichtErreichtText || DEFAULTS.nichtErreichtText;
-
             const form = findEntryForm();
             if (!form) {
                 console.warn("Ticket-Termin: Eintrags-Editor oder Speichern-Button nicht gefunden.");
                 alert("Eintrags-Editor nicht gefunden - bitte Eintrag manuell anlegen.");
                 return;
             }
-            const target = form.editor;
-            const saveBtn = form.saveBtn;
-
-            // Text ueber die Paste-Pipeline einfuegen (CKEditor-sicher)
-            target.focus();
-            const sel = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(target);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-
-            const dt = new DataTransfer();
-            dt.setData("text/html", "<p>" + escapeHtml(text) + "</p>");
-            dt.setData("text/plain", text);
-            target.dispatchEvent(new ClipboardEvent("paste", {
-                clipboardData: dt,
-                bubbles: true,
-                cancelable: true
-            }));
-
-            await sleep(300);
-            realClick(saveBtn);
+            await pasteIntoEntryForm(form, text);
+            realClick(form.saveBtn);
             console.info("Ticket-Termin: Eintrag 'Nicht erreicht' angelegt und gespeichert.");
         } catch (err) {
             console.warn("Ticket-Termin: 'Nicht erreicht' fehlgeschlagen:", err);
         }
+    }
+
+    // ---------------------------------------------------------- Aktions-Makros
+    // Konfigurierbare Ketten (Optionen -> Aktions-Makros): Eintrag anlegen
+    // und/oder Status setzen (EIN gemeinsames Speichern) und/oder abonnieren.
+
+    function makroPlaceholders(text) {
+        const now = new Date();
+        return text
+            .replace(/\{datum\}/gi, now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }))
+            .replace(/\{zeit\}/gi, now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " Uhr");
+    }
+
+    async function runMakro(mk, btn) {
+        const old = btn.textContent;
+        btn.textContent = "⚡ läuft…";
+        let ok = true;
+        try {
+            const eintrag = (mk.eintrag || "").trim();
+            const status = (mk.status || "").trim();
+            if (eintrag || status) {
+                const form = findEntryForm();
+                if (!form) {
+                    alert("Eintragsformular nicht gefunden - Makro abgebrochen.");
+                    ok = false;
+                } else {
+                    if (eintrag) {
+                        await pasteIntoEntryForm(form, makroPlaceholders(eintrag));
+                    }
+                    if (status) {
+                        ok = await selectStatusInForm(form, status);
+                        if (!ok) {
+                            alert("Status \"" + status + "\" nicht gefunden - Eintrag wurde NICHT gespeichert.");
+                        }
+                    }
+                    if (ok) {
+                        await sleep(200);
+                        realClick(form.saveBtn);
+                    }
+                }
+            }
+            if (ok && mk.abonnieren) {
+                await subscribeTicket(null);
+            }
+        } catch (err) {
+            console.warn("Ticket-Termin: Makro '" + mk.name + "' fehlgeschlagen:", err);
+            ok = false;
+        }
+        btn.textContent = ok ? "✓ erledigt" : "✗ Fehler";
+        setTimeout(() => { btn.textContent = old; }, 2500);
+    }
+
+    function closeMakroPanel() {
+        const p = document.getElementById("__tt_makro_panel");
+        if (p) {
+            p.remove();
+        }
+    }
+
+    function toggleMakroPanel(anchor) {
+        if (document.getElementById("__tt_makro_panel")) {
+            closeMakroPanel();
+            return;
+        }
+        const makros = (Array.isArray(settings.makros) ? settings.makros : []).filter((m) => m && m.name);
+        if (makros.length === 0) {
+            return;
+        }
+        const panel = document.createElement("div");
+        panel.id = "__tt_makro_panel";
+        for (const mk of makros) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = "⚡ " + mk.name;
+            const parts = [];
+            if ((mk.eintrag || "").trim()) { parts.push("Eintrag"); }
+            if ((mk.status || "").trim()) { parts.push("Status: " + mk.status.trim()); }
+            if (mk.abonnieren) { parts.push("Abonnieren"); }
+            b.title = parts.join(" + ") || "Keine Aktionen konfiguriert";
+            b.addEventListener("click", () => {
+                closeMakroPanel();
+                runMakro(mk, anchor);
+            });
+            panel.appendChild(b);
+        }
+        document.documentElement.appendChild(panel);
+        // Unter dem Anker ausrichten
+        const r = anchor.getBoundingClientRect();
+        panel.style.top = Math.min(r.bottom + 6, window.innerHeight - 60) + "px";
+        panel.style.right = Math.max(8, window.innerWidth - r.right) + "px";
     }
 
     // ---------------------------------------------------------- Termin-Ausgabe
@@ -904,6 +1008,20 @@
                 rBtn.textContent = "🚗 Anfahrt";
                 rBtn.addEventListener("click", () => toggleRoutePanel(rBtn));
                 host.appendChild(rBtn);
+            }
+            // Makro-Button nur, wenn Makros konfiguriert sind
+            const hasMakros = Array.isArray(settings.makros) && settings.makros.some((m) => m && m.name);
+            const mBtnExisting = tb.querySelector(".__tt_makro_tbtn");
+            if (hasMakros && !mBtnExisting) {
+                const mBtn = document.createElement("button");
+                mBtn.type = "button";
+                mBtn.className = "ap-button light __tt_tbtn __tt_makro_tbtn";
+                mBtn.title = "Aktions-Makros ausführen (konfigurierbar in den Optionen)";
+                mBtn.textContent = "⚡ Makros";
+                mBtn.addEventListener("click", () => toggleMakroPanel(mBtn));
+                host.appendChild(mBtn);
+            } else if (!hasMakros && mBtnExisting) {
+                mBtnExisting.remove();
             }
         }
         // Kein schwebender Fallback mehr: ohne Ticket-Toolbar (Startseite,
@@ -1147,7 +1265,7 @@
 
     function removeTerminUi() {
         document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge").forEach((el) => el.remove());
-        ["__tt_btn", "__tt_panel", "__tt_route_panel"].forEach((id) => {
+        ["__tt_btn", "__tt_panel", "__tt_route_panel", "__tt_makro_panel"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) {
                 el.remove();

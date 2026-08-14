@@ -4,10 +4,32 @@
 // autor   = "Felix Kappen"
 //
 // Chat-Seite: nutzt den konfigurierten Anbieter (Optionen) ueber den
-// Service Worker (Message "kiChat"). Verlauf lebt nur im Tab.
+// Service Worker (Message "kiChat"). Verlauf wird in storage.local
+// gespeichert (chatHistory) und beim Oeffnen wiederhergestellt;
+// "Neuer Chat" loescht ihn. Bei Uebergabe per ?q= startet ein frischer
+// Verlauf (Suchanfragen sollen sich nicht mit alten Chats mischen).
 
 const conversation = []; // {role: "user"|"assistant", content: string}
 let busy = false;
+
+const HISTORY_MAX = 40; // gespeicherte Nachrichten (Paare zaehlen doppelt)
+
+function saveHistory() {
+    chrome.storage.local.set({ chatHistory: conversation.slice(-HISTORY_MAX) });
+}
+
+// Minimales, sicheres Markdown fuer Assistenten-Antworten:
+// erst HTML-escapen, dann ```bloecke```, `inline-code` und **fett**.
+function mdToHtml(text) {
+    const esc = String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    return esc
+        .replace(/```([a-z0-9]*)\n?([\s\S]*?)```/gi, (m, lang, code) => "<pre>" + code.replace(/\n$/, "") + "</pre>")
+        .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+        .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+}
 
 // URL-Parameter: ?q=<Frage> (wird automatisch gesendet),
 // ?provider=claude|openai|innogpt (Override, z. B. "In InnoGPT fragen")
@@ -26,7 +48,11 @@ function addBubble(cls, text) {
     wrap.className = "msg " + cls;
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.textContent = text;
+    if (cls === "assistant") {
+        bubble.innerHTML = mdToHtml(text);
+    } else {
+        bubble.textContent = text;
+    }
     wrap.appendChild(bubble);
     el("messages").appendChild(wrap);
     wrap.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -104,6 +130,7 @@ async function send() {
         }
         conversation.push({ role: "assistant", content: resp.text });
         addBubble("assistant", resp.text);
+        saveHistory();
     });
 }
 
@@ -119,12 +146,26 @@ document.addEventListener("DOMContentLoaded", () => {
     el("newChat").addEventListener("click", () => {
         conversation.length = 0;
         el("messages").textContent = "";
+        chrome.storage.local.remove("chatHistory");
         el("input").focus();
     });
 
-    // Uebergebene Frage (?q=...) automatisch senden
     if (initialQuery) {
+        // Uebergebene Frage (?q=...): frischer Verlauf, dann automatisch senden
+        chrome.storage.local.remove("chatHistory");
         el("input").value = initialQuery;
         send();
+    } else {
+        // Gespeicherten Verlauf wiederherstellen
+        chrome.storage.local.get({ chatHistory: [] }, (s) => {
+            if (Array.isArray(s.chatHistory)) {
+                for (const m of s.chatHistory) {
+                    if (m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string") {
+                        conversation.push(m);
+                        addBubble(m.role, m.content);
+                    }
+                }
+            }
+        });
     }
 });
