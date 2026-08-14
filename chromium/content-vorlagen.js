@@ -22,6 +22,10 @@
             text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Meldung. Um das Anliegen zielgerichtet bearbeiten zu können, benötigen wir noch folgende Informationen:\n\n- Betroffener Benutzer / Rechnername:\n- Seit wann tritt das Verhalten auf?\n- Tritt das Problem dauerhaft oder nur sporadisch auf?\n- Gibt es eine Fehlermeldung (gerne als Screenshot)?\n\nVielen Dank vorab für Ihre Rückmeldung."
         },
         {
+            name: "Performance – Rückfragen zur Analyse",
+            text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Meldung. Damit wir die Ursache der Verlangsamung gezielt eingrenzen können, benötigen wir noch einige Angaben:\n\n- Wen betrifft es? (einzelner Benutzer, mehrere oder alle)\n- Wann tritt es auf? (dauerhaft, zu bestimmten Uhrzeiten, seit wann)\n- In welchen Anwendungen macht es sich bemerkbar? (z. B. DATEV, Outlook, Browser – oder generell)\n- Wie äußert es sich: startet die Anwendung langsam oder reagieren Eingaben verzögert?\n\nJe genauer die Angaben, desto schneller finden wir die Ursache. Vielen Dank vorab für Ihre Rückmeldung."
+        },
+        {
             name: "Fernwartung anbieten",
             text: "Guten Tag {anrede},\n\nzur weiteren Analyse würden wir uns gerne per Fernwartung auf das betroffene System aufschalten.\n\nBitte teilen Sie uns kurz mit, wann es Ihnen passt und unter welcher Rufnummer wir Sie am besten erreichen. Alternativ können Sie uns auch direkt anrufen – wir schalten uns dann gemeinsam auf."
         },
