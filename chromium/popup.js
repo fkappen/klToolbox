@@ -1,5 +1,5 @@
 // Version
-// version = "2.0.0"  (Modul Popup in Kloeschinski-Extension 2.5.0)
+// version = "2.0.0"  (Modul Popup, klToolbox)
 // datum   = "2026-08-13"
 // autor   = "Felix Kappen"
 //
@@ -168,7 +168,39 @@ function openTicket() {
     });
 }
 
+// Branding: Name + Farben kommen per Settings-Import; ohne bleibt es neutral.
+function shadeColor(hex, pct) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) {
+        return hex;
+    }
+    const n = parseInt(m[1], 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(v * (1 + pct))));
+    const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+    return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+}
+
+function applyBrand() {
+    chrome.storage.local.get({ brandName: "", brandPrimary: "", brandAccent: "" }, (items) => {
+        const root = document.documentElement;
+        if (items.brandPrimary) {
+            root.style.setProperty("--kl-blau", items.brandPrimary);
+            root.style.setProperty("--kl-blau-dunkel", shadeColor(items.brandPrimary, -0.2));
+        }
+        if (items.brandAccent) {
+            root.style.setProperty("--kl-gruen", items.brandAccent);
+            root.style.setProperty("--kl-gruen-dunkel", shadeColor(items.brandAccent, -0.2));
+        }
+        if (items.brandName) {
+            const parts = items.brandName.split(" ");
+            document.getElementById("brandName").textContent = parts[0];
+            document.getElementById("brandSub").textContent = parts.slice(1).join(" ");
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+    applyBrand();
     render();
     const input = document.getElementById("ticketNr");
     input.focus();

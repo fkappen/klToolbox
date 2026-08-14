@@ -3,12 +3,45 @@
 // datum   = "2026-08-14"
 // autor   = "Felix Kappen"
 //
-// Content-Script: Vorlagen-Button unten rechts auf sc.kloeschinski.de.
-// Merkt sich das zuletzt fokussierte Eingabefeld (Input/Textarea/contenteditable)
-// und fuegt die gewaehlte Vorlage an der Cursor-Position ein.
+// Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
+// (Host wird zur Laufzeit registriert, siehe background.js).
+// Fuegt die gewaehlte Vorlage vor der Signatur bzw. am Cursor ein.
 
 (function () {
     "use strict";
+
+    // ------------------------------------------------- Branding (CSS-Variablen)
+    // content.css nutzt var(--klt-p/-pd/-a/-ad) mit neutralen Fallbacks;
+    // Firmenfarben kommen erst per Settings-Import (brandPrimary/brandAccent).
+    function kltShade(hex, pct) {
+        const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+        if (!m) {
+            return hex;
+        }
+        const n = parseInt(m[1], 16);
+        const f = (v) => Math.max(0, Math.min(255, Math.round(v * (1 + pct))));
+        const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+        return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+    }
+
+    function kltApplyBrand(items) {
+        const root = document.documentElement;
+        if (items.brandPrimary) {
+            root.style.setProperty("--klt-p", items.brandPrimary);
+            root.style.setProperty("--klt-pd", kltShade(items.brandPrimary, -0.2));
+        }
+        if (items.brandAccent) {
+            root.style.setProperty("--klt-a", items.brandAccent);
+            root.style.setProperty("--klt-ad", kltShade(items.brandAccent, -0.2));
+        }
+    }
+
+    chrome.storage.local.get({ brandPrimary: "", brandAccent: "" }, kltApplyBrand);
+    chrome.storage.onChanged.addListener((ch, area) => {
+        if (area === "local" && (ch.brandPrimary || ch.brandAccent)) {
+            chrome.storage.local.get({ brandPrimary: "", brandAccent: "" }, kltApplyBrand);
+        }
+    });
 
     // Hinweis: Die Vorlagen enthalten bewusst KEINE Grussformel am Ende,
     // da die Signatur im Ticketsystem bereits im Textfeld steht.

@@ -3,7 +3,7 @@ $version = "2.0.0"
 $datum = "2026-08-14"
 $autor = "Felix Kappen"
 
-# Gesamt-Build der Kloeschinski Toolbox im klToolbox-Repo:
+# Gesamt-Build der klToolbox:
 #   1. firefox/  aus chromium/ synchronisieren (Firefox-Manifest einsetzen)
 #   2. releases/kl-toolbox-chromium-v<ver>.zip  (Store-Upload UND Bypass-Install)
 #   3. releases/kl-toolbox-firefox-v<ver>.zip   (AMO-Upload)
@@ -21,7 +21,7 @@ Set-StrictMode -Version Latest
 
 $updateUrl = "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/updates.json"
 $xpiBaseUrl = "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/"
-$geckoId = "toolbox@kloeschinski.de"
+$geckoId = "app@kltoolbox.dev"
 
 try {
     $root = $PSScriptRoot
@@ -38,7 +38,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $chromiumDir "manifest.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     $ver = $manifest.version
-    Write-Host "=== Kloeschinski Toolbox v$ver - Build ===" -ForegroundColor Cyan
+    Write-Host "=== klToolbox v$ver - Build ===" -ForegroundColor Cyan
 
     # ------------------------------------------- 1. firefox/ synchronisieren
     if (Test-Path $firefoxDir) {

@@ -3,7 +3,7 @@
     "properties": {
         "defaultsJson": {
             "type": "string",
-            "description": "JSON-String mit vorbelegten Einstellungen. Format wie releases/kloeschinski-defaults.json (komplette Datei oder nur das settings-Objekt). Wird beim Browserstart in die lokalen Einstellungen uebernommen, sobald sich der Richtlinienwert aendert."
+            "description": "JSON-String mit vorbelegten Einstellungen (komplette Defaults-Datei oder nur das settings-Objekt). Wird beim Browserstart in die lokalen Einstellungen uebernommen, sobald sich der Richtlinienwert aendert."
         }
     }
 }

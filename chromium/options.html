@@ -2,13 +2,19 @@
 <html lang="de">
 <head>
     <meta charset="utf-8">
-    <title>Klöschinski – Optionen</title>
+    <title>klToolbox – Optionen</title>
     <style>
-        /* Klöschinski CI: Blau #1F8CBB, Grün #B2C956 */
+        /* Neutrale Grundfarben - Firmen-Branding kommt erst per Settings-Import
+           (brandName/brandPrimary/brandAccent) und ueberschreibt die Variablen. */
+        :root {
+            --klt-p: #46626F;
+            --klt-pd: #35505C;
+            --klt-a: #7D939E;
+        }
         body { font: 14px/1.5 system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #26323a; background: #fafcfd; }
-        h1 { font-size: 22px; color: #17719A; display: flex; align-items: center; gap: 10px; }
+        h1 { font-size: 22px; color: var(--klt-pd); display: flex; align-items: center; gap: 10px; }
         h1 img { width: 28px; height: 28px; }
-        h2 { font-size: 17px; margin: 34px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #B2C956; color: #1F8CBB; }
+        h2 { font-size: 17px; margin: 34px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--klt-a); color: var(--klt-p); }
         fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px; padding: 12px 16px; }
         legend { font-weight: 600; padding: 0 6px; }
         label { display: block; margin: 10px 0 4px; font-weight: 600; }
@@ -18,8 +24,8 @@
         .radio-row label { font-weight: 400; margin: 0; display: flex; align-items: center; gap: 6px; }
         .hint { color: #777; font-size: 12px; margin-top: 4px; }
         button { border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; font: inherit; font-weight: 600; }
-        .primary { background: #1F8CBB; color: #fff; }
-        .primary:hover { background: #17719A; }
+        .primary { background: var(--klt-p); color: #fff; }
+        .primary:hover { background: var(--klt-pd); }
         .secondary { background: #eee; }
         .danger { background: transparent; color: #b3261e; border: 1px solid #b3261e; }
         .toolbar { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
@@ -35,7 +41,7 @@
     </style>
 </head>
 <body>
-    <h1><img src="icon32.png" alt="">Klöschinski – Optionen</h1>
+    <h1><img src="icon32.png" alt=""><span id="brandTitle">klToolbox – Optionen</span></h1>
 
     <!-- ================================================== Module -->
     <h2>Module</h2>
@@ -81,8 +87,8 @@
         <label for="claudeApiKey">API-Key</label>
         <input type="password" id="claudeApiKey" placeholder="sk-ant-...">
         <label for="claudeModel">Modell</label>
-        <input type="text" id="claudeModel" placeholder="claude-opus-5">
-        <div class="hint">Standard: claude-opus-5 &middot; günstiger/schneller: claude-haiku-4-5</div>
+        <input type="text" id="claudeModel" placeholder="claude-haiku-4-5">
+        <div class="hint">Standard: claude-haiku-4-5 (günstig/schnell) &middot; leistungsstärker: claude-opus-5</div>
     </fieldset>
 
     <fieldset>
@@ -210,8 +216,8 @@
     <!-- ================================================== MS Account Cleaner -->
     <h2>MS Account Cleaner</h2>
     <label for="cleanerWhitelist">Whitelist – diese Konten werden NIE entfernt</label>
-    <textarea id="cleanerWhitelist" style="min-height:80px;" placeholder="max.mustermann@firma.de&#10;@kloeschinski.de"></textarea>
-    <div class="hint">Ein Eintrag pro Zeile. Exakte E-Mail-Adresse schützt ein Konto, ein Teilstring wie <code>@kloeschinski.de</code> schützt alle Konten der Domain. Groß-/Kleinschreibung egal. Konten „Mit Windows verbunden“ sind immer geschützt.</div>
+    <textarea id="cleanerWhitelist" style="min-height:80px;" placeholder="max.mustermann@firma.de&#10;@firma.de"></textarea>
+    <div class="hint">Ein Eintrag pro Zeile. Exakte E-Mail-Adresse schützt ein Konto, ein Teilstring wie <code>@firma.de</code> schützt alle Konten der Domain. Groß-/Kleinschreibung egal. Konten „Mit Windows verbunden“ sind immer geschützt.</div>
     <div class="toolbar">
         <button id="saveCleaner" class="primary">Cleaner-Einstellungen speichern</button><span id="statusCleaner" class="status"></span>
     </div>
@@ -228,9 +234,9 @@
         <span id="statusSettings" class="status"></span>
     </div>
 
-    <div class="toolbar">
-        <button id="settingsFetch" class="secondary">Vorgaben aus dem Repo laden</button>
-        <span class="hint">Lädt die aktuelle <code>kloeschinski-defaults.json</code> aus dem klToolbox-Repo und führt sie zusammen (wie „aktualisieren“ — API-Keys bleiben erhalten).</span>
+    <div class="toolbar" id="grantHostRow" style="display:none;">
+        <button id="grantHost" class="primary">Zugriff auf Ticketsystem erlauben</button>
+        <span class="hint">Die importierte Konfiguration enthält eine Ticketsystem-URL. Damit die Ticket-Module (Vorlagen, Termin, Wartezeit) dort aktiv werden, muss der Zugriff einmalig erlaubt werden.</span>
     </div>
 
     <script src="options.js"></script>

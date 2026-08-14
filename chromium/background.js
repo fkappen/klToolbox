@@ -44,15 +44,17 @@ const SYSTEM_PROMPT =
     "Behalte die Sprache des Originaltextes bei (außer bei Übersetzungsaufgaben). " +
     "Behalte vorhandene Zeilenumbrüche und Absatzstruktur sinnvoll bei.";
 
+// Neutrale Auslieferung: guenstige Modelle vorbelegt, kein Kontext -
+// firmenspezifische Vorgaben kommen erst per Settings-Import/GPO.
 const DEFAULTS = {
     provider: "claude",
     claudeApiKey: "",
-    claudeModel: "claude-opus-5",
+    claudeModel: "claude-haiku-4-5",
     openaiApiKey: "",
     openaiModel: "gpt-4o-mini",
     innogptApiKey: "",
     innogptModel: "gpt-5",
-    kiKontext: "Wir sind ein IT-Dienstleister. Formuliere freundlich und professionell."
+    kiKontext: ""
 };
 
 // System-Prompt inkl. konfigurierbarem Kontext (Optionen)
@@ -140,11 +142,86 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
 });
 
+// ---------------------------------------------------------------- Ticket-Modul (dynamisch)
+//
+// Das Ticketsystem steht NICHT im Manifest (neutrale Auslieferung, interne
+// Hostnamen bleiben unsichtbar). Stattdessen: Die Ticket-URL kommt per
+// Settings-Import (linkTemplate), die Optionsseite holt die optionale
+// Host-Berechtigung ein, und hier werden die Content-Scripts zur Laufzeit
+// fuer genau diesen Origin registriert.
+
+const TICKET_SCRIPT_ID = "kltoolbox-ticket";
+
+function ticketOriginFromSettings(items) {
+    try {
+        return new URL(items.linkTemplate).origin;
+    }
+    catch (err) {
+        return null;
+    }
+}
+
+async function syncTicketContentScripts() {
+    try {
+        const items = await new Promise((resolve) => {
+            chrome.storage.local.get({ linkTemplate: "" }, resolve);
+        });
+        const origin = ticketOriginFromSettings(items);
+        const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [TICKET_SCRIPT_ID] })
+            .catch(() => []);
+        if (!origin) {
+            if (existing.length > 0) {
+                await chrome.scripting.unregisterContentScripts({ ids: [TICKET_SCRIPT_ID] });
+            }
+            return;
+        }
+        const match = origin + "/*";
+        const granted = await chrome.permissions.contains({ origins: [match] });
+        if (!granted) {
+            console.warn("klToolbox: Host-Berechtigung fuer " + match +
+                " fehlt - in den Optionen (Sicherung) erteilen, dann werden die Ticket-Module aktiv.");
+            return;
+        }
+        const desired = {
+            id: TICKET_SCRIPT_ID,
+            matches: [match],
+            js: ["content-vorlagen.js", "content-termin.js"],
+            css: ["content.css"],
+            allFrames: true,
+            runAt: "document_idle",
+            persistAcrossSessions: true
+        };
+        if (existing.length > 0) {
+            await chrome.scripting.updateContentScripts([desired]);
+        } else {
+            await chrome.scripting.registerContentScripts([desired]);
+        }
+        console.log("klToolbox: Ticket-Module registriert fuer " + match);
+    }
+    catch (err) {
+        console.error("klToolbox: Registrierung der Ticket-Module fehlgeschlagen:", err);
+    }
+}
+
+syncTicketContentScripts();
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.linkTemplate) {
+        syncTicketContentScripts();
+    }
+});
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg && msg.type === "syncTicketScripts") {
+        syncTicketContentScripts().then(() => sendResponse({ ok: true }));
+        return true;
+    }
+    return false;
+});
+
 // ---------------------------------------------------------------- Managed Storage (GPO)
 //
 // Administratoren koennen per Richtlinie den Schluessel "defaultsJson"
 // setzen (Chromium: 3rdparty-Extension-Policy, Firefox: 3rdparty-Policy;
-// siehe gpo/ im Repo). Inhalt: JSON im Format der kloeschinski-defaults.json
+// siehe gpo/ im Repo). Inhalt: JSON im Format der Defaults-JSON (interne Verteilung)
 // (komplette Datei oder nur das settings-Objekt). Die Vorgaben werden in
 // storage.local uebernommen, sobald sich der Richtlinienwert aendert -
 // danach darf der Benutzer weiter anpassen, bis der Admin eine neue
@@ -274,7 +351,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // ---------------------------------------------------------------- KI-Chat (chat.html)
 
 const CHAT_SYSTEM =
-    "Du bist ein hilfreicher KI-Assistent für die Mitarbeiter eines IT-Dienstleisters. " +
+    "Du bist ein hilfreicher KI-Assistent. " +
     "Antworte auf Deutsch, präzise und praxisnah.";
 
 function buildChatSystem(settings) {

@@ -1,9 +1,9 @@
 {
     "manifest_version": 3,
-    "name": "Klöschinski Toolbox",
-    "version": "2.21.0",
-    "description": "KI-Umformulierer, Ticket-Vorlagen & -Termine (Venabo), M365-Schnellzugriffe, MS Account Cleaner und KI-Chat.",
-    "author": "Felix Kappen",
+    "name": "klToolbox",
+    "version": "3.0.0",
+    "description": "Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.",
+    "author": "FK",
     "storage": {
         "managed_schema": "schema.json"
     },
@@ -17,8 +17,10 @@
     "host_permissions": [
         "https://api.anthropic.com/*",
         "https://api.openai.com/*",
-        "https://app.innogpt.de/*",
-        "https://raw.githubusercontent.com/*"
+        "https://app.innogpt.de/*"
+    ],
+    "optional_host_permissions": [
+        "https://*/*"
     ],
     "icons": {
         "16": "icon16.png",
@@ -28,7 +30,7 @@
     },
     "action": {
         "default_popup": "popup.html",
-        "default_title": "Ticket öffnen (Nummer eingeben)",
+        "default_title": "klToolbox",
         "default_icon": {
             "16": "icon16.png",
             "32": "icon32.png",
@@ -40,13 +42,6 @@
         "service_worker": "background.js"
     },
     "content_scripts": [
-        {
-            "matches": ["https://sc.kloeschinski.de/*"],
-            "js": ["content-vorlagen.js", "content-termin.js"],
-            "css": ["content.css"],
-            "all_frames": true,
-            "run_at": "document_idle"
-        },
         {
             "matches": [
                 "https://login.microsoftonline.com/*",
@@ -64,7 +59,7 @@
     "web_accessible_resources": [
         {
             "resources": ["options.html"],
-            "matches": ["https://sc.kloeschinski.de/*"]
+            "matches": ["https://*/*"]
         }
     ]
 }

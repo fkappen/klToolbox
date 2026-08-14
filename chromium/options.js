@@ -6,16 +6,50 @@
 // Kombinierte Options-Seite: KI-Umformulierer, Ticket-Termin, Ticket-Vorlagen.
 // Die Storage-Keys entsprechen den frueheren Einzel-Extensions.
 
+// Neutrale Auslieferung: guenstige Modelle, kein Kontext - firmenspezifische
+// Vorgaben (kiKontext, Branding, Links) kommen erst per Settings-Import/GPO.
 const KI_DEFAULTS = {
     provider: "claude",
     claudeApiKey: "",
-    claudeModel: "claude-opus-5",
+    claudeModel: "claude-haiku-4-5",
     openaiApiKey: "",
     openaiModel: "gpt-4o-mini",
     innogptApiKey: "",
     innogptModel: "gpt-5",
-    kiKontext: "Wir sind ein IT-Dienstleister. Formuliere freundlich und professionell."
+    kiKontext: ""
 };
+
+// Branding (Name + zwei Farben) kommt per Settings-Import; ohne Import
+// bleibt der neutrale Look. Dunkle Variante wird automatisch abgeleitet.
+const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "" };
+
+function shadeColor(hex, pct) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) {
+        return hex;
+    }
+    const n = parseInt(m[1], 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(v * (1 + pct))));
+    const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+    return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+}
+
+function applyBrand(items) {
+    const root = document.documentElement;
+    if (items.brandPrimary) {
+        root.style.setProperty("--klt-p", items.brandPrimary);
+        root.style.setProperty("--klt-pd", shadeColor(items.brandPrimary, -0.2));
+    }
+    if (items.brandAccent) {
+        root.style.setProperty("--klt-a", items.brandAccent);
+    }
+    if (items.brandName) {
+        const t = document.getElementById("brandTitle");
+        if (t) {
+            t.textContent = items.brandName + " – Optionen";
+        }
+    }
+}
 
 const TERMIN_DEFAULTS = {
     subjectTemplate: "%KUNDE% - %TICKETNR% - %BEZEICHNUNG%",
@@ -64,13 +98,14 @@ let datevLinks = [];
 // ---------------------------------------------------------------- Laden
 
 function loadAll() {
-    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, {
+    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, {
         templates: [],
         quickLinks: DEFAULT_QUICKLINKS,
         m365Links: DEFAULT_M365LINKS,
         datevLinks: DEFAULT_DATEVLINKS,
         cleanerWhitelist: []
     }), (items) => {
+        applyBrand(items);
         // Module
         for (const key of Object.keys(MODULE_DEFAULTS)) {
             document.getElementById(key).checked = items[key] !== false;
@@ -350,50 +385,62 @@ function saveLinks() {
 function exportAllSettings() {
     chrome.storage.local.get(null, (items) => {
         const payload = {
-            _extension: "Kloeschinski",
+            _extension: "klToolbox",
             _exportiert: new Date().toISOString(),
             settings: items
         };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "kloeschinski-settings.json";
+        a.download = "kltoolbox-settings.json";
         a.click();
         URL.revokeObjectURL(a.href);
     });
 }
 
-// Vorgaben direkt aus dem oeffentlichen Repo laden (nur Konfigurationsdaten,
-// kein Code - damit store-konform) und wie "aktualisieren" zusammenfuehren.
-const DEFAULTS_URL = "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kloeschinski-defaults.json";
-
-function fetchDefaultsFromRepo() {
-    fetch(DEFAULTS_URL, { cache: "no-store" })
-        .then((res) => {
-            if (!res.ok) {
-                throw new Error("HTTP " + res.status);
+// Host-Berechtigung fuer das (per Import konfigurierte) Ticketsystem: Das
+// Ticketsystem steht bewusst NICHT im Manifest - erst die optionale
+// Berechtigung (Nutzer-Klick) aktiviert die Ticket-Module dort.
+function updateHostPermissionUi() {
+    chrome.storage.local.get({ linkTemplate: "" }, (items) => {
+        let origin = null;
+        try {
+            origin = new URL(items.linkTemplate).origin;
+        } catch (err) {
+            origin = null;
+        }
+        const row = document.getElementById("grantHostRow");
+        if (!origin) {
+            row.style.display = "none";
+            return;
+        }
+        const match = origin + "/*";
+        chrome.permissions.contains({ origins: [match] }, (granted) => {
+            row.style.display = granted ? "none" : "flex";
+            if (!granted) {
+                document.getElementById("grantHost").textContent = "Zugriff auf " + new URL(origin).hostname + " erlauben";
             }
-            return res.json();
-        })
-        .then((data) => {
-            const settings = (data && typeof data === "object" && data.settings && typeof data.settings === "object")
-                ? data.settings
-                : data;
-            if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
-                throw new Error("Unerwartetes Format der Defaults-Datei.");
-            }
-            const keys = Object.keys(settings).join(", ");
-            if (!confirm("Vorgaben aus dem Repo übernehmen (vorhandene gleichnamige Einstellungen werden ersetzt, alles übrige - z. B. API-Keys - bleibt erhalten)?\n\n" + keys)) {
-                return;
-            }
-            chrome.storage.local.set(settings, () => {
-                flashStatus("statusSettings");
-                loadAll();
-            });
-        })
-        .catch((err) => {
-            alert("Vorgaben konnten nicht geladen werden: " + err.message);
         });
+    });
+}
+
+function grantTicketHostPermission() {
+    chrome.storage.local.get({ linkTemplate: "" }, (items) => {
+        let origin = null;
+        try {
+            origin = new URL(items.linkTemplate).origin;
+        } catch (err) {
+            return;
+        }
+        chrome.permissions.request({ origins: [origin + "/*"] }, (granted) => {
+            if (granted) {
+                chrome.runtime.sendMessage({ type: "syncTicketScripts" }, () => {
+                    flashStatus("statusSettings");
+                    updateHostPermissionUi();
+                });
+            }
+        });
+    });
 }
 
 // mode: "merge" = aktualisieren (zusammenfuehren), "replace" = ueberschreiben
@@ -418,6 +465,7 @@ function importAllSettings(file, mode) {
                     chrome.storage.local.set(settings, () => {
                         flashStatus("statusSettings");
                         loadAll();
+                        updateHostPermissionUi();
                     });
                 });
                 return;
@@ -428,6 +476,7 @@ function importAllSettings(file, mode) {
             chrome.storage.local.set(settings, () => {
                 flashStatus("statusSettings");
                 loadAll();
+                updateHostPermissionUi();
             });
         } catch (err) {
             alert("Import fehlgeschlagen: " + err.message);
@@ -472,7 +521,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("linksSave").addEventListener("click", saveLinks);
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
-    document.getElementById("settingsFetch").addEventListener("click", fetchDefaultsFromRepo);
+    document.getElementById("grantHost").addEventListener("click", grantTicketHostPermission);
+    updateHostPermissionUi();
     let importMode = "merge";
     document.getElementById("settingsImport").addEventListener("click", () => {
         importMode = "merge";

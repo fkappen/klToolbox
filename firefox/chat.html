@@ -2,12 +2,14 @@
 <html lang="de">
 <head>
     <meta charset="utf-8">
-    <title>Klöschinski KI-Chat</title>
+    <title>klToolbox KI-Chat</title>
     <link rel="icon" href="icon32.png">
     <style>
+        /* Neutrale Grundfarben - Branding kommt per Settings-Import */
+        :root { --klt-p: #46626F; --klt-pd: #35505C; --klt-a: #7D939E; }
         * { box-sizing: border-box; }
         body { font: 14px/1.5 system-ui, sans-serif; margin: 0; background: #f4f5f7; color: #222; height: 100vh; display: flex; flex-direction: column; }
-        header { background: linear-gradient(135deg, #1F8CBB, #17719A); color: #fff; padding: 10px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #B2C956; }
+        header { background: linear-gradient(135deg, var(--klt-p), var(--klt-pd)); color: #fff; padding: 10px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid var(--klt-a); }
         header img { width: 24px; height: 24px; }
         header h1 { font-size: 15px; margin: 0; flex: 1; }
         header .meta { font-size: 12px; opacity: .8; }
@@ -17,15 +19,15 @@
         .msg { margin-bottom: 12px; display: flex; }
         .msg .bubble { max-width: 78%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
         .msg.user { justify-content: flex-end; }
-        .msg.user .bubble { background: #1F8CBB; color: #fff; border-bottom-right-radius: 4px; }
+        .msg.user .bubble { background: var(--klt-p); color: #fff; border-bottom-right-radius: 4px; }
         .msg.assistant .bubble { background: #fff; border: 1px solid #e2e4e8; border-bottom-left-radius: 4px; }
         .msg.error .bubble { background: #fdecea; color: #b3261e; border: 1px solid #f5c6c0; }
         .msg.loading .bubble { color: #888; font-style: italic; }
         footer { padding: 12px 18px 16px; max-width: 860px; width: 100%; margin: 0 auto; }
         .inputrow { display: flex; gap: 8px; align-items: flex-end; }
         textarea { flex: 1; min-height: 48px; max-height: 200px; padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px; font: inherit; resize: vertical; }
-        #send { background: #1F8CBB; color: #fff; border: 0; border-radius: 10px; padding: 12px 20px; cursor: pointer; font: inherit; font-weight: 600; }
-        #send:hover { background: #17719A; }
+        #send { background: var(--klt-p); color: #fff; border: 0; border-radius: 10px; padding: 12px 20px; cursor: pointer; font: inherit; font-weight: 600; }
+        #send:hover { background: var(--klt-pd); }
         #send:disabled { opacity: .5; cursor: default; }
         .hint { color: #999; font-size: 11px; margin-top: 4px; }
     </style>

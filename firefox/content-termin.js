@@ -1,5 +1,5 @@
 // Version
-// version = "1.5.0"  (Modul Ticket-Termin in Kloeschinski-Extension 2.2.0)
+// version = "1.5.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-13"
 // autor   = "Felix Kappen"
 //
@@ -28,7 +28,10 @@
         autoStatus: true,
         nichtErreichtText: "Nicht erreicht.",
         firmenAdresse: "",
-        defaultTerminart: "telefon"
+        defaultTerminart: "telefon",
+        // Eigene Mail-Domain (ohne @): mailto-Fallback ignoriert diese
+        // Adressen. Kommt per Settings-Import - neutral ausgeliefert.
+        ownEmailDomain: ""
     };
 
     const TERMINARTEN = [
@@ -194,14 +197,19 @@
         if (viaLabel) {
             return viaLabel;
         }
-        // Fallback: erster mailto-Link auf der Seite - eigene Adressen
-        // (@kloeschinski.de, z. B. supportcenter@) dabei ignorieren.
+        // Fallback: erster mailto-Link auf der Seite - Adressen der eigenen
+        // Domain (Einstellung ownEmailDomain, z. B. Support-Postfach) ignorieren.
+        const ownDomain = (settings.ownEmailDomain || "").trim().replace(/^@/, "").toLowerCase();
         for (const a of document.querySelectorAll("a[href^='mailto:']")) {
             const href = a.getAttribute("href") || "";
             const mail = href.replace(/^mailto:/i, "").split("?")[0].trim();
-            if (mail && !/@kloeschinski\.de$/i.test(mail)) {
-                return mail;
+            if (!mail) {
+                continue;
             }
+            if (ownDomain && mail.toLowerCase().endsWith("@" + ownDomain)) {
+                continue;
+            }
+            return mail;
         }
         return "";
     }
@@ -728,11 +736,11 @@
         const dtstamp = new Date();
         const dtstampUtc = dtstamp.getUTCFullYear() + pad(dtstamp.getUTCMonth() + 1) + pad(dtstamp.getUTCDate()) +
             "T" + pad(dtstamp.getUTCHours()) + pad(dtstamp.getUTCMinutes()) + pad(dtstamp.getUTCSeconds()) + "Z";
-        const uid = "ticket-" + (ticketNr || "termin") + "-" + Date.now() + "@kloeschinski.de";
+        const uid = "ticket-" + (ticketNr || "termin") + "-" + Date.now() + "@kltoolbox.local";
         const lines = [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
-            "PRODID:-//Kloeschinski//TicketTermin//DE",
+            "PRODID:-//klToolbox//TicketTermin//DE",
             "METHOD:PUBLISH",
             "BEGIN:VEVENT",
             "UID:" + uid,

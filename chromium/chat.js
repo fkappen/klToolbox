@@ -1,5 +1,5 @@
 // Version
-// version = "1.0.0"  (Modul KI-Chat in Kloeschinski-Extension 2.6.0)
+// version = "1.0.0"  (Modul KI-Chat, klToolbox)
 // datum   = "2026-08-13"
 // autor   = "Felix Kappen"
 //
@@ -34,7 +34,21 @@ function addBubble(cls, text) {
 }
 
 function updateMeta() {
-    chrome.storage.local.get({ provider: "claude", claudeModel: "claude-opus-5", openaiModel: "gpt-4o-mini", innogptModel: "gpt-5" }, (s) => {
+    chrome.storage.local.get({ provider: "claude", claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini", innogptModel: "gpt-5", brandPrimary: "", brandAccent: "" }, (s) => {
+        // Branding (per Settings-Import) auf die CSS-Variablen anwenden
+        if (s.brandPrimary) {
+            const m = /^#?([0-9a-f]{6})$/i.exec(String(s.brandPrimary).trim());
+            document.documentElement.style.setProperty("--klt-p", s.brandPrimary);
+            if (m) {
+                const n = parseInt(m[1], 16);
+                const f = (v) => Math.max(0, Math.min(255, Math.round(v * 0.8)));
+                const d = ((f((n >> 16) & 255) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255));
+                document.documentElement.style.setProperty("--klt-pd", "#" + d.toString(16).padStart(6, "0"));
+            }
+        }
+        if (s.brandAccent) {
+            document.documentElement.style.setProperty("--klt-a", s.brandAccent);
+        }
         const provider = providerOverride || s.provider;
         const model = provider === "openai" ? s.openaiModel : (provider === "innogpt" ? s.innogptModel : s.claudeModel);
         el("meta").textContent = provider + " · " + model;

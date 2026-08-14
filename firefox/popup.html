@@ -3,12 +3,13 @@
 <head>
     <meta charset="utf-8">
     <style>
-        /* Klöschinski CI: Blau #1F8CBB, Grün #B2C956 (aus dem Logo gesampelt) */
+        /* Neutrale Grundfarben - Firmen-Branding (brandName/brandPrimary/
+           brandAccent) kommt erst per Settings-Import und setzt die Variablen. */
         :root {
-            --kl-blau: #1F8CBB;
-            --kl-blau-dunkel: #17719A;
-            --kl-gruen: #B2C956;
-            --kl-gruen-dunkel: #8FAE2E;
+            --kl-blau: #46626F;
+            --kl-blau-dunkel: #35505C;
+            --kl-gruen: #7D939E;
+            --kl-gruen-dunkel: #5F7683;
         }
         body { font: 13px/1.4 system-ui, sans-serif; width: 372px; margin: 0; padding: 0 12px 10px; color: #26323a; background: #fafcfd; }
 
@@ -26,12 +27,12 @@
         #hint { color: #b3261e; font-size: 12px; margin-top: 4px; min-height: 14px; }
 
         #startBar { display: flex; margin-bottom: 4px; }
-        #startBtn { width: 100%; background: linear-gradient(135deg, var(--kl-gruen), var(--kl-gruen-dunkel)); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(143, 174, 46, .35); }
+        #startBtn { width: 100%; background: linear-gradient(135deg, var(--kl-gruen), var(--kl-gruen-dunkel)); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
         #startBtn:hover { filter: brightness(1.05); }
 
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
         .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 2px 5px; border-radius: 10px; cursor: pointer; background: #fff; border: 1px solid #e3eaef; color: #26323a; font: 10.5px/1.2 system-ui, sans-serif; transition: box-shadow .12s, transform .12s, border-color .12s; }
-        .tile:hover { border-color: var(--kl-blau); box-shadow: 0 3px 10px rgba(31, 140, 187, .18); transform: translateY(-1px); background: #fff; }
+        .tile:hover { border-color: var(--kl-blau); box-shadow: 0 3px 10px rgba(0, 0, 0, .14); transform: translateY(-1px); background: #fff; }
         .tile img { width: 22px; height: 22px; border-radius: 5px; }
         .tile span { max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tile.private { border-style: dashed; }
@@ -49,7 +50,7 @@
     </style>
 </head>
 <body>
-    <div class="brand"><img src="icon32.png" alt=""><b>klöschinski</b><span>toolbox</span></div>
+    <div class="brand"><img src="icon32.png" alt=""><b id="brandName">klToolbox</b><span id="brandSub"></span></div>
     <div id="startBar"><button id="startBtn">▶ Start – alle öffnen</button></div>
 
     <h2>Schnellzugriffe</h2>

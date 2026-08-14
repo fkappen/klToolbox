@@ -1,6 +1,6 @@
 /* Version 2.6.2 - 2026-08-13 - Felix Kappen
-   Kloeschinski CI: Blau #1F8CBB / #17719A, Gruen #B2C956 / #8FAE2E
-   Panels der Module Ticket-Vorlagen und Ticket-Termin (sc.kloeschinski.de) */
+   Neutrale Farben via CSS-Variablen; Branding kommt per Settings-Import
+   Panels der Module Ticket-Vorlagen und Ticket-Termin (Ticketsystem) */
 
 /* ============================================================ Vorlagen */
 
@@ -13,13 +13,13 @@
     cursor: pointer;
     font: inherit;
     font-weight: 600;
-    color: #1F8CBB;
+    color: var(--klt-p, #46626F);
     padding: 2px 6px;
 }
 
 .__vorlagen_tbtn:hover {
     text-decoration: underline;
-    color: #17719A;
+    color: var(--klt-pd, #35505C);
 }
 
 /* Schwebender Fallback-Button */
@@ -28,7 +28,7 @@
     bottom: 14px;
     right: 14px;
     z-index: 2147483646;
-    background: #1F8CBB;
+    background: var(--klt-p, #46626F);
     color: #fff;
     border: 0;
     border-radius: 20px;
@@ -67,9 +67,9 @@
     align-items: center;
     padding: 10px 12px;
     font-weight: 700;
-    background: linear-gradient(135deg, #1F8CBB, #17719A);
+    background: linear-gradient(135deg, var(--klt-p, #46626F), var(--klt-pd, #35505C));
     color: #fff;
-    border-bottom: 3px solid #B2C956;
+    border-bottom: 3px solid var(--klt-a, #7D939E);
 }
 
 #__vorlagen_panel .vp-gear {
@@ -87,8 +87,8 @@
 }
 
 #__vorlagen_panel .vp-search:focus {
-    border-color: #1F8CBB;
-    outline: 1px solid #1F8CBB;
+    border-color: var(--klt-p, #46626F);
+    outline: 1px solid var(--klt-p, #46626F);
 }
 
 #__vorlagen_panel .vp-list {
@@ -105,12 +105,12 @@
 
 #__vorlagen_panel .vp-item:hover {
     background: #eef6fb;
-    border-left-color: #B2C956;
+    border-left-color: var(--klt-a, #7D939E);
 }
 
 #__vorlagen_panel .vp-item-name {
     font-weight: 600;
-    color: #17719A;
+    color: var(--klt-pd, #35505C);
 }
 
 #__vorlagen_panel .vp-item-preview {
@@ -169,9 +169,9 @@
 #__tt_route_panel .ttr-head {
     padding: 10px 14px;
     font-weight: 700;
-    background: linear-gradient(135deg, #1F8CBB, #17719A);
+    background: linear-gradient(135deg, var(--klt-p, #46626F), var(--klt-pd, #35505C));
     color: #fff;
-    border-bottom: 3px solid #B2C956;
+    border-bottom: 3px solid var(--klt-a, #7D939E);
     margin-bottom: 10px;
 }
 
@@ -196,8 +196,8 @@
 }
 
 #__tt_route_panel input:focus {
-    border-color: #1F8CBB;
-    outline: 1px solid #1F8CBB;
+    border-color: var(--klt-p, #46626F);
+    outline: 1px solid var(--klt-p, #46626F);
 }
 
 #__tt_route_panel .ttr-bar {
@@ -217,12 +217,12 @@
 }
 
 #__tt_route_panel .ttr-primary {
-    background: #1F8CBB;
+    background: var(--klt-p, #46626F);
     color: #fff;
 }
 
 #__tt_route_panel .ttr-primary:hover {
-    background: #17719A;
+    background: var(--klt-pd, #35505C);
 }
 
 #__tt_route_panel .ttr-secondary {
@@ -232,8 +232,8 @@
 }
 
 #__tt_route_panel .ttr-secondary:hover {
-    border-color: #1F8CBB;
-    color: #17719A;
+    border-color: var(--klt-p, #46626F);
+    color: var(--klt-pd, #35505C);
 }
 
 /* ============================================================ Termin */
@@ -282,9 +282,9 @@
 #__tt_panel .tt-head {
     padding: 10px 14px;
     font-weight: 700;
-    background: linear-gradient(135deg, #1F8CBB, #17719A);
+    background: linear-gradient(135deg, var(--klt-p, #46626F), var(--klt-pd, #35505C));
     color: #fff;
-    border-bottom: 3px solid #B2C956;
+    border-bottom: 3px solid var(--klt-a, #7D939E);
     margin-bottom: 8px;
 }
 
@@ -307,7 +307,7 @@
 #__tt_panel .tt-row label {
     flex: 0 0 110px;
     font-weight: 600;
-    color: #17719A;
+    color: var(--klt-pd, #35505C);
 }
 
 #__tt_panel .tt-row input,
@@ -323,8 +323,8 @@
 
 #__tt_panel .tt-row input:focus,
 #__tt_panel .tt-row select:focus {
-    border-color: #1F8CBB;
-    outline: 1px solid #1F8CBB;
+    border-color: var(--klt-p, #46626F);
+    outline: 1px solid var(--klt-p, #46626F);
 }
 
 #__tt_panel .tt-time-wrap {
@@ -362,12 +362,12 @@
 }
 
 #__tt_panel .tt-primary {
-    background: #1F8CBB;
+    background: var(--klt-p, #46626F);
     color: #fff;
 }
 
 #__tt_panel .tt-primary:hover {
-    background: #17719A;
+    background: var(--klt-pd, #35505C);
 }
 
 #__tt_panel .tt-secondary {
@@ -377,6 +377,6 @@
 }
 
 #__tt_panel .tt-secondary:hover {
-    border-color: #1F8CBB;
-    color: #17719A;
+    border-color: var(--klt-p, #46626F);
+    color: var(--klt-pd, #35505C);
 }

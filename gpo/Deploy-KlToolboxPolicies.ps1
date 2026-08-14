@@ -1,31 +1,36 @@
 #Version
-$version = "1.0.0"
+$version = "2.0.0"
 $datum = "2026-08-14"
-$autor = "Felix Kappen"
+$autor = "FK"
 
-# Verteilt die Kloeschinski Toolbox per Richtlinien-Registry (HKLM) an
-# Chrome, Edge, Brave und Firefox:
+# Verteilt die klToolbox per Richtlinien-Registry (HKLM) an Chrome, Edge,
+# Brave und Firefox:
 #   - Force-Install der Extension (Chromium: Chrome Web Store, Firefox: xpi aus dem Repo)
-#   - Managed Storage "defaultsJson" mit den Vorgaben aus releases/kloeschinski-defaults.json
+#   - Managed Storage "defaultsJson" mit den Vorgaben aus einer INTERN
+#     verteilten Defaults-Datei (liegt bewusst NICHT in diesem Repo)
 #
 # Einsatz: als Computer-Startskript in einer GPO, per RMM oder manuell als
-# Admin auf einer Maschine. Die Registry-Pfade sind identisch zu dem, was
-# GPP-Registry-Einträge in einer GPO setzen wuerden (siehe README.md).
+# Admin. Die Registry-Pfade entsprechen GPP-Registry-Eintraegen (README.md).
+#
+# WICHTIG: -ExtensionId ist die ID des Chrome-Web-Store-Eintrags. Nach einer
+# Neu-Einreichung aendert sie sich - dann hier den neuen Standardwert pflegen.
 #
 # Parameter:
 #   -Browsers      Teilmenge aus Chrome, Edge, Brave, Firefox (Standard: alle)
-#   -DefaultsPath  Pfad zur kloeschinski-defaults.json (Standard: ..\releases\ oder Download aus dem Repo)
+#   -DefaultsPath  Pfad zur internen Defaults-JSON (PFLICHT fuer defaultsJson)
+#   -ExtensionId   Chrome-Web-Store-ID der klToolbox
 
 param(
     [ValidateSet("Chrome", "Edge", "Brave", "Firefox")]
     [string[]]$Browsers = @("Chrome", "Edge", "Brave", "Firefox"),
-    [string]$DefaultsPath = ""
+    [Parameter(Mandatory = $true)]
+    [string]$DefaultsPath,
+    [string]$ExtensionId = "NEUE_STORE_ID_HIER_EINTRAGEN"
 )
 
 Set-StrictMode -Version Latest
 
-$extensionId = "bcfhfhhmhgklpjodflnakgligkpglpoc"
-$geckoId = "toolbox@kloeschinski.de"
+$geckoId = "app@kltoolbox.dev"
 $cwsUpdateUrl = "https://clients2.google.com/service/update2/crx"
 $repoRawBase = "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/"
 
@@ -47,25 +52,16 @@ try {
     if (-not $isAdmin) {
         throw "Bitte als Administrator ausfuehren (HKLM-Richtlinien)."
     }
-
-    # ------------------------------------------- Defaults-JSON beschaffen
-    $defaultsRaw = $null
-    if (-not [string]::IsNullOrWhiteSpace($DefaultsPath)) {
-        $defaultsRaw = Get-Content -LiteralPath $DefaultsPath -Raw -Encoding UTF8
-    } else {
-        $local = Join-Path (Split-Path $PSScriptRoot -Parent) "releases\kloeschinski-defaults.json"
-        if (Test-Path $local) {
-            $defaultsRaw = Get-Content -LiteralPath $local -Raw -Encoding UTF8
-        } else {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-            $defaultsRaw = (Invoke-WebRequest -Uri ($repoRawBase + "kloeschinski-defaults.json") -UseBasicParsing).Content
-        }
+    if ($ExtensionId -eq "NEUE_STORE_ID_HIER_EINTRAGEN") {
+        throw "Chrome-Web-Store-ID fehlt (-ExtensionId) - nach der Store-Einreichung eintragen."
     }
+
+    # ------------------------------------------- Defaults-JSON laden (intern)
+    $defaultsRaw = Get-Content -LiteralPath $DefaultsPath -Raw -Encoding UTF8
     $defaultsObj = $defaultsRaw | ConvertFrom-Json
     if ($null -eq $defaultsObj) {
         throw "Defaults-JSON konnte nicht gelesen werden."
     }
-    # Kompakt (eine Zeile) fuer den Registry-Wert
     $defaultsCompact = $defaultsObj | ConvertTo-Json -Compress -Depth 10
     Write-Host ("Defaults geladen (" + $defaultsCompact.Length + " Zeichen)")
 
@@ -79,7 +75,7 @@ try {
         # Force-Install: vorhandene Nummern respektieren, eigene ID nur einmal
         $flKey = Join-Path $base "ExtensionInstallForcelist"
         Ensure-Key $flKey
-        $flEntry = $extensionId + ";" + $cwsUpdateUrl
+        $flEntry = $ExtensionId + ";" + $cwsUpdateUrl
         $existing = Get-Item -LiteralPath $flKey
         $found = $false
         $maxIdx = 0
@@ -89,7 +85,7 @@ try {
             if ([int]::TryParse($name, [ref]$idx) -and $idx -gt $maxIdx) {
                 $maxIdx = $idx
             }
-            if ($val -like ($extensionId + "*")) {
+            if ($val -like ($ExtensionId + "*")) {
                 Set-ItemProperty -LiteralPath $flKey -Name $name -Value $flEntry
                 $found = $true
             }
@@ -99,7 +95,7 @@ try {
         }
 
         # Managed Storage: defaultsJson
-        $polKey = Join-Path $base ("3rdparty\extensions\" + $extensionId + "\policy")
+        $polKey = Join-Path $base ("3rdparty\extensions\" + $ExtensionId + "\policy")
         Ensure-Key $polKey
         Set-ItemProperty -LiteralPath $polKey -Name "defaultsJson" -Value $defaultsCompact
         Write-Host ($browser + ": Force-Install + defaultsJson gesetzt") -ForegroundColor Green
@@ -153,6 +149,8 @@ try {
     Write-Host ""
     Write-Host "Fertig. Browser einmal komplett neu starten; Chromium-Richtlinien unter"
     Write-Host "chrome://policy bzw. edge://policy pruefen, Firefox unter about:policies."
+    Write-Host "Hinweis: Die optionale Ticketsystem-Berechtigung muss je Nutzer einmal in den"
+    Write-Host "Optionen bestaetigt werden (Button erscheint nach Uebernahme der Vorgaben)."
 }
 catch {
     Write-Error $_

@@ -1,7 +1,12 @@
-# Klöschinski Toolbox
+# klToolbox
 
-Browser-Erweiterung der Klöschinski IT Lösungen GmbH für den Techniker-Alltag —
-in zwei Varianten: **Chromium** (Chrome, Brave, Edge) und **Firefox**.
+Browser-Erweiterung für IT-Service-Teams — in zwei Varianten: **Chromium**
+(Chrome, Brave, Edge) und **Firefox**.
+
+Die Erweiterung wird als **neutrale Hülle** ausgeliefert: keine vorbelegten
+Links, kein Branding, keine Firmendaten. Konfiguration (Schnellzugriffe,
+Ticketsystem-URL, Vorlagen, Farben/Name) kommt erst per Settings-Import oder
+zentral per Gruppenrichtlinie (Managed Storage).
 
 ## Funktionen (Module, einzeln abschaltbar)
 
@@ -9,73 +14,64 @@ in zwei Varianten: **Chromium** (Chrome, Brave, Edge) und **Firefox**.
 |---|---|
 | KI-Umformulierer | Markierten Text per Rechtsklick mit KI umformulieren, korrigieren oder übersetzen (Claude / OpenAI / InnoGPT, eigener API-Key) |
 | Kontextmenü-Suchen | Markierten Text in der DATEV Wissensplattform, bei Google oder in InnoGPT nachschlagen |
-| Ticket-Vorlagen | Textbausteine mit einem Klick in das „Email senden“-Fenster des Ticketsystems einfügen |
-| Ticket-Termin & Wartezeit | Outlook-Termin aus dem Ticket erstellen (ICS oder Outlook Web), „Nicht erreicht“-Eintrag, Anfahrtsplanung, Wartezeit-Ampel |
+| Ticket-Vorlagen | Textbausteine mit einem Klick in das Mail-Fenster des (konfigurierten) Ticketsystems einfügen — mit Platzhaltern wie `{anrede}` |
+| Ticket-Termin & Wartezeit | Outlook-Termin aus dem Ticket erstellen (ICS oder Outlook Web), „Nicht erreicht“-Eintrag, Abonnieren, Anfahrtsplanung, Wartezeit-Ampel |
 | MS Account Cleaner | Gemerkte Konten auf der Microsoft-Anmeldeseite in einem Rutsch entfernen (mit Whitelist) |
 | KI-Chat | Chat-Seite mit dem konfigurierten KI-Anbieter, direkt aus dem Popup |
 
-Dazu ein Popup mit Start-Leiste, konfigurierbaren Schnellzugriffen, M365-Admin-Links
-(öffnen im privaten Fenster), DATEV-Portalen sowie Ticket-, Kunden- und Websuche.
+Dazu ein Popup mit Start-Leiste, konfigurierbaren Schnellzugriffen, Links, die
+in privaten Fenstern öffnen, DATEV-Portalen sowie Ticket-, Kunden- und Websuche.
+
+## Ticketsystem-Anbindung
+
+Das Ticketsystem steht **nicht** im Manifest. Nach dem Settings-Import (die
+Konfiguration enthält die Ticketsystem-URL) fragt die Erweiterung einmalig um
+Erlaubnis für genau diese Website (optionale Host-Berechtigung); erst dann
+werden die Ticket-Module dort per `scripting.registerContentScripts` aktiv.
 
 ## Installation
 
 ### Chromium (Chrome / Brave / Edge)
 
-**Empfohlen — Chrome Web Store** (automatische Updates):
-<https://chromewebstore.google.com/detail/bcfhfhhmhgklpjodflnakgligkpglpoc>
+**Empfohlen:** über den Chrome Web Store (automatische Updates) — Link wird
+intern verteilt.
 
-**Alternativ — ohne Store („Bypass“-Variante, keine automatischen Updates):**
-1. ZIP `kl-toolbox-chromium-v<version>.zip` aus [`releases/`](releases/) herunterladen und entpacken
-2. `chrome://extensions` (bzw. `brave://extensions`, `edge://extensions`) öffnen
-3. „Entwicklermodus“ aktivieren → „Entpackte Erweiterung laden“ → entpackten Ordner wählen
+**Alternativ — ohne Store („Bypass“, keine automatischen Updates):**
+1. ZIP `kl-toolbox-chromium-v<version>.zip` aus [`releases/`](releases/) entpacken
+2. `chrome://extensions` → „Entwicklermodus“ → „Entpackte Erweiterung laden“
 
 ### Firefox
 
-1. Aktuelle `kl-toolbox-firefox-v<version>.xpi` aus [`releases/`](releases/) herunterladen
-2. Datei in Firefox öffnen (oder per Drag & Drop ins Fenster ziehen) und Installation bestätigen
-3. Updates kommen danach automatisch über dieses Repo (`releases/updates.json`)
-
-Die .xpi ist von Mozilla signiert (AMO, Kanal „Nicht gelistet“).
+Aktuelle `kl-toolbox-firefox-v<version>.xpi` aus [`releases/`](releases/) in
+Firefox öffnen. Updates kommen danach automatisch über dieses Repo
+(`releases/updates.json`). Die .xpi ist von Mozilla signiert (AMO, „Nicht gelistet“).
 
 ## Einrichtung
 
-Die Erweiterung wird bewusst als **neutrale Hülle** ausgeliefert — ohne interne
-Links und URL-Vorlagen. Nach der Installation:
-
-1. Optionen öffnen → **Sicherung → Alle Einstellungen importieren**
-2. [`releases/kloeschinski-defaults.json`](releases/kloeschinski-defaults.json)
-   herunterladen und auswählen
+1. Optionen öffnen → **Sicherung → Importieren (aktualisieren)** mit der intern
+   verteilten Konfigurationsdatei
+2. Button **„Zugriff auf Ticketsystem erlauben“** klicken (erscheint nach dem Import)
 3. Eigene API-Keys für die KI-Module eintragen
-4. Für private M365-Fenster: in der Erweiterungsverwaltung „Im Inkognito-Modus
+4. Für private Fenster: in der Erweiterungsverwaltung „Im Inkognito-Modus
    zulassen“ bzw. „In privaten Fenstern ausführen“ aktivieren
 
-Der Import führt zusammen: Nur die in der Datei enthaltenen Einstellungen werden
-überschrieben, vorhandene API-Keys bleiben erhalten.
-
-**Zentrale Verteilung:** Installation und Vorgabe-Einstellungen lassen sich per
-Gruppenrichtlinie ausrollen (alle vier Browser) — siehe [`gpo/`](gpo/).
+Zentrale Verteilung per Gruppenrichtlinie (Force-Install + Vorgaben): siehe [`gpo/`](gpo/).
 
 ## Repo-Struktur
 
 ```
 chromium/     Quellcode + Manifest fuer Chrome/Brave/Edge (fuehrende Variante)
 firefox/      generierte Firefox-Variante (Build-Script, eigenes Manifest)
-releases/     Verteil-Artefakte: chromium-ZIP, signierte Firefox-.xpi,
-              updates.json, kloeschinski-defaults.json (Settings-Import)
+releases/     Verteil-Artefakte: chromium-ZIP, signierte Firefox-.xpi, updates.json
 gpo/          GPO-Verteilung: Force-Install + Vorgaben via Managed Storage
 Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
 ```
 
-## Build & Release (intern)
+## Build & Release
 
-```powershell
-.\Build-All.ps1
-```
-
-1. Script bauen lassen → `releases/kl-toolbox-chromium-v<ver>.zip` (zugleich Store-Upload-ZIP)
-   und `releases/kl-toolbox-firefox-v<ver>.zip` (AMO-Upload)
-2. Chromium-ZIP in der [Chrome-Devconsole](https://chrome.google.com/webstore/devconsole) einreichen
-3. Firefox-ZIP bei [AMO](https://addons.mozilla.org/developers/) hochladen (Kanal „Nicht gelistet“),
-   signierte .xpi herunterladen und als `kl-toolbox-firefox-v<ver>.xpi` nach `dist/` legen
-4. `Build-All.ps1` erneut ausführen → .xpi wandert nach `releases/`, `updates.json` wird aktualisiert
-5. Committen und pushen — dieses Repo muss öffentlich bleiben (Firefox-Update-Check ist anonym)
+1. Version in `chromium/manifest.json` erhöhen, `.\Build-All.ps1` ausführen
+2. `releases/kl-toolbox-chromium-v<ver>.zip` in der Chrome-Devconsole einreichen
+3. `releases/kl-toolbox-firefox-v<ver>.zip` bei AMO hochladen („Nicht gelistet“),
+   signierte .xpi als `kl-toolbox-firefox-v<ver>.xpi` nach `dist/` legen
+4. `Build-All.ps1` erneut → .xpi wandert nach `releases/`, `updates.json` wird erzeugt
+5. Committen und pushen — das Repo muss öffentlich bleiben (Firefox-Update-Check ist anonym)

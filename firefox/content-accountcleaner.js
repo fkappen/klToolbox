@@ -121,7 +121,7 @@
             if (skip) { continue; }
 
             // Whitelist (Optionen): Konto nie entfernen, wenn die E-Mail
-            // einen Whitelist-Eintrag enthaelt (z. B. "@kloeschinski.de"
+            // einen Whitelist-Eintrag enthaelt (z. B. "@firma.de"
             // schuetzt alle Firmenkonten, exakte Adresse schuetzt eines)
             var mailMatch = tileText.match(/\S+@\S+\.\S+/);
             if (mailMatch && isWhitelisted(mailMatch[0])) {
@@ -357,7 +357,7 @@
     // Whitelist (Optionen): Eintraege in Kleinbuchstaben; ein Konto ist
     // geschuetzt, wenn seine E-Mail einen Eintrag ENTHAELT (Teilstring,
     // dadurch funktionieren exakte Adressen UND Domain-Muster wie
-    // "@kloeschinski.de").
+    // "@firma.de").
     var whitelist = [];
 
     function isWhitelisted(mail) {
