@@ -6,9 +6,12 @@ $autor = "Felix Kappen"
 # Gesamt-Build der Kloeschinski Toolbox im klToolbox-Repo:
 #   1. firefox/  aus chromium/ synchronisieren (Firefox-Manifest einsetzen)
 #   2. releases/kl-toolbox-chromium-v<ver>.zip  (Store-Upload UND Bypass-Install)
-#   3. dist/kl-toolbox-firefox-v<ver>.zip       (AMO-Upload, wird nicht committet)
+#   3. releases/kl-toolbox-firefox-v<ver>.zip   (AMO-Upload)
 #   4. signierte dist/kl-toolbox-firefox-v<ver>.xpi -> releases/ uebernehmen
 #   5. releases/updates.json aus allen vorhandenen .xpi-Dateien erzeugen
+#
+# dist/ (nicht committet) dient nur noch als Ablage fuer die von AMO
+# signierte .xpi, bevor der naechste Build sie nach releases/ uebernimmt.
 #
 # Die Signierung der .xpi macht Mozilla (AMO, Kanal "Nicht gelistet"):
 # Firefox-ZIP hochladen, signierte .xpi herunterladen, als
@@ -59,13 +62,13 @@ try {
     Compress-Archive -Path (Join-Path $chromiumDir "*") -DestinationPath $chromiumZip -CompressionLevel Optimal
     Write-Host "Chromium-ZIP: releases\kl-toolbox-chromium-v$ver.zip (Store-Upload + Bypass)" -ForegroundColor Green
 
-    # ------------------------------------------- 3. Firefox-ZIP (dist/, AMO)
-    $firefoxZip = Join-Path $distDir ("kl-toolbox-firefox-v" + $ver + ".zip")
+    # ------------------------------------------- 3. Firefox-ZIP (releases/, AMO)
+    $firefoxZip = Join-Path $releasesDir ("kl-toolbox-firefox-v" + $ver + ".zip")
     if (Test-Path $firefoxZip) {
         Remove-Item -LiteralPath $firefoxZip -Force -Confirm:$false
     }
     Compress-Archive -Path (Join-Path $firefoxDir "*") -DestinationPath $firefoxZip -CompressionLevel Optimal
-    Write-Host "Firefox-ZIP:  dist\kl-toolbox-firefox-v$ver.zip (AMO-Upload)" -ForegroundColor Green
+    Write-Host "Firefox-ZIP:  releases\kl-toolbox-firefox-v$ver.zip (AMO-Upload)" -ForegroundColor Green
 
     # ------------------------------------------- 4. signierte .xpi einsammeln
     $xpiName = "kl-toolbox-firefox-v" + $ver + ".xpi"
@@ -105,7 +108,7 @@ try {
     Write-Host ""
     Write-Host "Naechste Schritte:"
     Write-Host "  Chromium: releases\kl-toolbox-chromium-v$ver.zip in der Chrome-Devconsole einreichen"
-    Write-Host "  Firefox:  dist\kl-toolbox-firefox-v$ver.zip bei AMO hochladen (Nicht gelistet),"
+    Write-Host "  Firefox:  releases\kl-toolbox-firefox-v$ver.zip bei AMO hochladen (Nicht gelistet),"
     Write-Host "            signierte .xpi als $xpiName nach dist\ legen, Script erneut ausfuehren"
     Write-Host "  Danach:   git add/commit/push (Repo muss oeffentlich bleiben)"
 }

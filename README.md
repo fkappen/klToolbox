@@ -68,7 +68,7 @@ Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
 ```
 
 1. Script bauen lassen → `releases/kl-toolbox-chromium-v<ver>.zip` (zugleich Store-Upload-ZIP)
-   und `dist/kl-toolbox-firefox-v<ver>.zip` (AMO-Upload)
+   und `releases/kl-toolbox-firefox-v<ver>.zip` (AMO-Upload)
 2. Chromium-ZIP in der [Chrome-Devconsole](https://chrome.google.com/webstore/devconsole) einreichen
 3. Firefox-ZIP bei [AMO](https://addons.mozilla.org/developers/) hochladen (Kanal „Nicht gelistet“),
    signierte .xpi herunterladen und als `kl-toolbox-firefox-v<ver>.xpi` nach `dist/` legen
