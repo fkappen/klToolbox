@@ -217,6 +217,48 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
 });
 
+// ---------------------------------------------------------------- Branding: Toolbar-Icon
+//
+// Das Manifest-Icon ist neutral (kT). Ist per Settings-Import ein brandIcon
+// (Data-URL) hinterlegt, wird das Toolbar-Icon zur Laufzeit ersetzt. Der
+// Browser merkt sich setIcon nicht ueber Neustarts - deshalb laeuft das hier
+// bei jedem Start des Service Workers erneut.
+
+function applyBrandActionIcon() {
+    chrome.storage.local.get({ brandIcon: "" }, async (items) => {
+        try {
+            if (!items.brandIcon) {
+                // Zurueck auf das neutrale Paket-Icon (z. B. nach Reset)
+                await chrome.action.setIcon({
+                    path: { 16: "icon16.png", 32: "icon32.png", 48: "icon48.png", 128: "icon128.png" }
+                });
+                return;
+            }
+            const blob = await (await fetch(items.brandIcon)).blob();
+            const bmp = await createImageBitmap(blob);
+            const imageData = {};
+            for (const size of [16, 32, 48, 128]) {
+                const canvas = new OffscreenCanvas(size, size);
+                const ctx = canvas.getContext("2d");
+                ctx.clearRect(0, 0, size, size);
+                ctx.drawImage(bmp, 0, 0, size, size);
+                imageData[size] = ctx.getImageData(0, 0, size, size);
+            }
+            await chrome.action.setIcon({ imageData: imageData });
+        }
+        catch (err) {
+            console.warn("klToolbox: Toolbar-Icon konnte nicht gesetzt werden:", err);
+        }
+    });
+}
+
+applyBrandActionIcon();
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.brandIcon) {
+        applyBrandActionIcon();
+    }
+});
+
 // ---------------------------------------------------------------- Managed Storage (GPO)
 //
 // Administratoren koennen per Richtlinie den Schluessel "defaultsJson"
