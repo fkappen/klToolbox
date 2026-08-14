@@ -363,6 +363,39 @@ function exportAllSettings() {
     });
 }
 
+// Vorgaben direkt aus dem oeffentlichen Repo laden (nur Konfigurationsdaten,
+// kein Code - damit store-konform) und wie "aktualisieren" zusammenfuehren.
+const DEFAULTS_URL = "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kloeschinski-defaults.json";
+
+function fetchDefaultsFromRepo() {
+    fetch(DEFAULTS_URL, { cache: "no-store" })
+        .then((res) => {
+            if (!res.ok) {
+                throw new Error("HTTP " + res.status);
+            }
+            return res.json();
+        })
+        .then((data) => {
+            const settings = (data && typeof data === "object" && data.settings && typeof data.settings === "object")
+                ? data.settings
+                : data;
+            if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+                throw new Error("Unerwartetes Format der Defaults-Datei.");
+            }
+            const keys = Object.keys(settings).join(", ");
+            if (!confirm("Vorgaben aus dem Repo übernehmen (vorhandene gleichnamige Einstellungen werden ersetzt, alles übrige - z. B. API-Keys - bleibt erhalten)?\n\n" + keys)) {
+                return;
+            }
+            chrome.storage.local.set(settings, () => {
+                flashStatus("statusSettings");
+                loadAll();
+            });
+        })
+        .catch((err) => {
+            alert("Vorgaben konnten nicht geladen werden: " + err.message);
+        });
+}
+
 // mode: "merge" = aktualisieren (zusammenfuehren), "replace" = ueberschreiben
 function importAllSettings(file, mode) {
     const reader = new FileReader();
@@ -439,6 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("linksSave").addEventListener("click", saveLinks);
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
+    document.getElementById("settingsFetch").addEventListener("click", fetchDefaultsFromRepo);
     let importMode = "merge";
     document.getElementById("settingsImport").addEventListener("click", () => {
         importMode = "merge";

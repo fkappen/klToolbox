@@ -3,8 +3,8 @@
     "toolbox@kloeschinski.de": {
       "updates": [
         {
-          "version": "2.16.0",
-          "update_link": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v2.16.0.xpi"
+          "update_link": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v2.16.0.xpi",
+          "version": "2.16.0"
         }
       ]
     }

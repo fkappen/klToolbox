@@ -1,7 +1,7 @@
 ﻿{
     "manifest_version": 3,
     "name": "Klöschinski Toolbox",
-    "version": "2.20.0",
+    "version": "2.21.0",
     "description": "KI-Umformulierer, Ticket-Vorlagen & -Termine (Venabo), M365-Schnellzugriffe, MS Account Cleaner und KI-Chat.",
     "author": "Felix Kappen",
     "browser_specific_settings": {
@@ -24,7 +24,8 @@
     "host_permissions": [
         "https://api.anthropic.com/*",
         "https://api.openai.com/*",
-        "https://app.innogpt.de/*"
+        "https://app.innogpt.de/*",
+        "https://raw.githubusercontent.com/*"
     ],
     "icons": {
         "16": "icon16.png",
