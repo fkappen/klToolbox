@@ -238,6 +238,18 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         openClearBrowsingData();
     });
+    // Inkognito-Reset nur anbieten, wenn das Popup in einem privaten
+    // Fenster geoeffnet wurde (erfordert "Im Inkognito-Modus zulassen").
+    chrome.windows.getCurrent((w) => {
+        if (w && w.incognito) {
+            document.getElementById("incogSep").style.display = "";
+            document.getElementById("resetIncognito").style.display = "";
+        }
+    });
+    document.getElementById("resetIncognito").addEventListener("click", (e) => {
+        e.preventDefault();
+        resetIncognito();
+    });
     document.getElementById("openOptions").addEventListener("click", (e) => {
         e.preventDefault();
         chrome.runtime.openOptionsPage();
@@ -302,6 +314,28 @@ function doSearch(target) {
         const tpl = items.datevSearchTemplate || DATEV_SEARCH_DEFAULT;
         chrome.tabs.create({ url: tpl.replace(/%SUCHE%/g, encodeURIComponent(term)) });
         window.close();
+    });
+}
+
+// Inkognito-Reset: alle privaten Fenster schliessen - damit verwirft der
+// Browser die komplette Inkognito-Sitzung (Cookies, Logins, Storage).
+// Das eigene Fenster zuletzt, sonst stirbt das Popup vor dem Aufraeumen.
+function resetIncognito() {
+    if (!confirm("Alle privaten Fenster schließen?\n\nDamit wird die Inkognito-Sitzung (Cookies, Logins, gespeicherte Website-Daten) zurückgesetzt.")) {
+        return;
+    }
+    chrome.windows.getCurrent((cur) => {
+        chrome.windows.getAll({}, (wins) => {
+            const priv = wins.filter((w) => w.incognito);
+            for (const w of priv) {
+                if (!cur || w.id !== cur.id) {
+                    chrome.windows.remove(w.id);
+                }
+            }
+            if (cur && cur.incognito) {
+                chrome.windows.remove(cur.id);
+            }
+        });
     });
 }
 
