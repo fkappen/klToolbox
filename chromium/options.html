@@ -218,11 +218,12 @@
 
     <!-- ================================================== Sicherung -->
     <h2>Sicherung (alle Einstellungen)</h2>
-    <p class="hint">Exportiert sämtliche Einstellungen aller Module als eine JSON-Datei — inklusive API-Keys, Vorlagen und Termin-Konfiguration. Zum Verteilen im Team oder als Backup. Der Import führt zusammen: Nur die in der Datei enthaltenen Einstellungen werden überschrieben, alle übrigen (z. B. API-Keys) bleiben erhalten.</p>
+    <p class="hint">Exportiert sämtliche Einstellungen aller Module als eine JSON-Datei — inklusive API-Keys, Vorlagen und Termin-Konfiguration. Zum Verteilen im Team oder als Backup. Beim Import gibt es zwei Modi: <b>Aktualisieren</b> führt zusammen (nur die in der Datei enthaltenen Einstellungen werden ersetzt, alles übrige — z. B. API-Keys — bleibt erhalten), <b>Überschreiben</b> ersetzt sämtliche Einstellungen durch den Dateiinhalt.</p>
 
     <div class="toolbar">
         <button id="settingsExport" class="primary">Alle Einstellungen exportieren</button>
-        <button id="settingsImport" class="secondary">Alle Einstellungen importieren</button>
+        <button id="settingsImport" class="secondary">Importieren (aktualisieren)</button>
+        <button id="settingsImportReplace" class="danger">Importieren (überschreiben)</button>
         <input type="file" id="settingsImportFile" accept=".json" style="display:none">
         <span id="statusSettings" class="status"></span>
     </div>

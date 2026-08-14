@@ -1,7 +1,7 @@
 ﻿{
     "manifest_version": 3,
     "name": "Klöschinski Toolbox",
-    "version": "2.19.1",
+    "version": "2.20.0",
     "description": "KI-Umformulierer, Ticket-Vorlagen & -Termine (Venabo), M365-Schnellzugriffe, MS Account Cleaner und KI-Chat.",
     "author": "Felix Kappen",
     "browser_specific_settings": {

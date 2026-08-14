@@ -363,7 +363,8 @@ function exportAllSettings() {
     });
 }
 
-function importAllSettings(file) {
+// mode: "merge" = aktualisieren (zusammenfuehren), "replace" = ueberschreiben
+function importAllSettings(file, mode) {
     const reader = new FileReader();
     reader.onload = () => {
         try {
@@ -376,7 +377,19 @@ function importAllSettings(file) {
                 throw new Error("JSON muss ein Einstellungs-Objekt sein.");
             }
             const keys = Object.keys(settings).join(", ");
-            if (!confirm("Folgende Einstellungen werden aus der Datei übernommen (vorhandene gleichnamige werden überschrieben, alle übrigen - z. B. API-Keys - bleiben erhalten):\n\n" + keys + "\n\nFortfahren?")) {
+            if (mode === "replace") {
+                if (!confirm("ÜBERSCHREIBEN: Sämtliche vorhandenen Einstellungen werden GELÖSCHT und durch den Dateiinhalt ersetzt.\n\nNicht in der Datei enthaltene Einstellungen (z. B. API-Keys) gehen dabei verloren!\n\nDie Datei enthält:\n" + keys + "\n\nWirklich fortfahren?")) {
+                    return;
+                }
+                chrome.storage.local.clear(() => {
+                    chrome.storage.local.set(settings, () => {
+                        flashStatus("statusSettings");
+                        loadAll();
+                    });
+                });
+                return;
+            }
+            if (!confirm("AKTUALISIEREN: Folgende Einstellungen werden aus der Datei übernommen (vorhandene gleichnamige werden ersetzt, alle übrigen - z. B. API-Keys - bleiben erhalten):\n\n" + keys + "\n\nFortfahren?")) {
                 return;
             }
             chrome.storage.local.set(settings, () => {
@@ -426,12 +439,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("linksSave").addEventListener("click", saveLinks);
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
+    let importMode = "merge";
     document.getElementById("settingsImport").addEventListener("click", () => {
+        importMode = "merge";
+        document.getElementById("settingsImportFile").click();
+    });
+    document.getElementById("settingsImportReplace").addEventListener("click", () => {
+        importMode = "replace";
         document.getElementById("settingsImportFile").click();
     });
     document.getElementById("settingsImportFile").addEventListener("change", (e) => {
         if (e.target.files && e.target.files[0]) {
-            importAllSettings(e.target.files[0]);
+            importAllSettings(e.target.files[0], importMode);
             e.target.value = "";
         }
     });
