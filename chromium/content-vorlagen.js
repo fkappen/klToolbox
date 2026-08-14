@@ -1,6 +1,6 @@
 // Version
-// version = "1.5.1"
-// datum   = "2026-08-13"
+// version = "1.6.0"
+// datum   = "2026-08-14"
 // autor   = "Felix Kappen"
 //
 // Content-Script: Vorlagen-Button unten rechts auf sc.kloeschinski.de.
@@ -15,31 +15,31 @@
     const DEFAULT_TEMPLATES = [
         {
             name: "Eingangsbestätigung",
-            text: "Guten Tag,\n\nvielen Dank für Ihre Nachricht. Ihr Anliegen ist bei uns eingegangen und wurde als Ticket aufgenommen.\n\nWir kümmern uns schnellstmöglich darum und melden uns, sobald es Neuigkeiten gibt."
+            text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Nachricht. Ihr Anliegen ist bei uns eingegangen und wurde als Ticket aufgenommen.\n\nWir kümmern uns schnellstmöglich darum und melden uns, sobald es Neuigkeiten gibt."
         },
         {
             name: "Rückfrage – Informationen benötigt",
-            text: "Guten Tag,\n\nvielen Dank für Ihre Meldung. Um das Anliegen zielgerichtet bearbeiten zu können, benötigen wir noch folgende Informationen:\n\n- Betroffener Benutzer / Rechnername:\n- Seit wann tritt das Verhalten auf?\n- Tritt das Problem dauerhaft oder nur sporadisch auf?\n- Gibt es eine Fehlermeldung (gerne als Screenshot)?\n\nVielen Dank vorab für Ihre Rückmeldung."
+            text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Meldung. Um das Anliegen zielgerichtet bearbeiten zu können, benötigen wir noch folgende Informationen:\n\n- Betroffener Benutzer / Rechnername:\n- Seit wann tritt das Verhalten auf?\n- Tritt das Problem dauerhaft oder nur sporadisch auf?\n- Gibt es eine Fehlermeldung (gerne als Screenshot)?\n\nVielen Dank vorab für Ihre Rückmeldung."
         },
         {
             name: "Fernwartung anbieten",
-            text: "Guten Tag,\n\nzur weiteren Analyse würden wir uns gerne per Fernwartung auf das betroffene System aufschalten.\n\nBitte teilen Sie uns kurz mit, wann es Ihnen passt und unter welcher Rufnummer wir Sie am besten erreichen. Alternativ können Sie uns auch direkt anrufen – wir schalten uns dann gemeinsam auf."
+            text: "Guten Tag {anrede},\n\nzur weiteren Analyse würden wir uns gerne per Fernwartung auf das betroffene System aufschalten.\n\nBitte teilen Sie uns kurz mit, wann es Ihnen passt und unter welcher Rufnummer wir Sie am besten erreichen. Alternativ können Sie uns auch direkt anrufen – wir schalten uns dann gemeinsam auf."
         },
         {
             name: "Zwischenbescheid",
-            text: "Guten Tag,\n\nein kurzer Zwischenstand zu Ihrem Ticket: Das Thema ist bei uns in Bearbeitung.\n\n[Aktueller Stand / nächste Schritte]\n\nWir melden uns, sobald es Neuigkeiten gibt. Vielen Dank für Ihre Geduld."
+            text: "Guten Tag {anrede},\n\nein kurzer Zwischenstand zu Ihrem Ticket: Das Thema ist bei uns in Bearbeitung.\n\n[Aktueller Stand / nächste Schritte]\n\nWir melden uns, sobald es Neuigkeiten gibt. Vielen Dank für Ihre Geduld."
         },
         {
             name: "Homeoffice / VPN – instabile Verbindung",
-            text: "Guten Tag,\n\nnach Ihrer Beschreibung spricht vieles dafür, dass die Ursache in einer instabilen Internet- bzw. WLAN-Verbindung liegt.\n\nFalls möglich, testen Sie die Verbindung bitte einmal über ein Netzwerkkabel, um das WLAN als Fehlerquelle auszuschließen.\n\nDass normales Surfen funktioniert, ist dabei leider kein aussagekräftiges Kriterium: Webanwendungen gleichen kurze Verbindungsunterbrechungen oder Paketverluste in der Regel unbemerkt durch erneute Übertragungen aus. Eine VPN-Verbindung im Homeoffice reagiert darauf deutlich empfindlicher – bereits kurze Abbrüche können dazu führen, dass der Tunnel getrennt und neu aufgebaut werden muss.\n\nSollte das Problem auch mit Netzwerkkabel weiterhin auftreten, prüfen wir die Ursache gerne gemeinsam weiter."
+            text: "Guten Tag {anrede},\n\nnach Ihrer Beschreibung spricht vieles dafür, dass die Ursache in einer instabilen Internet- bzw. WLAN-Verbindung liegt.\n\nFalls möglich, testen Sie die Verbindung bitte einmal über ein Netzwerkkabel, um das WLAN als Fehlerquelle auszuschließen.\n\nDass normales Surfen funktioniert, ist dabei leider kein aussagekräftiges Kriterium: Webanwendungen gleichen kurze Verbindungsunterbrechungen oder Paketverluste in der Regel unbemerkt durch erneute Übertragungen aus. Eine VPN-Verbindung im Homeoffice reagiert darauf deutlich empfindlicher – bereits kurze Abbrüche können dazu führen, dass der Tunnel getrennt und neu aufgebaut werden muss.\n\nSollte das Problem auch mit Netzwerkkabel weiterhin auftreten, prüfen wir die Ursache gerne gemeinsam weiter."
         },
         {
             name: "Gelöst / Ticket schließen",
-            text: "Guten Tag,\n\ndas Anliegen ist aus unserer Sicht gelöst, daher schließen wir das Ticket.\n\nSollte das Problem erneut auftreten oder noch etwas offen sein, melden Sie sich gerne jederzeit – wir öffnen das Ticket dann wieder.\n\nVielen Dank für die gute Zusammenarbeit."
+            text: "Guten Tag {anrede},\n\ndas Anliegen ist aus unserer Sicht gelöst, daher schließen wir das Ticket.\n\nSollte das Problem erneut auftreten oder noch etwas offen sein, melden Sie sich gerne jederzeit – wir öffnen das Ticket dann wieder.\n\nVielen Dank für die gute Zusammenarbeit."
         },
         {
             name: "Erinnerung – keine Rückmeldung",
-            text: "Guten Tag,\n\nzu Ihrem Ticket hatten wir Ihnen eine Rückfrage gestellt, bisher jedoch keine Rückmeldung erhalten. Gerne möchten wir das Anliegen für Sie weiterbearbeiten – eine kurze Rückinfo genügt.\n\nSollten wir in den nächsten Tagen nichts von Ihnen hören, schließen wir das Ticket vorsorglich. Sie können es jederzeit durch eine Antwort wieder öffnen."
+            text: "Guten Tag {anrede},\n\nzu Ihrem Ticket hatten wir Ihnen eine Rückfrage gestellt, bisher jedoch keine Rückmeldung erhalten. Gerne möchten wir das Anliegen für Sie weiterbearbeiten – eine kurze Rückinfo genügt.\n\nSollten wir in den nächsten Tagen nichts von Ihnen hören, schließen wir das Ticket vorsorglich. Sie können es jederzeit durch eine Antwort wieder öffnen."
         }
     ];
 
@@ -91,55 +91,139 @@
 
     // ---------------------------------------------------------- Einfuegen
 
-    function applyPlaceholders(text) {
+    function applyPlaceholders(text, editor) {
         const now = new Date();
         const datum = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
         const zeit = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-        return text
+        let out = text
             .replace(/\{datum\}/gi, datum)
             .replace(/\{zeit\}/gi, zeit + " Uhr");
+        if (/\{anrede\}/i.test(out)) {
+            const anrede = buildAnrede(editor);
+            // Ohne Empfaenger faellt der Platzhalter samt fuehrendem
+            // Leerzeichen weg: "Guten Tag {anrede}," -> "Guten Tag,"
+            out = out.replace(/ ?\{anrede\}/gi, anrede ? " " + anrede : "");
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------- Anrede
+
+    // Haeufige deutsche Vornamen fuer die Anrede-Erkennung. Bewusst
+    // konservativ: Ist der Vorname nicht eindeutig zuzuordnen, wird NICHT
+    // geraten, sondern neutral der volle Name verwendet
+    // ("Guten Tag Jasmin Schneiss,").
+    const VORNAMEN_W = new Set(("andrea anja anna anne annette angelika alexandra astrid barbara bettina birgit " +
+        "brigitte carina carmen christa christiane christina christine claudia cornelia daniela diana doris elke " +
+        "erika eva franziska gabi gabriele gisela hanna hannah heike helga ilona ines inge ingrid iris jana janina " +
+        "jasmin jennifer jessica julia jutta karin katharina kathrin katja katrin kerstin kirsten kristin laura lea " +
+        "lena lisa manuela maria marie marina marion martina melanie michaela monika nadine nicole petra pia regina " +
+        "renate rita sabine sabrina sandra sara sarah silke simone sonja sophie stefanie steffi susanne svenja tanja " +
+        "tatjana ulrike ursula ute vanessa vera verena viktoria yvonne").split(" "));
+    const VORNAMEN_M = new Set(("alexander andre andreas armin axel bernd bernhard bjoern björn carsten christian " +
+        "christoph daniel david dennis dieter dirk dominik erik fabian felix florian frank franz georg gerd gerhard " +
+        "guenter günter hans harald heiko heinz helmut henning holger horst ingo jan jens joachim jochen johannes " +
+        "jonas joerg jörg juergen jürgen kai karl karsten kevin klaus kurt lars lukas manfred marc marcel marco " +
+        "marcus mario mark markus martin matthias max maximilian michael mike nico niklas nils norbert olaf oliver " +
+        "pascal patrick paul peter philipp rainer ralf reiner rene robert roland rolf rudolf sascha sebastian simon " +
+        "stefan steffen sven thomas thorsten timo tobias torsten udo ulrich uwe volker walter werner wolfgang").split(" "));
+
+    // Ersten Empfaenger aus dem An-Feld des Mail-Fensters lesen. Die
+    // Empfaenger-Chips tragen den Text "Name <mail@domain>"; gesucht wird
+    // im Fenster-Container oberhalb des Editors (Text enthaelt "An:").
+    function extractRecipient(editor) {
+        let root = null;
+        let node = editor ? editor.parentElement : null;
+        let depth = 0;
+        while (node && node !== document.body && depth < 10) {
+            if ((node.textContent || "").includes("An:")) {
+                root = node;
+                break;
+            }
+            node = node.parentElement;
+            depth++;
+        }
+        if (!root) {
+            root = document.body;
+        }
+        const re = /^(.{2,60}?)\s*<[^<>\s]+@[^<>\s]+>$/;
+        for (const el of root.querySelectorAll("span, div")) {
+            if (el.childElementCount > 1) {
+                continue;
+            }
+            const m = re.exec((el.textContent || "").trim());
+            if (m) {
+                return m[1].trim();
+            }
+        }
+        return "";
+    }
+
+    // "Jasmin Schneiss" -> "Frau Schneiss"; unbekannter Vorname -> voller Name
+    function buildAnrede(editor) {
+        const name = extractRecipient(editor);
+        if (!name) {
+            return "";
+        }
+        const tokens = name.split(/\s+/).filter((t) => !/^(dr|prof|dipl|mag|med)\.?$/i.test(t));
+        if (tokens.length < 2) {
+            return name;
+        }
+        const vorname = tokens[0].toLowerCase();
+        const nachname = tokens[tokens.length - 1];
+        if (VORNAMEN_W.has(vorname)) {
+            return "Frau " + nachname;
+        }
+        if (VORNAMEN_M.has(vorname)) {
+            return "Herr " + nachname;
+        }
+        return name;
     }
 
     function insertTemplate(rawText) {
-        const text = applyPlaceholders(rawText);
+        const isVisibleEl = (e) => {
+            const r = e.getBoundingClientRect();
+            return r.width > 0 && r.height > 0;
+        };
 
-        if (!lastTarget || !lastTarget.isConnected) {
-            // Auto-Ziel: bevorzugt der Editor des Mail-Fensters, aus dem das
-            // Panel geoeffnet wurde; sonst der sichtbare CKEditor. Cursor ans Ende.
-            const isVisible = (e) => {
-                const r = e.getBoundingClientRect();
-                return r.width > 0 && r.height > 0;
-            };
-            let target = null;
-            if (panelEditor && panelEditor.isConnected && isVisible(panelEditor)) {
-                target = panelEditor;
-            } else {
-                target = Array.from(document.querySelectorAll(".ck-editor__editable")).find(isVisible) || null;
-            }
-            if (target) {
-                lastTarget = target;
-                // Ohne gesetzten Cursor: am ANFANG einfuegen (vor der Signatur,
-                // die im Mail-Fenster bereits im Feld steht) - nicht am Ende.
-                const startRange = document.createRange();
-                startRange.selectNodeContents(target);
-                startRange.collapse(true);
-                lastRange = startRange;
-            } else {
-                showHint("Bitte zuerst in das Textfeld klicken, dann Vorlage wählen.");
-                return;
-            }
+        // Ziel ist IMMER der Mail-Editor (Zuordnung ueber das Panel), NICHT das
+        // zuletzt fokussierte Element: Stand der Fokus in An/Cc/Betreff oder war
+        // der Editor geblurrt, landete die Vorlage sonst im falschen Feld bzw.
+        // an einer veralteten Cursor-Position (Bug 2026-08-14).
+        let target = null;
+        if (panelEditor && panelEditor.isConnected && isVisibleEl(panelEditor)) {
+            target = panelEditor;
+        } else {
+            target = Array.from(document.querySelectorAll(".ck-editor__editable")).find(isVisibleEl) || null;
         }
 
-        // Fall 1: Input / Textarea
-        if (lastTarget.tagName === "TEXTAREA" || lastTarget.tagName === "INPUT") {
-            const el = lastTarget;
-            el.focus();
-            const start = (typeof el.selectionStart === "number") ? el.selectionStart : el.value.length;
-            const end = (typeof el.selectionEnd === "number") ? el.selectionEnd : el.value.length;
-            el.setRangeText(text, start, end, "end");
-            el.dispatchEvent(new Event("input", { bubbles: true }));
-            el.dispatchEvent(new Event("change", { bubbles: true }));
+        if (!target) {
+            // Kein CKEditor vorhanden: letztes fokussiertes Eingabefeld nutzen
+            const text0 = applyPlaceholders(rawText, null);
+            if (lastTarget && lastTarget.isConnected &&
+                (lastTarget.tagName === "TEXTAREA" || lastTarget.tagName === "INPUT")) {
+                const el = lastTarget;
+                el.focus();
+                const start = (typeof el.selectionStart === "number") ? el.selectionStart : el.value.length;
+                const end = (typeof el.selectionEnd === "number") ? el.selectionEnd : el.value.length;
+                el.setRangeText(text0, start, end, "end");
+                el.dispatchEvent(new Event("input", { bubbles: true }));
+                el.dispatchEvent(new Event("change", { bubbles: true }));
+                return;
+            }
+            showHint("Bitte zuerst in das Textfeld klicken, dann Vorlage wählen.");
             return;
+        }
+
+        const text = applyPlaceholders(rawText, target);
+        lastTarget = target;
+        // Gemerkte Cursor-Position nur verwenden, wenn sie IM Ziel-Editor liegt -
+        // sonst am ANFANG einfuegen (vor der Signatur, die bereits im Feld steht).
+        if (!(lastRange && lastRange.startContainer.isConnected && target.contains(lastRange.startContainer))) {
+            const startRange = document.createRange();
+            startRange.selectNodeContents(target);
+            startRange.collapse(true);
+            lastRange = startRange;
         }
 
         // Fall 2: contenteditable
