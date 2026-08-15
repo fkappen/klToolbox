@@ -123,18 +123,25 @@ function migrateSections(force) {
                 }))
             });
         }
-        if (Array.isArray(s.datevLinks) && s.datevLinks.length > 0) {
-            out.push({
-                name: "DATEV",
-                links: s.datevLinks.filter((l) => l && l.url).map((l) => ({
-                    name: l.name || "", url: l.url, start: false, privat: false
-                }))
-            });
-        }
-        if (out.length > 0) {
-            chrome.storage.local.set({ sections: out });
-            console.log("klToolbox: Popup-Links zu Bereichen migriert (" + out.length + " Bereiche)");
-        }
+        // DATEV war bisher ein CODE-Default und stand daher meist NICHT im
+        // Storage - ohne Fallback verschwand der Bereich bei der Migration.
+        const datevSrc = (Array.isArray(s.datevLinks) && s.datevLinks.length > 0)
+            ? s.datevLinks
+            : [
+                { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
+                { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
+                { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
+                { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
+                { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
+            ];
+        out.push({
+            name: "DATEV",
+            links: datevSrc.filter((l) => l && l.url).map((l) => ({
+                name: l.name || "", url: l.url, start: false, privat: false
+            }))
+        });
+        chrome.storage.local.set({ sections: out });
+        console.log("klToolbox: Popup-Links zu Bereichen migriert (" + out.length + " Bereiche)");
     });
 }
 migrateSections(false);
