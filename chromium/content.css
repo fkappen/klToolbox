@@ -238,6 +238,19 @@
 
 /* ============================================================ Termin */
 
+/* DATEV-Fehlercode-Links in Ticket-Eintraegen */
+a.__tt_code_link {
+    color: var(--klt-p, #46626F) !important;
+    text-decoration: underline dotted !important;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    font-weight: 600;
+}
+a.__tt_code_link:hover {
+    color: var(--klt-pd, #35505C) !important;
+    text-decoration-style: solid !important;
+}
+
 /* Wartezeit-Kurzangabe vor der Ticketnummer (Farbe setzt das Script) */
 .__tt_list_age {
     display: inline-block;

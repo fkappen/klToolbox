@@ -101,6 +101,33 @@ chrome.storage.local.get(["modVorlagen", "modTermin", "modTicket"], (s) => {
 // wurden zu frei definierbaren Popup-Bereichen (sections). Alte Bestaende
 // und Alt-Importe werden konvertiert; die frueheren Haken-Semantiken
 // (Start default an, Privat default an) bleiben dabei erhalten.
+const DATEV_FALLBACK_LINKS = [
+    { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
+    { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
+    { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
+    { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
+    { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
+];
+
+// Einmalige Reparatur: Installationen, deren sections durch die 3.6.0-
+// Migration ohne DATEV entstanden sind, bekommen den Bereich nachgereicht.
+// Nur EINMAL (Flag) - wer DATEV danach bewusst loescht, behaelt das so.
+chrome.storage.local.get(["sections", "fixDatevSection1"], (s) => {
+    if (s.fixDatevSection1) {
+        return;
+    }
+    if (Array.isArray(s.sections) && !s.sections.some((sec) => sec && sec.name === "DATEV")) {
+        s.sections.push({
+            name: "DATEV",
+            links: DATEV_FALLBACK_LINKS.map((l) => ({ name: l.name, url: l.url, start: false, privat: false }))
+        });
+        chrome.storage.local.set({ sections: s.sections, fixDatevSection1: true });
+        console.log("klToolbox: DATEV-Bereich nachgereicht (Reparatur 3.7.0)");
+    } else {
+        chrome.storage.local.set({ fixDatevSection1: true });
+    }
+});
+
 function migrateSections(force) {
     chrome.storage.local.get(["sections", "quickLinks", "m365Links", "datevLinks"], (s) => {
         if (!force && Array.isArray(s.sections)) {
@@ -127,13 +154,7 @@ function migrateSections(force) {
         // Storage - ohne Fallback verschwand der Bereich bei der Migration.
         const datevSrc = (Array.isArray(s.datevLinks) && s.datevLinks.length > 0)
             ? s.datevLinks
-            : [
-                { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
-                { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
-                { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
-                { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
-                { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
-            ];
+            : DATEV_FALLBACK_LINKS;
         out.push({
             name: "DATEV",
             links: datevSrc.filter((l) => l && l.url).map((l) => ({
@@ -314,6 +335,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true;
     }
     return false;
+});
+
+// ---------------------------------------------------------------- Seitenleiste (optional)
+//
+// Option "Seitenleiste statt Popup" (Chromium): Klick aufs Toolbar-Icon
+// oeffnet dann das dauerhafte Side Panel; dafuer muss das Action-Popup
+// geleert werden (Popup haette sonst Vorrang). Firefox nutzt stattdessen
+// sidebar_action (Menue -> Ansicht -> Sidebar), unabhaengig von der Option.
+
+function applySidebarMode() {
+    if (!chrome.sidePanel || !chrome.sidePanel.setPanelBehavior) {
+        return; // Firefox bzw. aeltere Chromium-Version
+    }
+    chrome.storage.local.get({ sidebarMode: false }, (s) => {
+        const enable = s.sidebarMode === true;
+        chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: enable })
+            .catch((err) => console.warn("klToolbox: sidePanel-Verhalten nicht setzbar:", err));
+        chrome.action.setPopup({ popup: enable ? "" : "popup.html" });
+    });
+}
+
+applySidebarMode();
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.sidebarMode) {
+        applySidebarMode();
+    }
 });
 
 // ---------------------------------------------------------------- Branding: Toolbar-Icon

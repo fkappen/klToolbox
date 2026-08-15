@@ -91,8 +91,18 @@
             <label><input type="checkbox" id="ftVorlagenMail"> 📋 Vorlagen (Mail-Fenster)</label>
             <label><input type="checkbox" id="ftKiAntwort"> ✨ KI-Antwort (Mail-Fenster)</label>
             <label><input type="checkbox" id="ftVorlagenEintrag"> 📋 Vorlagen (Eintrags-Editor)</label>
+            <label><input type="checkbox" id="ftFehlercodes"> 🔗 DATEV-Fehlercode-Links</label>
         </div>
         <span id="statusFt" class="status"></span>
+    </fieldset>
+
+    <fieldset>
+        <legend>Darstellung</legend>
+        <label style="font-weight:600; display:flex; align-items:center; gap:8px; margin:0;">
+            <input type="checkbox" id="sidebarMode" style="width:auto;"> Seitenleiste statt Popup (Chrome/Edge/Brave)
+        </label>
+        <div class="hint">Der Klick aufs Toolbar-Icon öffnet dann die dauerhafte Seitenleiste statt des Popups. In Firefox ist die Seitenleiste unabhängig davon über Menü → Ansicht → Symbolleisten/Sidebar erreichbar. Änderung wirkt sofort.</div>
+        <span id="statusView" class="status"></span>
     </fieldset>
 
     <!-- ================================================== KI-Umformulierer -->

@@ -31,7 +31,8 @@ const FT_DEFAULTS = {
     ftWaitList: true,
     ftVorlagenMail: true,
     ftKiAntwort: true,
-    ftVorlagenEintrag: true
+    ftVorlagenEintrag: true,
+    ftFehlercodes: true
 };
 
 // Branding (Name + zwei Farben) kommt per Settings-Import; ohne Import
@@ -158,6 +159,7 @@ let entryTemplates = [];
 
 function loadAll() {
     chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, {
+        sidebarMode: false,
         templates: [],
         entryTemplates: [],
         sections: null,
@@ -180,6 +182,7 @@ function loadAll() {
         for (const key of Object.keys(FT_DEFAULTS)) {
             document.getElementById(key).checked = items[key] !== false;
         }
+        document.getElementById("sidebarMode").checked = items.sidebarMode === true;
         // Cleaner-Whitelist (Array -> eine Zeile pro Eintrag)
         document.getElementById("cleanerWhitelist").value =
             (Array.isArray(items.cleanerWhitelist) ? items.cleanerWhitelist : []).join("\n");
@@ -949,6 +952,9 @@ document.addEventListener("DOMContentLoaded", () => {
             chrome.storage.local.set(update, () => flashStatus("statusFt"));
         });
     }
+    document.getElementById("sidebarMode").addEventListener("change", (e) => {
+        chrome.storage.local.set({ sidebarMode: e.target.checked }, () => flashStatus("statusView"));
+    });
     document.getElementById("entryTplAdd").addEventListener("click", () => {
         entryTemplates.push({ name: "", text: "" });
         renderEntryTemplates();

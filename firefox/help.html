@@ -67,7 +67,9 @@
     <h3>Aktions-Makros</h3>
     <p>In den Optionen unter „Aktions-Makros“ definierst du Ketten aus: Eintragstext anlegen und/oder Status setzen (beides wird als <b>ein</b> Ticket-Eintrag gespeichert), Ticket abonnieren und/oder das Ticket-Fenster danach schließen. Der Statusname muss exakt dem Text im Status-Dropdown entsprechen. Beispiel: „Nicht erreicht + Wiedervorlage“ = Eintrag „Kunde nicht erreicht ({datum} {zeit})“ + Status „Wiedervorlage“ + Fenster schließen.</p>
     <h3>Wartezeit-Ampeln</h3>
-    <p>Im geöffneten Ticket oben links als Badge (Basis: ältester sichtbarer Eintrag) und in der <b>Ticketliste</b> als farbiger Punkt vor der Ticketnummer (Basis: Spalte „Erstellt am“ — die Spalte muss eingeblendet sein). Farben bei normaler Priorität: grün &lt; 1 Tag, gelb &lt; 3 Tage, rot ab 3 Tagen. Bei Priorität „Hoch“: grün &lt; 15 Min, gelb &lt; 1 Std, rot ab 1 Std.</p>
+    <p>Im geöffneten Ticket oben links als Badge (Basis: ältester sichtbarer Eintrag) und in der <b>Ticketliste</b> als farbige Kurzangabe vor der Ticketnummer (Basis: Spalte „Erstellt am“ — die Spalte muss eingeblendet sein). Standard-Schwellen bei normaler Priorität: grün &lt; 1 Tag, gelb &lt; 3 Tage, rot ab 3 Tagen; bei Priorität „Hoch“: grün &lt; 15 Min, gelb &lt; 1 Std, rot ab 1 Std. Die Schwellen sind über die Konfigurationsdatei anpassbar.</p>
+    <h3>DATEV-Fehlercode-Links</h3>
+    <p>Meldungs-IDs wie <code>DB60012</code>, <code>ZK01052</code> oder <code>INI07257</code> werden in den Ticket-Einträgen automatisch erkannt und verlinkt — ein Klick öffnet die Suche in der DATEV Wissensplattform. Abschaltbar über die Feinschalter.</p>
 
     <h2>Popup (Klick aufs Toolbar-Icon)</h2>
     <ul>
@@ -76,6 +78,7 @@
         <li><b>Suche:</b> Ticketnummer → Ticket öffnen, Kundennummer → Kunde öffnen, Freitext → DATEV/Google/InnoGPT.</li>
         <li><b>🧹 Browserdaten:</b> öffnet den Browser-Dialog „Browserdaten löschen“ (Firefox: Strg+Umschalt+Entf).</li>
         <li><b>🕶 Inkognito-Reset:</b> nur in privaten Fenstern sichtbar — verwirft die private Sitzung (Cookies, Logins) und öffnet automatisch ein frisches privates Fenster.</li>
+        <li><b>Seitenleiste:</b> Optional öffnet der Icon-Klick statt des Popups eine dauerhafte Seitenleiste (Optionen → Darstellung; Chrome/Edge/Brave). In Firefox über Menü → Ansicht → Sidebar.</li>
     </ul>
 
     <h2>MS Account Cleaner</h2>

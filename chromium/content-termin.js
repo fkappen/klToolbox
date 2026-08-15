@@ -42,7 +42,15 @@
         ftAnfahrt: true,
         ftMakros: true,
         ftWaitBadge: true,
-        ftWaitList: true
+        ftWaitList: true,
+        ftFehlercodes: true,
+        // Suchvorlage der DATEV Wissensplattform (fuer Fehlercode-Links)
+        datevSearchTemplate: "",
+        // Ampel-Schwellwerte (per Config anpassbar)
+        ampelHochGruenMin: 15,
+        ampelHochGelbMin: 60,
+        ampelNormalGruenTage: 1,
+        ampelNormalGelbTage: 3
     };
 
     const TERMINARTEN = [
@@ -428,14 +436,99 @@
     function badgeColor(ms, prio) {
         const min = ms / 60000;
         if (/hoch|high/i.test(prio)) {
-            if (min < 15) { return "#1a7f37"; }
-            if (min < 60) { return "#b58900"; }
+            if (min < (Number(settings.ampelHochGruenMin) || 15)) { return "#1a7f37"; }
+            if (min < (Number(settings.ampelHochGelbMin) || 60)) { return "#b58900"; }
             return "#b3261e";
         }
         const tage = min / 1440;
-        if (tage < 1) { return "#1a7f37"; }
-        if (tage < 3) { return "#b58900"; }
+        if (tage < (Number(settings.ampelNormalGruenTage) || 1)) { return "#1a7f37"; }
+        if (tage < (Number(settings.ampelNormalGelbTage) || 3)) { return "#b58900"; }
         return "#b3261e";
+    }
+
+    // ------------------------------------------- DATEV-Fehlercode-Links
+    // Erkennt DATEV-Meldungs-IDs (Praefix aus 2-4 Grossbuchstaben + 4-6
+    // Ziffern, optional angehaengter Buchstabe: DB60012, ZK01052, INI07257,
+    // SE9717F, ...) in den Ticket-Eintraegen und verlinkt sie auf die
+    // Wissensplattform-Suche. Bewusst NUR die Eintrags-Container - keine
+    // Editoren, Eingabefelder oder die Ticketliste.
+    const CODE_RE = /\b[A-Z]{2,4}\d{4,6}[A-Z]?\b/g;
+    const DATEV_SEARCH_FALLBACK = "https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%";
+
+    function codeSearchUrl(code) {
+        const tpl = (settings.datevSearchTemplate || "").trim() || DATEV_SEARCH_FALLBACK;
+        return tpl.replace(/%SUCHE%/g, encodeURIComponent(code));
+    }
+
+    function linkifyFehlercodes() {
+        if (settings.ftFehlercodes === false) {
+            document.querySelectorAll("a.__tt_code_link").forEach((a) => {
+                a.replaceWith(document.createTextNode(a.textContent));
+            });
+            return;
+        }
+        const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*\d{1,2}\.\d{1,2}\.\d{4}$/;
+        for (const s of document.querySelectorAll("strong")) {
+            if (!dateRe.test((s.textContent || "").trim())) {
+                continue;
+            }
+            const header = s.parentElement;
+            if (!header || !(header.textContent || "").includes("aktualisiert am")) {
+                continue;
+            }
+            let container = header;
+            let depth = 0;
+            while (container.parentElement && depth < 4) {
+                const parent = container.parentElement;
+                if ((parent.innerText || "").length > (header.innerText || "").length + 60) {
+                    container = parent;
+                    break;
+                }
+                container = parent;
+                depth++;
+            }
+            linkifyIn(container);
+        }
+    }
+
+    function linkifyIn(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const targets = [];
+        let node = walker.nextNode();
+        while (node) {
+            const p = node.parentElement;
+            if (p && !p.closest("a, button, input, textarea, select, script, style") &&
+                !p.isContentEditable && CODE_RE.test(node.nodeValue || "")) {
+                targets.push(node);
+            }
+            CODE_RE.lastIndex = 0;
+            node = walker.nextNode();
+        }
+        for (const textNode of targets) {
+            const text = textNode.nodeValue;
+            const frag = document.createDocumentFragment();
+            let last = 0;
+            let m;
+            CODE_RE.lastIndex = 0;
+            while ((m = CODE_RE.exec(text)) !== null) {
+                if (m.index > last) {
+                    frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+                }
+                const a = document.createElement("a");
+                a.className = "__tt_code_link";
+                a.textContent = m[0];
+                a.href = codeSearchUrl(m[0]);
+                a.target = "_blank";
+                a.rel = "noopener";
+                a.title = "„" + m[0] + "“ in der DATEV Wissensplattform suchen";
+                frag.appendChild(a);
+                last = m.index + m[0].length;
+            }
+            if (last < text.length) {
+                frag.appendChild(document.createTextNode(text.slice(last)));
+            }
+            textNode.replaceWith(frag);
+        }
     }
 
     function renderWaitBadge() {
@@ -592,6 +685,7 @@
     function waitTick() {
         ensureWaitBadge();
         ensureListDots();
+        linkifyFehlercodes();
     }
 
     function scheduleWaitBadge() {

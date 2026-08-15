@@ -63,6 +63,12 @@
         "page": "options.html",
         "open_in_tab": true
     },
+    "sidebar_action": {
+        "default_title": "klToolbox",
+        "default_panel": "popup.html",
+        "default_icon": "icon32.png",
+        "open_at_install": false
+    },
     "web_accessible_resources": [
         {
             "resources": ["options.html"],
