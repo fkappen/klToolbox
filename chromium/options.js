@@ -132,24 +132,24 @@ const MODULE_DEFAULTS = {
     modChat: true
 };
 
-// Bewusst KEINE Firmen-URLs im Store-Paket: Links und URL-Vorlagen kommen
-// erst per Settings-Import (Sicherung -> Importieren).
-const DEFAULT_QUICKLINKS = [];
-const DEFAULT_M365LINKS = [];
-
-// Oeffentliche DATEV-Portale (keine Firmen-/Tenant-Infos) -> Defaults ok
-const DEFAULT_DATEVLINKS = [
-    { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
-    { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
-    { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
-    { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
-    { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
+// Popup-Bereiche: frei definierbar (Name + Links mit Start-/Privat-Haken).
+// Neutrale Auslieferung: nur die oeffentlichen DATEV-Portale - Firmen-
+// Bereiche kommen per Settings-Import.
+const DEFAULT_SECTIONS = [
+    {
+        name: "DATEV",
+        links: [
+            { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
+            { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
+            { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
+            { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
+            { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
+        ]
+    }
 ];
 
 let templates = [];
-let quickLinks = [];
-let m365Links = [];
-let datevLinks = [];
+let sections = [];
 let kiActions = [];
 let makros = [];
 let entryTemplates = [];
@@ -160,9 +160,7 @@ function loadAll() {
     chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, {
         templates: [],
         entryTemplates: [],
-        quickLinks: DEFAULT_QUICKLINKS,
-        m365Links: DEFAULT_M365LINKS,
-        datevLinks: DEFAULT_DATEVLINKS,
+        sections: null,
         cleanerWhitelist: [],
         customKiActions: [],
         makros: []
@@ -210,11 +208,11 @@ function loadAll() {
         // Vorlagen
         templates = Array.isArray(items.templates) ? items.templates : [];
         renderTemplates();
-        // Links
-        quickLinks = Array.isArray(items.quickLinks) ? items.quickLinks : DEFAULT_QUICKLINKS;
-        m365Links = Array.isArray(items.m365Links) ? items.m365Links : DEFAULT_M365LINKS;
-        datevLinks = Array.isArray(items.datevLinks) ? items.datevLinks : DEFAULT_DATEVLINKS;
-        renderLinks();
+        // Popup-Bereiche
+        sections = Array.isArray(items.sections)
+            ? items.sections
+            : JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
+        renderSections();
     });
 }
 
@@ -607,90 +605,149 @@ function importTemplates(file) {
     reader.readAsText(file, "utf-8");
 }
 
-// ---------------------------------------------------------------- Links (Schnellzugriffe + M365)
+// ---------------------------------------------------------------- Popup-Bereiche
 
-// mode: "start" (Start-Haken) | "privat" (Privat-Haken) | null
-function linkRow(list, i, mode) {
+function sectionLinkRow(links, i) {
     const row = document.createElement("div");
     row.style.cssText = "display:flex; gap:6px; margin-bottom:6px; align-items:center;";
 
     const name = document.createElement("input");
     name.type = "text";
     name.placeholder = "Name";
-    name.value = list[i].name || "";
+    name.value = links[i].name || "";
     name.style.flex = "1";
-    name.addEventListener("input", () => { list[i].name = name.value; });
+    name.addEventListener("input", () => { links[i].name = name.value; });
 
     const url = document.createElement("input");
     url.type = "text";
     url.placeholder = "https://…";
-    url.value = list[i].url || "";
+    url.value = links[i].url || "";
     url.style.flex = "2";
-    url.addEventListener("input", () => { list[i].url = url.value; });
+    url.addEventListener("input", () => { links[i].url = url.value; });
 
-    row.appendChild(name);
-    row.appendChild(url);
-
-    if (mode === "start" || mode === "privat") {
+    const cbBox = (label, key) => {
         const cbLabel = document.createElement("label");
         cbLabel.style.cssText = "display:flex; align-items:center; gap:4px; font-weight:400; margin:0; white-space:nowrap;";
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.style.width = "auto";
-        if (mode === "start") {
-            cb.checked = list[i].start !== false;
-            cb.addEventListener("change", () => { list[i].start = cb.checked; });
-        } else {
-            cb.checked = list[i].privat !== false;
-            cb.addEventListener("change", () => { list[i].privat = cb.checked; });
-        }
+        cb.checked = links[i][key] === true;
+        cb.addEventListener("change", () => { links[i][key] = cb.checked; });
         cbLabel.appendChild(cb);
-        cbLabel.appendChild(document.createTextNode(mode === "start" ? "Start" : "Privat"));
-        row.appendChild(cbLabel);
-    }
+        cbLabel.appendChild(document.createTextNode(label));
+        return cbLabel;
+    };
 
     const del = document.createElement("button");
     del.className = "danger";
     del.textContent = "✕";
-    del.title = "Löschen";
+    del.title = "Link löschen";
     del.addEventListener("click", () => {
-        list.splice(i, 1);
-        renderLinks();
+        links.splice(i, 1);
+        renderSections();
     });
+
+    row.appendChild(name);
+    row.appendChild(url);
+    row.appendChild(cbBox("Start", "start"));
+    row.appendChild(cbBox("Privat", "privat"));
     row.appendChild(del);
     return row;
 }
 
-function renderLinks() {
-    const quickBox = document.getElementById("quickList");
-    quickBox.textContent = "";
-    quickLinks.forEach((l, i) => quickBox.appendChild(linkRow(quickLinks, i, "start")));
+function renderSections() {
+    const host = document.getElementById("sectionList");
+    host.textContent = "";
+    sections.forEach((sec, si) => {
+        if (!Array.isArray(sec.links)) {
+            sec.links = [];
+        }
+        const box = document.createElement("div");
+        box.className = "tpl";
 
-    const m365Box = document.getElementById("m365List");
-    m365Box.textContent = "";
-    m365Links.forEach((l, i) => m365Box.appendChild(linkRow(m365Links, i, "privat")));
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex; gap:6px; align-items:center; margin-bottom:8px;";
 
-    const datevBox = document.getElementById("datevList");
-    datevBox.textContent = "";
-    datevLinks.forEach((l, i) => datevBox.appendChild(linkRow(datevLinks, i, null)));
+        const name = document.createElement("input");
+        name.type = "text";
+        name.placeholder = "Bereichs-Name, z. B. „Schnellzugriffe“";
+        name.value = sec.name || "";
+        name.style.cssText = "flex:1; font-weight:600;";
+        name.addEventListener("input", () => { sections[si].name = name.value; });
+
+        const up = document.createElement("button");
+        up.className = "secondary";
+        up.textContent = "↑";
+        up.title = "Nach oben";
+        up.disabled = si === 0;
+        up.addEventListener("click", () => {
+            const t = sections[si - 1];
+            sections[si - 1] = sections[si];
+            sections[si] = t;
+            renderSections();
+        });
+
+        const down = document.createElement("button");
+        down.className = "secondary";
+        down.textContent = "↓";
+        down.title = "Nach unten";
+        down.disabled = si === sections.length - 1;
+        down.addEventListener("click", () => {
+            const t = sections[si + 1];
+            sections[si + 1] = sections[si];
+            sections[si] = t;
+            renderSections();
+        });
+
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "Bereich löschen";
+        del.addEventListener("click", () => {
+            if (sec.links.length === 0 || confirm("Bereich „" + (sec.name || "ohne Name") + "“ mit " + sec.links.length + " Link(s) löschen?")) {
+                sections.splice(si, 1);
+                renderSections();
+            }
+        });
+
+        head.appendChild(name);
+        head.appendChild(up);
+        head.appendChild(down);
+        head.appendChild(del);
+        box.appendChild(head);
+
+        sec.links.forEach((l, li) => box.appendChild(sectionLinkRow(sec.links, li)));
+
+        const addLink = document.createElement("button");
+        addLink.className = "secondary";
+        addLink.textContent = "+ Link";
+        addLink.addEventListener("click", () => {
+            sec.links.push({ name: "", url: "", start: false, privat: false });
+            renderSections();
+        });
+        box.appendChild(addLink);
+
+        host.appendChild(box);
+    });
 }
 
-function saveLinks() {
-    const cleanQuick = quickLinks
-        .map((l) => ({ name: (l.name || "").trim(), url: (l.url || "").trim(), start: l.start !== false }))
-        .filter((l) => l.url.length > 0);
-    const cleanM365 = m365Links
-        .map((l) => ({ name: (l.name || "").trim(), url: (l.url || "").trim(), privat: l.privat !== false }))
-        .filter((l) => l.url.length > 0);
-    const cleanDatev = datevLinks
-        .map((l) => ({ name: (l.name || "").trim(), url: (l.url || "").trim() }))
-        .filter((l) => l.url.length > 0);
-    quickLinks = cleanQuick;
-    m365Links = cleanM365;
-    datevLinks = cleanDatev;
-    chrome.storage.local.set({ quickLinks: cleanQuick, m365Links: cleanM365, datevLinks: cleanDatev }, () => {
+function saveSections() {
+    const clean = sections
+        .map((sec) => ({
+            name: (sec.name || "").trim(),
+            links: (Array.isArray(sec.links) ? sec.links : [])
+                .map((l) => ({
+                    name: (l.name || "").trim(),
+                    url: (l.url || "").trim(),
+                    start: l.start === true,
+                    privat: l.privat === true
+                }))
+                .filter((l) => l.url.length > 0)
+        }))
+        .filter((sec) => sec.name.length > 0 && sec.links.length > 0);
+    sections = clean;
+    chrome.storage.local.set({ sections: clean }, () => {
         flashStatus("statusLinks");
-        renderLinks();
+        renderSections();
     });
 }
 
@@ -837,19 +894,12 @@ document.addEventListener("DOMContentLoaded", () => {
             e.target.value = "";
         }
     });
-    document.getElementById("quickAdd").addEventListener("click", () => {
-        quickLinks.push({ name: "", url: "", start: true });
-        renderLinks();
+    document.getElementById("sectionAdd").addEventListener("click", () => {
+        sections.push({ name: "", links: [{ name: "", url: "", start: false, privat: false }] });
+        renderSections();
+        window.scrollTo(0, document.body.scrollHeight / 2);
     });
-    document.getElementById("m365Add").addEventListener("click", () => {
-        m365Links.push({ name: "", url: "" });
-        renderLinks();
-    });
-    document.getElementById("datevAdd").addEventListener("click", () => {
-        datevLinks.push({ name: "", url: "" });
-        renderLinks();
-    });
-    document.getElementById("linksSave").addEventListener("click", saveLinks);
+    document.getElementById("sectionsSave").addEventListener("click", saveSections);
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
     document.getElementById("grantHost").addEventListener("click", grantTicketHostPermission);
     document.getElementById("settingsReset").addEventListener("click", resetAllSettings);

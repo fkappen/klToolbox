@@ -97,6 +97,54 @@ chrome.storage.local.get(["modVorlagen", "modTermin", "modTicket"], (s) => {
     }
 });
 
+// Migration (3.6.0): die festen Listen quickLinks/m365Links/datevLinks
+// wurden zu frei definierbaren Popup-Bereichen (sections). Alte Bestaende
+// und Alt-Importe werden konvertiert; die frueheren Haken-Semantiken
+// (Start default an, Privat default an) bleiben dabei erhalten.
+function migrateSections(force) {
+    chrome.storage.local.get(["sections", "quickLinks", "m365Links", "datevLinks"], (s) => {
+        if (!force && Array.isArray(s.sections)) {
+            return;
+        }
+        const out = [];
+        if (Array.isArray(s.quickLinks) && s.quickLinks.length > 0) {
+            out.push({
+                name: "Schnellzugriffe",
+                links: s.quickLinks.filter((l) => l && l.url).map((l) => ({
+                    name: l.name || "", url: l.url, start: l.start !== false, privat: false
+                }))
+            });
+        }
+        if (Array.isArray(s.m365Links) && s.m365Links.length > 0) {
+            out.push({
+                name: "M365 Admin",
+                links: s.m365Links.filter((l) => l && l.url).map((l) => ({
+                    name: l.name || "", url: l.url, start: false, privat: l.privat !== false
+                }))
+            });
+        }
+        if (Array.isArray(s.datevLinks) && s.datevLinks.length > 0) {
+            out.push({
+                name: "DATEV",
+                links: s.datevLinks.filter((l) => l && l.url).map((l) => ({
+                    name: l.name || "", url: l.url, start: false, privat: false
+                }))
+            });
+        }
+        if (out.length > 0) {
+            chrome.storage.local.set({ sections: out });
+            console.log("klToolbox: Popup-Links zu Bereichen migriert (" + out.length + " Bereiche)");
+        }
+    });
+}
+migrateSections(false);
+chrome.storage.onChanged.addListener((changes, area) => {
+    // Alt-Import (Settings-Datei mit quickLinks/m365Links) -> neu konvertieren
+    if (area === "local" && (changes.quickLinks || changes.m365Links || changes.datevLinks) && !changes.sections) {
+        migrateSections(true);
+    }
+});
+
 function rebuildMenus() {
     chrome.storage.local.get(Object.assign({}, MODULE_DEFAULTS, { customKiActions: [] }), (mods) => {
         chrome.contextMenus.removeAll(() => {

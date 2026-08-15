@@ -238,14 +238,14 @@
 
 /* ============================================================ Termin */
 
-/* Wartezeit-Punkt in der Ticketliste (Farbe setzt das Script) */
-.__tt_list_dot {
+/* Wartezeit-Kurzangabe vor der Ticketnummer (Farbe setzt das Script) */
+.__tt_list_age {
     display: inline-block;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    margin-right: 5px;
+    font-weight: 700;
+    font-size: 10.5px;
+    margin-right: 4px;
     vertical-align: middle;
+    white-space: nowrap;
 }
 
 /* Makro-Auswahl (Dropdown unter dem Toolbar-Button) */

@@ -6,22 +6,24 @@
 // Popup am Extension-Icon: Start-Leiste, Schnellzugriffe (Favicons via Web),
 // M365-Admin-Links (privates Fenster) und Ticketnummern-Suche.
 
-// Bewusst KEINE Firmen-URLs im Store-Paket: Links und URL-Vorlagen kommen
-// erst per Settings-Import (Optionen -> Sicherung -> Importieren).
-const DEFAULT_QUICKLINKS = [];
-const DEFAULT_M365LINKS = [];
-
 // DATEV Wissensplattform ist eine oeffentliche Hersteller-URL -> Default ok.
 // Ergebnis-Route verifiziert 2026-08-13 (%SUCHE% = Suchbegriff).
 const DATEV_SEARCH_DEFAULT = "https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%";
 
-// Oeffentliche DATEV-Portale (keine Firmen-/Tenant-Infos) -> Defaults ok
-const DEFAULT_DATEVLINKS = [
-    { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
-    { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
-    { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
-    { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
-    { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
+// Popup-Bereiche: frei definierbar (Optionen -> Popup-Bereiche). Neutrale
+// Auslieferung: nur die oeffentlichen DATEV-Portale - Firmen-Bereiche
+// kommen per Settings-Import.
+const DEFAULT_SECTIONS = [
+    {
+        name: "DATEV",
+        links: [
+            { name: "MyUpdates", url: "https://apps.datev.de/myupdates" },
+            { name: "Tickets", url: "https://apps.datev.de/servicekontakt-online/contacts" },
+            { name: "ServiceTAN", url: "https://apps.datev.de/servicekontakt-online/service-tan" },
+            { name: "MyPartner", url: "https://apps.datev.de/xrm-mypartner/standorte" },
+            { name: "PARTNERasp", url: "https://secure11.datev.de/partneraspkundenportal/" }
+        ]
+    }
 ];
 
 // Favicon-Kette: 1. favicon.ico direkt vom Host (erreicht auch interne
@@ -97,48 +99,51 @@ function openPrivate(url) {
 }
 
 function render() {
-    chrome.storage.local.get({ quickLinks: DEFAULT_QUICKLINKS, m365Links: DEFAULT_M365LINKS, datevLinks: DEFAULT_DATEVLINKS }, (items) => {
-        const quickGrid = document.getElementById("quickGrid");
-        const m365Grid = document.getElementById("m365Grid");
-        const datevGrid = document.getElementById("datevGrid");
-        quickGrid.textContent = "";
-        m365Grid.textContent = "";
-        datevGrid.textContent = "";
+    chrome.storage.local.get({ sections: null }, (items) => {
+        const sections = Array.isArray(items.sections) ? items.sections : DEFAULT_SECTIONS;
+        const host = document.getElementById("sectionsHost");
+        host.textContent = "";
 
-        const emptyHint = (grid) => {
+        const startLinks = [];
+        let anyLink = false;
+
+        for (const sec of sections) {
+            const links = (Array.isArray(sec.links) ? sec.links : []).filter((l) => l && l.url);
+            if (!sec || !sec.name || links.length === 0) {
+                continue;
+            }
+            anyLink = true;
+            const h = document.createElement("h2");
+            h.textContent = sec.name;
+            if (links.some((l) => l.privat === true)) {
+                const note = document.createElement("span");
+                note.style.cssText = "color:#9aa7b0; text-transform:none;";
+                note.textContent = " (gestrichelt = privates Fenster)";
+                h.appendChild(note);
+            }
+            host.appendChild(h);
+
+            const grid = document.createElement("div");
+            grid.className = "grid";
+            for (const link of links) {
+                grid.appendChild(makeTile(link, link.privat === true));
+                if (link.start === true) {
+                    startLinks.push(link);
+                }
+            }
+            host.appendChild(grid);
+        }
+
+        if (!anyLink) {
             const d = document.createElement("div");
-            d.style.cssText = "grid-column:1/-1; color:#9aa7b0; font-size:12px; padding:4px 2px;";
-            d.textContent = "Noch keine Links – in den Optionen anlegen oder Einstellungen importieren.";
-            grid.appendChild(d);
-        };
-        if (items.quickLinks.length === 0) {
-            emptyHint(quickGrid);
-        }
-        if (items.m365Links.length === 0) {
-            emptyHint(m365Grid);
-        }
-
-        for (const link of items.quickLinks) {
-            if (link && link.url) {
-                quickGrid.appendChild(makeTile(link, false));
-            }
-        }
-        for (const link of items.m365Links) {
-            if (link && link.url) {
-                // privat: false (z. B. CIPP) -> normaler Tab
-                m365Grid.appendChild(makeTile(link, link.privat !== false));
-            }
-        }
-        for (const link of items.datevLinks) {
-            if (link && link.url) {
-                datevGrid.appendChild(makeTile(link, false));
-            }
+            d.style.cssText = "color:#9aa7b0; font-size:12px; padding:8px 2px;";
+            d.textContent = "Noch keine Bereiche – in den Optionen anlegen oder Einstellungen importieren.";
+            host.appendChild(d);
         }
 
         document.getElementById("startBtn").addEventListener("click", () => {
-            const startLinks = items.quickLinks.filter((l) => l && l.url && l.start !== false);
             if (startLinks.length === 0) {
-                document.getElementById("hint").textContent = "Keine Start-Seiten markiert (Optionen).";
+                document.getElementById("hint").textContent = "Keine Start-Seiten markiert (Optionen → Popup-Bereiche).";
                 return;
             }
             for (const l of startLinks) {

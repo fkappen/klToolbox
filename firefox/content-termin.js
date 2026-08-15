@@ -516,7 +516,7 @@
 
     function ensureListDots() {
         if (settings.ftWaitList === false) {
-            document.querySelectorAll(".__tt_list_dot, .__tt_list_badge").forEach((d) => d.remove());
+            document.querySelectorAll(".__tt_list_dot, .__tt_list_badge, .__tt_list_age").forEach((d) => d.remove());
             return;
         }
         for (const grid of document.querySelectorAll(".gridbox")) {
@@ -528,19 +528,17 @@
             let colCreated = -1;
             let colPrio = -1;
             let colId = -1;
-            let colSched = -1;
             Array.from(hdrRow.children).forEach((td, i) => {
                 if (td.querySelector("[id$='_createdAt']")) { colCreated = i; }
                 if (td.querySelector("[id$='_priority']")) { colPrio = i; }
                 if (td.querySelector("[id$='_id']")) { colId = i; }
-                if (td.querySelector("[id$='_scheduled']")) { colSched = i; }
             });
             if (colCreated < 0 || colId < 0) {
                 continue; // kein Ticket-Grid (oder Spalte ausgeblendet)
             }
             for (const tr of grid.querySelectorAll(".objbox table.obj tbody tr")) {
                 const tds = tr.children;
-                if (tds.length <= Math.max(colCreated, colId, colSched) || tds[0].tagName !== "TD") {
+                if (tds.length <= Math.max(colCreated, colId) || tds[0].tagName !== "TD") {
                     continue;
                 }
                 const m = /(\d{1,2})\.(\d{1,2})\.(\d{4}),?\s*(\d{1,2}):(\d{2})/
@@ -557,59 +555,30 @@
                 const color = badgeColor(ms, prio);
                 const title = "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ", Prio: " + (prio.trim() || "unbekannt") + ")";
 
-                // Bevorzugt: kompaktes Pill in der (meist leeren) Verplanungs-
-                // Spalte. Ist die Zelle belegt oder die Spalte ausgeblendet,
-                // faellt die Anzeige auf den Punkt vor der Ticketnummer zurueck.
-                let schedCell = null;
-                if (colSched >= 0) {
-                    const cell = tds[colSched];
-                    const ownBadge = cell.querySelector(".__tt_list_badge");
-                    const foreign = (cell.textContent || "").trim().length > 0 &&
-                        !(ownBadge && cell.childElementCount === 1);
-                    if (!foreign || ownBadge) {
-                        schedCell = cell;
+                // Kurzschreibweise ("26h") in Ampelfarbe VOR der Ticketnummer
+                let age = tds[colId].querySelector(".__tt_list_age");
+                if (!age) {
+                    // Reste aelterer Varianten (Punkt/Pill) aufraeumen
+                    const old = tr.querySelector(".__tt_list_dot, .__tt_list_badge");
+                    if (old) {
+                        old.remove();
                     }
+                    age = document.createElement("span");
+                    age.className = "__tt_list_age";
+                    tds[colId].insertBefore(age, tds[colId].firstChild);
                 }
-                if (schedCell) {
-                    const oldDot = tds[colId].querySelector(".__tt_list_dot");
-                    if (oldDot) {
-                        oldDot.remove();
-                    }
-                    let badge = schedCell.querySelector(".__tt_list_badge");
-                    if (!badge) {
-                        schedCell.textContent = ""; // &nbsp; raus
-                        badge = document.createElement("span");
-                        badge.className = "__tt_list_badge";
-                        schedCell.appendChild(badge);
-                    }
-                    const text = formatAgeCompact(ms);
-                    if (badge.dataset.x !== text) {
-                        badge.dataset.x = text;
-                        badge.textContent = text;
-                    }
-                    if (badge.dataset.c !== color) {
-                        badge.dataset.c = color;
-                        badge.style.background = color;
-                    }
-                    if (badge.dataset.t !== title) {
-                        badge.dataset.t = title;
-                        badge.title = title;
-                    }
-                } else {
-                    let dot = tds[colId].querySelector(".__tt_list_dot");
-                    if (!dot) {
-                        dot = document.createElement("span");
-                        dot.className = "__tt_list_dot";
-                        tds[colId].insertBefore(dot, tds[colId].firstChild);
-                    }
-                    if (dot.dataset.c !== color) {
-                        dot.dataset.c = color;
-                        dot.style.background = color;
-                    }
-                    if (dot.dataset.t !== title) {
-                        dot.dataset.t = title;
-                        dot.title = title;
-                    }
+                const text = formatAgeCompact(ms);
+                if (age.dataset.x !== text) {
+                    age.dataset.x = text;
+                    age.textContent = text;
+                }
+                if (age.dataset.c !== color) {
+                    age.dataset.c = color;
+                    age.style.color = color;
+                }
+                if (age.dataset.t !== title) {
+                    age.dataset.t = title;
+                    age.title = title;
                 }
             }
         }
@@ -1485,7 +1454,7 @@
     let moduleEnabled = true;
 
     function removeTerminUi() {
-        document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge, .__tt_list_dot").forEach((el) => el.remove());
+        document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge, .__tt_list_dot, .__tt_list_badge, .__tt_list_age").forEach((el) => el.remove());
         ["__tt_btn", "__tt_panel", "__tt_route_panel", "__tt_makro_panel"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) {

@@ -250,26 +250,13 @@
         <span id="statusMakro" class="status"></span>
     </div>
 
-    <!-- ================================================== Schnellzugriffe -->
-    <h2>Schnellzugriffe (Popup)</h2>
-    <p class="hint">Links im Extension-Popup. Häkchen „Start" = wird vom Start-Button mit geöffnet.</p>
-    <div id="quickList"></div>
+    <!-- ================================================== Popup-Bereiche -->
+    <h2>Popup-Bereiche</h2>
+    <p class="hint">Frei definierbare Bereiche im Popup — jeder Bereich hat einen Namen und beliebig viele Links. Häkchen „Start“ = wird vom Start-Button mit geöffnet; „Privat“ = öffnet im privaten Fenster (dafür muss in der Erweiterungsverwaltung „Im Inkognito-Modus zulassen“ aktiv sein). Reihenfolge über ↑/↓.</p>
+    <div id="sectionList"></div>
     <div class="toolbar">
-        <button id="quickAdd" class="secondary">+ Neuer Schnellzugriff</button>
-    </div>
-
-    <h2>M365 Admin (Popup, öffnet im privaten Fenster)</h2>
-    <p class="hint">Hinweis: Damit private Fenster geöffnet werden können, muss unter <code>brave://extensions</code> bei dieser Extension „Im Inkognito-Modus zulassen" aktiviert sein.</p>
-    <div id="m365List"></div>
-    <div class="toolbar">
-        <button id="m365Add" class="secondary">+ Neuer M365-Link</button>
-    </div>
-
-    <h2>DATEV (Popup)</h2>
-    <div id="datevList"></div>
-    <div class="toolbar">
-        <button id="datevAdd" class="secondary">+ Neuer DATEV-Link</button>
-        <button id="linksSave" class="primary">Links speichern</button>
+        <button id="sectionAdd" class="secondary">+ Neuer Bereich</button>
+        <button id="sectionsSave" class="primary">Bereiche speichern</button>
         <span id="statusLinks" class="status"></span>
     </div>
 
