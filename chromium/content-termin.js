@@ -500,9 +500,23 @@
     // robust gegen umsortierte Spalten. Vor die Ticketnummer kommt ein
     // farbiger Punkt (gleiche Ampel-Logik wie das Ticket-Badge).
     // Schreibzugriffe nur bei Aenderung (dataset-Guards, Observer-Schleife!).
+    // Kompakte Alters-Angabe fuer die schmale Spalte ("45m", "26h", "9,1T")
+    function formatAgeCompact(ms) {
+        const min = ms / 60000;
+        if (min < 60) {
+            return Math.floor(min) + "m";
+        }
+        const h = min / 60;
+        if (h < 48) {
+            return (h < 10 ? h.toFixed(1).replace(".", ",") : String(Math.round(h))) + "h";
+        }
+        const d = h / 24;
+        return (d < 10 ? d.toFixed(1).replace(".", ",") : String(Math.round(d))) + "T";
+    }
+
     function ensureListDots() {
         if (settings.ftWaitList === false) {
-            document.querySelectorAll(".__tt_list_dot").forEach((d) => d.remove());
+            document.querySelectorAll(".__tt_list_dot, .__tt_list_badge").forEach((d) => d.remove());
             return;
         }
         for (const grid of document.querySelectorAll(".gridbox")) {
@@ -514,17 +528,19 @@
             let colCreated = -1;
             let colPrio = -1;
             let colId = -1;
+            let colSched = -1;
             Array.from(hdrRow.children).forEach((td, i) => {
                 if (td.querySelector("[id$='_createdAt']")) { colCreated = i; }
                 if (td.querySelector("[id$='_priority']")) { colPrio = i; }
                 if (td.querySelector("[id$='_id']")) { colId = i; }
+                if (td.querySelector("[id$='_scheduled']")) { colSched = i; }
             });
             if (colCreated < 0 || colId < 0) {
                 continue; // kein Ticket-Grid (oder Spalte ausgeblendet)
             }
             for (const tr of grid.querySelectorAll(".objbox table.obj tbody tr")) {
                 const tds = tr.children;
-                if (tds.length <= Math.max(colCreated, colId) || tds[0].tagName !== "TD") {
+                if (tds.length <= Math.max(colCreated, colId, colSched) || tds[0].tagName !== "TD") {
                     continue;
                 }
                 const m = /(\d{1,2})\.(\d{1,2})\.(\d{4}),?\s*(\d{1,2}):(\d{2})/
@@ -539,20 +555,61 @@
                 const ms = Date.now() - created.getTime();
                 const prio = colPrio >= 0 ? (tds[colPrio].textContent || "") : "";
                 const color = badgeColor(ms, prio);
-                const title = "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ")";
-                let dot = tds[colId].querySelector(".__tt_list_dot");
-                if (!dot) {
-                    dot = document.createElement("span");
-                    dot.className = "__tt_list_dot";
-                    tds[colId].insertBefore(dot, tds[colId].firstChild);
+                const title = "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ", Prio: " + (prio.trim() || "unbekannt") + ")";
+
+                // Bevorzugt: kompaktes Pill in der (meist leeren) Verplanungs-
+                // Spalte. Ist die Zelle belegt oder die Spalte ausgeblendet,
+                // faellt die Anzeige auf den Punkt vor der Ticketnummer zurueck.
+                let schedCell = null;
+                if (colSched >= 0) {
+                    const cell = tds[colSched];
+                    const ownBadge = cell.querySelector(".__tt_list_badge");
+                    const foreign = (cell.textContent || "").trim().length > 0 &&
+                        !(ownBadge && cell.childElementCount === 1);
+                    if (!foreign || ownBadge) {
+                        schedCell = cell;
+                    }
                 }
-                if (dot.dataset.c !== color) {
-                    dot.dataset.c = color;
-                    dot.style.background = color;
-                }
-                if (dot.dataset.t !== title) {
-                    dot.dataset.t = title;
-                    dot.title = title;
+                if (schedCell) {
+                    const oldDot = tds[colId].querySelector(".__tt_list_dot");
+                    if (oldDot) {
+                        oldDot.remove();
+                    }
+                    let badge = schedCell.querySelector(".__tt_list_badge");
+                    if (!badge) {
+                        schedCell.textContent = ""; // &nbsp; raus
+                        badge = document.createElement("span");
+                        badge.className = "__tt_list_badge";
+                        schedCell.appendChild(badge);
+                    }
+                    const text = formatAgeCompact(ms);
+                    if (badge.dataset.x !== text) {
+                        badge.dataset.x = text;
+                        badge.textContent = text;
+                    }
+                    if (badge.dataset.c !== color) {
+                        badge.dataset.c = color;
+                        badge.style.background = color;
+                    }
+                    if (badge.dataset.t !== title) {
+                        badge.dataset.t = title;
+                        badge.title = title;
+                    }
+                } else {
+                    let dot = tds[colId].querySelector(".__tt_list_dot");
+                    if (!dot) {
+                        dot = document.createElement("span");
+                        dot.className = "__tt_list_dot";
+                        tds[colId].insertBefore(dot, tds[colId].firstChild);
+                    }
+                    if (dot.dataset.c !== color) {
+                        dot.dataset.c = color;
+                        dot.style.background = color;
+                    }
+                    if (dot.dataset.t !== title) {
+                        dot.dataset.t = title;
+                        dot.title = title;
+                    }
                 }
             }
         }
@@ -1011,10 +1068,12 @@
     }
 
     function openOutlookWeb(subject, body, start, end, ort) {
+        // OWA verschluckt \n im body-Parameter - CRLF bleibt (meist) erhalten
+        const bodyCrlf = body.replace(/\r?\n/g, "\r\n");
         let url = "https://outlook.office.com/calendar/action/compose" +
             "?rru=addevent" +
             "&subject=" + encodeURIComponent(subject) +
-            "&body=" + encodeURIComponent(body) +
+            "&body=" + encodeURIComponent(bodyCrlf) +
             "&startdt=" + encodeURIComponent(toIsoLocal(start)) +
             "&enddt=" + encodeURIComponent(toIsoLocal(end));
         if (ort) {
@@ -1070,8 +1129,9 @@
         try {
             let native = findAbonnierenButton();
             let switchedTab = false;
+            let aboTab = null;
             if (!native) {
-                const aboTab = findTab(/^Abonnenten( \(\d+\))?$/);
+                aboTab = findTab(/^Abonnenten( \(\d+\))?$/);
                 if (!aboTab) {
                     alert("Abonnenten-Bereich nicht gefunden - bitte manuell abonnieren.");
                     return;
@@ -1096,7 +1156,18 @@
                 alert("'Abonnieren'-Button nicht gefunden - vermutlich ist das Ticket bereits abonniert.");
             }
             if (switchedTab) {
-                const ticketTab = findTab(/^Ticket$/);
+                // Zurueck zum "Ticket"-Tab: als GESCHWISTER des Abonnenten-
+                // Tabs suchen - die globale Suche traf sonst die "Ticket"-
+                // Spaltenueberschrift der Liste dahinter (klickte = sortierte).
+                await sleep(300);
+                let ticketTab = null;
+                if (aboTab && aboTab.parentElement) {
+                    ticketTab = Array.from(aboTab.parentElement.children).find((c) =>
+                        c !== aboTab && /^Ticket(\s*\(\d+\))?$/.test((c.textContent || "").trim()));
+                }
+                if (!ticketTab) {
+                    ticketTab = findTab(/^Ticket$/);
+                }
                 if (ticketTab) {
                     realClick(ticketTab);
                 }
@@ -1424,8 +1495,8 @@
     }
 
     function init() {
-        chrome.storage.local.get({ modTermin: true }, (items) => {
-            moduleEnabled = items.modTermin !== false;
+        chrome.storage.local.get({ modTicket: true }, (items) => {
+            moduleEnabled = items.modTicket !== false;
             if (moduleEnabled) {
                 ensureButtons();
                 waitTick();
@@ -1435,8 +1506,8 @@
             }
         });
         chrome.storage.onChanged.addListener((changes, area) => {
-            if (area === "local" && changes.modTermin) {
-                moduleEnabled = changes.modTermin.newValue !== false;
+            if (area === "local" && changes.modTicket) {
+                moduleEnabled = changes.modTicket.newValue !== false;
                 if (moduleEnabled) {
                     ensureButtons();
                     waitTick();

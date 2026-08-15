@@ -127,8 +127,7 @@ const TERMIN_DEFAULTS = {
 const MODULE_DEFAULTS = {
     modKi: true,
     modSuche: true,
-    modVorlagen: true,
-    modTermin: true,
+    modTicket: true,
     modCleaner: true,
     modChat: true
 };

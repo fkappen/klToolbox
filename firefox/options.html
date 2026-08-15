@@ -67,10 +67,8 @@
             <div class="mod-desc">Markierten Text per Rechtsklick mit KI umformulieren, korrigieren oder übersetzen – das Ergebnis ersetzt die Markierung direkt im Feld.</div>
             <label><input type="checkbox" id="modSuche"> Kontextmenü-Suchen</label>
             <div class="mod-desc">Markierten Text (z. B. eine Fehlermeldung) per Rechtsklick in der DATEV Wissensplattform, bei Google oder in InnoGPT nachschlagen.</div>
-            <label><input type="checkbox" id="modVorlagen"> Ticket-Vorlagen</label>
-            <div class="mod-desc">Vorlagen-Button im „Email senden“-Fenster des Ticketsystems: Textbausteine mit einem Klick vor der Signatur einfügen.</div>
-            <label><input type="checkbox" id="modTermin"> Ticket-Termin &amp; Wartezeit</label>
-            <div class="mod-desc">Buttons in der Ticket-Toolbar: Outlook-Termin aus dem Ticket erstellen (inkl. Status „Termin vereinbart“), „Nicht erreicht“-Eintrag anlegen, Anfahrt planen – plus Wartezeit-Ampel oben links im Ticket.</div>
+            <label><input type="checkbox" id="modTicket"> Ticketsystem</label>
+            <div class="mod-desc">Bündelt alle Erweiterungen im Ticketsystem: Vorlagen und KI-Antwort im Mail-Fenster, Eintrags-Vorlagen, Termin, Nicht erreicht, Abo, Anfahrt, Makros sowie die Wartezeit-Ampeln in Ticket und Liste. Einzelne Funktionen lassen sich unten unter „Ticketsystem-Funktionen einzeln“ abschalten.</div>
             <label><input type="checkbox" id="modCleaner"> MS Account Cleaner</label>
             <div class="mod-desc">Button auf der Microsoft-Kontoauswahl (login.microsoftonline.com): entfernt alle gemerkten Konten in einem Rutsch. Konten „Mit Windows verbunden“ und Whitelist-Konten (siehe unten) bleiben erhalten.</div>
             <label><input type="checkbox" id="modChat"> KI-Chat</label>
@@ -81,7 +79,7 @@
 
     <fieldset>
         <legend>Ticketsystem-Funktionen einzeln</legend>
-        <p class="hint">Feinschalter für die einzelnen Inline-Erweiterungen im Ticketsystem — falls eine davon Probleme macht. Änderungen wirken sofort. Die Module oben („Ticket-Vorlagen“, „Ticket-Termin &amp; Wartezeit“) schalten jeweils alles auf einmal.</p>
+        <p class="hint">Feinschalter für die einzelnen Inline-Erweiterungen im Ticketsystem — falls eine davon Probleme macht. Änderungen wirken sofort. Das Modul „Ticketsystem“ oben schaltet alles auf einmal.</p>
         <div class="ft-grid">
             <label><input type="checkbox" id="ftTermin"> 📅 Termin-Button</label>
             <label><input type="checkbox" id="ftNichtErreicht"> 📵 Nicht erreicht</label>
@@ -219,7 +217,7 @@
 
     <!-- ================================================== Ticket-Vorlagen -->
     <h2>Ticket-Vorlagen (E-Mail-Textbausteine)</h2>
-    <p class="hint">Platzhalter: <code>{datum}</code> = heutiges Datum, <code>{zeit}</code> = aktuelle Uhrzeit, <code>{anrede}</code> = Anrede aus dem An-Feld („Frau/Herr Nachname“; bei unbekanntem Vornamen der volle Name, ohne Empfänger entfällt der Platzhalter).</p>
+    <p class="hint">Platzhalter: <code>{gruss}</code> = „Guten Morgen/Tag/Abend“ je nach Uhrzeit, <code>{datum}</code> = heutiges Datum, <code>{zeit}</code> = aktuelle Uhrzeit, <code>{anrede}</code> = Anrede aus dem An-Feld („Frau/Herr Nachname“; bei unbekanntem Vornamen der volle Name, ohne Empfänger entfällt der Platzhalter).</p>
 
     <div id="tplList"></div>
 

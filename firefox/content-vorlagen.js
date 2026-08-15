@@ -48,35 +48,35 @@
     const DEFAULT_TEMPLATES = [
         {
             name: "Eingangsbestätigung",
-            text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Nachricht. Ihr Anliegen ist bei uns eingegangen und wurde als Ticket aufgenommen.\n\nWir kümmern uns schnellstmöglich darum und melden uns, sobald es Neuigkeiten gibt."
+            text: "{gruss} {anrede},\n\nvielen Dank für Ihre Nachricht. Ihr Anliegen ist bei uns eingegangen und wurde als Ticket aufgenommen.\n\nWir kümmern uns schnellstmöglich darum und melden uns, sobald es Neuigkeiten gibt."
         },
         {
             name: "Rückfrage – Informationen benötigt",
-            text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Meldung. Um das Anliegen zielgerichtet bearbeiten zu können, benötigen wir noch folgende Informationen:\n\n- Betroffener Benutzer / Rechnername:\n- Seit wann tritt das Verhalten auf?\n- Tritt das Problem dauerhaft oder nur sporadisch auf?\n- Gibt es eine Fehlermeldung (gerne als Screenshot)?\n\nVielen Dank vorab für Ihre Rückmeldung."
+            text: "{gruss} {anrede},\n\nvielen Dank für Ihre Meldung. Um das Anliegen zielgerichtet bearbeiten zu können, benötigen wir noch folgende Informationen:\n\n- Betroffener Benutzer / Rechnername:\n- Seit wann tritt das Verhalten auf?\n- Tritt das Problem dauerhaft oder nur sporadisch auf?\n- Gibt es eine Fehlermeldung (gerne als Screenshot)?\n\nVielen Dank vorab für Ihre Rückmeldung."
         },
         {
             name: "Performance – Rückfragen zur Analyse",
-            text: "Guten Tag {anrede},\n\nvielen Dank für Ihre Meldung. Damit wir die Ursache der Verlangsamung gezielt eingrenzen können, benötigen wir noch einige Angaben:\n\n- Wen betrifft es? (einzelner Benutzer, mehrere oder alle)\n- Wann tritt es auf? (dauerhaft, zu bestimmten Uhrzeiten, seit wann)\n- In welchen Anwendungen macht es sich bemerkbar? (z. B. DATEV, Outlook, Browser – oder generell)\n- Wie äußert es sich: startet die Anwendung langsam oder reagieren Eingaben verzögert?\n\nJe genauer die Angaben, desto schneller finden wir die Ursache. Vielen Dank vorab für Ihre Rückmeldung."
+            text: "{gruss} {anrede},\n\nvielen Dank für Ihre Meldung. Damit wir die Ursache der Verlangsamung gezielt eingrenzen können, benötigen wir noch einige Angaben:\n\n- Wen betrifft es? (einzelner Benutzer, mehrere oder alle)\n- Wann tritt es auf? (dauerhaft, zu bestimmten Uhrzeiten, seit wann)\n- In welchen Anwendungen macht es sich bemerkbar? (z. B. DATEV, Outlook, Browser – oder generell)\n- Wie äußert es sich: startet die Anwendung langsam oder reagieren Eingaben verzögert?\n\nJe genauer die Angaben, desto schneller finden wir die Ursache. Vielen Dank vorab für Ihre Rückmeldung."
         },
         {
             name: "Fernwartung anbieten",
-            text: "Guten Tag {anrede},\n\nzur weiteren Analyse würden wir uns gerne per Fernwartung auf das betroffene System aufschalten.\n\nBitte teilen Sie uns kurz mit, wann es Ihnen passt und unter welcher Rufnummer wir Sie am besten erreichen. Alternativ können Sie uns auch direkt anrufen – wir schalten uns dann gemeinsam auf."
+            text: "{gruss} {anrede},\n\nzur weiteren Analyse würden wir uns gerne per Fernwartung auf das betroffene System aufschalten.\n\nBitte teilen Sie uns kurz mit, wann es Ihnen passt und unter welcher Rufnummer wir Sie am besten erreichen. Alternativ können Sie uns auch direkt anrufen – wir schalten uns dann gemeinsam auf."
         },
         {
             name: "Zwischenbescheid",
-            text: "Guten Tag {anrede},\n\nein kurzer Zwischenstand zu Ihrem Ticket: Das Thema ist bei uns in Bearbeitung.\n\n[Aktueller Stand / nächste Schritte]\n\nWir melden uns, sobald es Neuigkeiten gibt. Vielen Dank für Ihre Geduld."
+            text: "{gruss} {anrede},\n\nein kurzer Zwischenstand zu Ihrem Ticket: Das Thema ist bei uns in Bearbeitung.\n\n[Aktueller Stand / nächste Schritte]\n\nWir melden uns, sobald es Neuigkeiten gibt. Vielen Dank für Ihre Geduld."
         },
         {
             name: "Homeoffice / VPN – instabile Verbindung",
-            text: "Guten Tag {anrede},\n\nnach Ihrer Beschreibung spricht vieles dafür, dass die Ursache in einer instabilen Internet- bzw. WLAN-Verbindung liegt.\n\nFalls möglich, testen Sie die Verbindung bitte einmal über ein Netzwerkkabel, um das WLAN als Fehlerquelle auszuschließen.\n\nDass normales Surfen funktioniert, ist dabei leider kein aussagekräftiges Kriterium: Webanwendungen gleichen kurze Verbindungsunterbrechungen oder Paketverluste in der Regel unbemerkt durch erneute Übertragungen aus. Eine VPN-Verbindung im Homeoffice reagiert darauf deutlich empfindlicher – bereits kurze Abbrüche können dazu führen, dass der Tunnel getrennt und neu aufgebaut werden muss.\n\nSollte das Problem auch mit Netzwerkkabel weiterhin auftreten, prüfen wir die Ursache gerne gemeinsam weiter."
+            text: "{gruss} {anrede},\n\nnach Ihrer Beschreibung spricht vieles dafür, dass die Ursache in einer instabilen Internet- bzw. WLAN-Verbindung liegt.\n\nFalls möglich, testen Sie die Verbindung bitte einmal über ein Netzwerkkabel, um das WLAN als Fehlerquelle auszuschließen.\n\nDass normales Surfen funktioniert, ist dabei leider kein aussagekräftiges Kriterium: Webanwendungen gleichen kurze Verbindungsunterbrechungen oder Paketverluste in der Regel unbemerkt durch erneute Übertragungen aus. Eine VPN-Verbindung im Homeoffice reagiert darauf deutlich empfindlicher – bereits kurze Abbrüche können dazu führen, dass der Tunnel getrennt und neu aufgebaut werden muss.\n\nSollte das Problem auch mit Netzwerkkabel weiterhin auftreten, prüfen wir die Ursache gerne gemeinsam weiter."
         },
         {
             name: "Gelöst / Ticket schließen",
-            text: "Guten Tag {anrede},\n\ndas Anliegen ist aus unserer Sicht gelöst, daher schließen wir das Ticket.\n\nSollte das Problem erneut auftreten oder noch etwas offen sein, melden Sie sich gerne jederzeit – wir öffnen das Ticket dann wieder.\n\nVielen Dank für die gute Zusammenarbeit."
+            text: "{gruss} {anrede},\n\ndas Anliegen ist aus unserer Sicht gelöst, daher schließen wir das Ticket.\n\nSollte das Problem erneut auftreten oder noch etwas offen sein, melden Sie sich gerne jederzeit – wir öffnen das Ticket dann wieder.\n\nVielen Dank für die gute Zusammenarbeit."
         },
         {
             name: "Erinnerung – keine Rückmeldung",
-            text: "Guten Tag {anrede},\n\nzu Ihrem Ticket hatten wir Ihnen eine Rückfrage gestellt, bisher jedoch keine Rückmeldung erhalten. Gerne möchten wir das Anliegen für Sie weiterbearbeiten – eine kurze Rückinfo genügt.\n\nSollten wir in den nächsten Tagen nichts von Ihnen hören, schließen wir das Ticket vorsorglich. Sie können es jederzeit durch eine Antwort wieder öffnen."
+            text: "{gruss} {anrede},\n\nzu Ihrem Ticket hatten wir Ihnen eine Rückfrage gestellt, bisher jedoch keine Rückmeldung erhalten. Gerne möchten wir das Anliegen für Sie weiterbearbeiten – eine kurze Rückinfo genügt.\n\nSollten wir in den nächsten Tagen nichts von Ihnen hören, schließen wir das Ticket vorsorglich. Sie können es jederzeit durch eine Antwort wieder öffnen."
         }
     ];
 
@@ -137,17 +137,30 @@
 
     // ---------------------------------------------------------- Einfuegen
 
+    // Tageszeitabhaengiger Gruss: bis 11 Uhr Morgen, bis 18 Uhr Tag, danach Abend
+    function tagesGruss() {
+        const h = new Date().getHours();
+        if (h < 11) {
+            return "Guten Morgen";
+        }
+        if (h < 18) {
+            return "Guten Tag";
+        }
+        return "Guten Abend";
+    }
+
     function applyPlaceholders(text, editor) {
         const now = new Date();
         const datum = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
         const zeit = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
         let out = text
+            .replace(/\{gruss\}/gi, tagesGruss())
             .replace(/\{datum\}/gi, datum)
             .replace(/\{zeit\}/gi, zeit + " Uhr");
         if (/\{anrede\}/i.test(out)) {
             const anrede = buildAnrede(editor);
             // Ohne Empfaenger faellt der Platzhalter samt fuehrendem
-            // Leerzeichen weg: "Guten Tag {anrede}," -> "Guten Tag,"
+            // Leerzeichen weg: "{gruss} {anrede}," -> "Guten Tag,"
             out = out.replace(/ ?\{anrede\}/gi, anrede ? " " + anrede : "");
         }
         return out;
@@ -794,7 +807,12 @@
             return;
         }
         const r = anchor.getBoundingClientRect();
-        panel.style.right = Math.max(8, window.innerWidth - r.right) + "px";
+        // Rechte Kante am Anker ausrichten, aber im Viewport halten: bei
+        // Ankern weit links (z. B. Eintrags-Editor) lief das Panel sonst
+        // links aus dem sichtbaren Bereich.
+        const panelW = panel.offsetWidth || 340;
+        const maxRight = Math.max(8, window.innerWidth - panelW - 8);
+        panel.style.right = Math.min(Math.max(8, window.innerWidth - r.right), maxRight) + "px";
         if (r.top < window.innerHeight / 2) {
             panel.style.top = Math.min(r.bottom + 8, window.innerHeight - 120) + "px";
             panel.style.bottom = "auto";
@@ -991,8 +1009,8 @@
     }
 
     function init() {
-        chrome.storage.local.get({ modVorlagen: true }, (items) => {
-            moduleEnabled = items.modVorlagen !== false;
+        chrome.storage.local.get({ modTicket: true }, (items) => {
+            moduleEnabled = items.modTicket !== false;
             if (moduleEnabled) {
                 ensureButtons();
             } else {
@@ -1001,8 +1019,8 @@
             }
         });
         chrome.storage.onChanged.addListener((changes, area) => {
-            if (area === "local" && changes.modVorlagen) {
-                moduleEnabled = changes.modVorlagen.newValue !== false;
+            if (area === "local" && changes.modTicket) {
+                moduleEnabled = changes.modTicket.newValue !== false;
                 if (moduleEnabled) {
                     ensureButtons();
                 } else {

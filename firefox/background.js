@@ -84,11 +84,18 @@ chrome.storage.local.get({ datevSearchTemplate: "" }, (items) => {
 const MODULE_DEFAULTS = {
     modKi: true,        // KI-Umformulierer (Kontextmenue)
     modSuche: true,     // Kontextmenue-Suchen (DATEV/Google/InnoGPT)
-    modVorlagen: true,  // Ticket-Vorlagen
-    modTermin: true,    // Ticket-Termin/Wartezeit/Anfahrt
+    modTicket: true,    // alle Ticketsystem-Erweiterungen (gebuendelt)
     modCleaner: true,   // MS Account Cleaner
     modChat: true       // KI-Chat (Popup)
 };
+
+// Migration (3.5.0): die frueheren Einzel-Module modVorlagen/modTermin
+// wurden zu modTicket zusammengefasst - eine alte Abschaltung uebernehmen
+chrome.storage.local.get(["modVorlagen", "modTermin", "modTicket"], (s) => {
+    if (typeof s.modTicket === "undefined" && (s.modVorlagen === false || s.modTermin === false)) {
+        chrome.storage.local.set({ modTicket: false });
+    }
+});
 
 function rebuildMenus() {
     chrome.storage.local.get(Object.assign({}, MODULE_DEFAULTS, { customKiActions: [] }), (mods) => {
