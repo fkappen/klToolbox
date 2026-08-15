@@ -1,13 +1,13 @@
 ﻿{
     "manifest_version": 3,
     "name": "klToolbox",
-    "version": "3.7.1",
+    "version": "3.7.2",
     "description": "Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.",
     "author": "FK",
     "browser_specific_settings": {
         "gecko": {
             "id": "app@kltoolbox.dev",
-            "strict_min_version": "140.0",
+            "strict_min_version": "142.0",
             "update_url": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/updates.json",
             "data_collection_permissions": {
                 "required": ["websiteContent"]

@@ -345,12 +345,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // sidebar_action (Menue -> Ansicht -> Sidebar), unabhaengig von der Option.
 
 function applySidebarMode() {
-    if (!chrome.sidePanel || !chrome.sidePanel.setPanelBehavior) {
+    // Alias statt chrome.sidePanel.<fn>: Firefox kennt die API nicht (dort
+    // uebernimmt sidebar_action), und der AMO-Linter flaggt den direkten
+    // Aufruf - der Guard macht den Codepfad in Firefox ohnehin tot.
+    const panelApi = chrome.sidePanel;
+    if (!panelApi || typeof panelApi.setPanelBehavior !== "function") {
         return; // Firefox bzw. aeltere Chromium-Version
     }
     chrome.storage.local.get({ sidebarMode: false }, (s) => {
         const enable = s.sidebarMode === true;
-        chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: enable })
+        panelApi.setPanelBehavior({ openPanelOnActionClick: enable })
             .catch((err) => console.warn("klToolbox: sidePanel-Verhalten nicht setzbar:", err));
         chrome.action.setPopup({ popup: enable ? "" : "popup.html" });
     });

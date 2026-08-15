@@ -18,17 +18,51 @@ function saveHistory() {
     chrome.storage.local.set({ chatHistory: conversation.slice(-HISTORY_MAX) });
 }
 
-// Minimales, sicheres Markdown fuer Assistenten-Antworten:
-// erst HTML-escapen, dann ```bloecke```, `inline-code` und **fett**.
-function mdToHtml(text) {
-    const esc = String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    return esc
-        .replace(/```([a-z0-9]*)\n?([\s\S]*?)```/gi, (m, lang, code) => "<pre>" + code.replace(/\n$/, "") + "</pre>")
-        .replace(/`([^`\n]+)`/g, "<code>$1</code>")
-        .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+// Minimales Markdown fuer Assistenten-Antworten - bewusst als echte
+// DOM-Knoten statt innerHTML (AMO flaggt innerHTML, textContent ist sicher):
+// ```bloecke``` -> <pre>, `inline` -> <code>, **fett** -> <b>.
+function renderMarkdownInto(el, text) {
+    const blockRe = /```[a-z0-9]*\n?([\s\S]*?)```/gi;
+    const src = String(text);
+    let last = 0;
+    let m;
+    while ((m = blockRe.exec(src)) !== null) {
+        if (m.index > last) {
+            appendInlineMd(el, src.slice(last, m.index));
+        }
+        const pre = document.createElement("pre");
+        pre.textContent = m[1].replace(/\n$/, "");
+        el.appendChild(pre);
+        last = m.index + m[0].length;
+    }
+    if (last < src.length) {
+        appendInlineMd(el, src.slice(last));
+    }
+}
+
+function appendInlineMd(el, text) {
+    const re = /(\*\*[^*\n]+\*\*|`[^`\n]+`)/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) {
+            el.appendChild(document.createTextNode(text.slice(last, m.index)));
+        }
+        const tok = m[0];
+        if (tok.charAt(0) === "*") {
+            const b = document.createElement("b");
+            b.textContent = tok.slice(2, -2);
+            el.appendChild(b);
+        } else {
+            const c = document.createElement("code");
+            c.textContent = tok.slice(1, -1);
+            el.appendChild(c);
+        }
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) {
+        el.appendChild(document.createTextNode(text.slice(last)));
+    }
 }
 
 // URL-Parameter: ?q=<Frage> (wird automatisch gesendet),
@@ -49,7 +83,7 @@ function addBubble(cls, text) {
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     if (cls === "assistant") {
-        bubble.innerHTML = mdToHtml(text);
+        renderMarkdownInto(bubble, text);
     } else {
         bubble.textContent = text;
     }
