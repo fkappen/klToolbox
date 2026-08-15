@@ -48,6 +48,15 @@
         .links { margin-top: 8px; padding-top: 6px; border-top: 1px solid #e3eaef; }
         .links a { color: var(--kl-blau); text-decoration: none; font-size: 12px; font-weight: 600; }
         .links a:hover { text-decoration: underline; }
+
+        /* Seitenleisten-Modus (popup.html?panel=1): volle Breite nutzen,
+           Kacheln fuellen den Platz, KI-Chat fuellt den unteren Bereich */
+        #chatFrame { display: none; }
+        body.panel { width: auto; max-width: none; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
+        body.panel .grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+        body.panel .tile span { max-width: none; }
+        body.panel #chatFrame { display: block; flex: 1; min-height: 280px; width: 100%; border: 0; border-top: 2px solid var(--kl-gruen); margin-top: 10px; }
+        body.panel #openChat, body.panel #chatSep { display: none; }
     </style>
 </head>
 <body>
@@ -80,6 +89,7 @@
         <a href="#" id="openOptions">Optionen</a> &middot;
         <a href="#" id="openHelp">Hilfe</a>
     </div>
+    <iframe id="chatFrame" title="KI-Chat"></iframe>
     <script src="popup.js"></script>
 </body>
 </html>

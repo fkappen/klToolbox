@@ -208,6 +208,20 @@ function applyBrand() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Seitenleisten-Modus: volle Breite + eingebetteter KI-Chat unten
+    const isPanel = new URLSearchParams(location.search).has("panel");
+    if (isPanel) {
+        document.body.classList.add("panel");
+        chrome.storage.local.get({ modChat: true }, (s) => {
+            if (s.modChat !== false) {
+                document.getElementById("chatFrame").src = chrome.runtime.getURL("chat.html");
+            } else {
+                document.getElementById("chatFrame").style.display = "none";
+            }
+        });
+        // In der dauerhaften Leiste nicht das Panel schliessen beim Klick:
+        // window.close() ist im Side Panel wirkungslos - unkritisch.
+    }
     applyBrand();
     render();
     const input = document.getElementById("ticketNr");

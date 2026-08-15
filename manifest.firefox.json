@@ -65,7 +65,7 @@
     },
     "sidebar_action": {
         "default_title": "klToolbox",
-        "default_panel": "popup.html",
+        "default_panel": "popup.html?panel=1",
         "default_icon": "icon32.png",
         "open_at_install": false
     },
