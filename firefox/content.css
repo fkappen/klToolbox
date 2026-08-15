@@ -238,6 +238,16 @@
 
 /* ============================================================ Termin */
 
+/* Wartezeit-Punkt in der Ticketliste (Farbe setzt das Script) */
+.__tt_list_dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
 /* Makro-Auswahl (Dropdown unter dem Toolbar-Button) */
 #__tt_makro_panel {
     position: fixed;

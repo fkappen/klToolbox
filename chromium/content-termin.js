@@ -32,8 +32,17 @@
         // Eigene Mail-Domain (ohne @): mailto-Fallback ignoriert diese
         // Adressen. Kommt per Settings-Import - neutral ausgeliefert.
         ownEmailDomain: "",
-        // Aktions-Makros: [{name, eintrag, status, abonnieren}]
-        makros: []
+        // Aktions-Makros: [{name, eintrag, status, abonnieren, schliessen}]
+        makros: [],
+        // Einzel-Schalter fuer die Inline-Funktionen (Optionen ->
+        // Ticketsystem-Funktionen einzeln) - falls etwas Probleme macht
+        ftTermin: true,
+        ftNichtErreicht: true,
+        ftAbo: true,
+        ftAnfahrt: true,
+        ftMakros: true,
+        ftWaitBadge: true,
+        ftWaitList: true
     };
 
     const TERMINARTEN = [
@@ -46,8 +55,18 @@
     chrome.storage.local.get(DEFAULTS, (items) => { settings = items; });
     chrome.storage.onChanged.addListener((changes, area) => {
         if (area === "local") {
+            let relevant = false;
             for (const [k, v] of Object.entries(changes)) {
                 settings[k] = v.newValue;
+                if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) {
+                    relevant = true;
+                }
+            }
+            // Einzel-Schalter/Makros sollen sofort wirken, nicht erst bei
+            // der naechsten DOM-Mutation
+            if (relevant && moduleEnabled) {
+                ensureButtons();
+                scheduleWaitBadge();
             }
         }
     });
@@ -420,6 +439,13 @@
     }
 
     function renderWaitBadge() {
+        if (settings.ftWaitBadge === false) {
+            const off = document.querySelector(".__tt_wait_badge");
+            if (off) {
+                off.remove();
+            }
+            return;
+        }
         const tb = document.querySelector(".ap-toolbar--fullscreen-at-top");
         if (!tb) {
             return;
@@ -468,22 +494,91 @@
         }
     }
 
-    // Gedrosselter Einstieg fuer den MutationObserver: der DOM-Scan
-    // (alle <strong>-Elemente) laeuft maximal einmal pro Sekunde.
+    // ------------------------------------------- Wartezeit-Ampeln Ticketliste
+    // Die Listenansicht ist ein DHTMLX-Grid. Spalten werden ueber die
+    // Header-IDs (rsGridHeader..._createdAt/_priority/_id) ermittelt -
+    // robust gegen umsortierte Spalten. Vor die Ticketnummer kommt ein
+    // farbiger Punkt (gleiche Ampel-Logik wie das Ticket-Badge).
+    // Schreibzugriffe nur bei Aenderung (dataset-Guards, Observer-Schleife!).
+    function ensureListDots() {
+        if (settings.ftWaitList === false) {
+            document.querySelectorAll(".__tt_list_dot").forEach((d) => d.remove());
+            return;
+        }
+        for (const grid of document.querySelectorAll(".gridbox")) {
+            const hdrRow = Array.from(grid.querySelectorAll(".xhdr table.hdr tr"))
+                .find((r) => r.querySelector("td"));
+            if (!hdrRow) {
+                continue;
+            }
+            let colCreated = -1;
+            let colPrio = -1;
+            let colId = -1;
+            Array.from(hdrRow.children).forEach((td, i) => {
+                if (td.querySelector("[id$='_createdAt']")) { colCreated = i; }
+                if (td.querySelector("[id$='_priority']")) { colPrio = i; }
+                if (td.querySelector("[id$='_id']")) { colId = i; }
+            });
+            if (colCreated < 0 || colId < 0) {
+                continue; // kein Ticket-Grid (oder Spalte ausgeblendet)
+            }
+            for (const tr of grid.querySelectorAll(".objbox table.obj tbody tr")) {
+                const tds = tr.children;
+                if (tds.length <= Math.max(colCreated, colId) || tds[0].tagName !== "TD") {
+                    continue;
+                }
+                const m = /(\d{1,2})\.(\d{1,2})\.(\d{4}),?\s*(\d{1,2}):(\d{2})/
+                    .exec(tds[colCreated].textContent || "");
+                if (!m) {
+                    continue;
+                }
+                const created = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], 0);
+                if (isNaN(created.getTime())) {
+                    continue;
+                }
+                const ms = Date.now() - created.getTime();
+                const prio = colPrio >= 0 ? (tds[colPrio].textContent || "") : "";
+                const color = badgeColor(ms, prio);
+                const title = "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ")";
+                let dot = tds[colId].querySelector(".__tt_list_dot");
+                if (!dot) {
+                    dot = document.createElement("span");
+                    dot.className = "__tt_list_dot";
+                    tds[colId].insertBefore(dot, tds[colId].firstChild);
+                }
+                if (dot.dataset.c !== color) {
+                    dot.dataset.c = color;
+                    dot.style.background = color;
+                }
+                if (dot.dataset.t !== title) {
+                    dot.dataset.t = title;
+                    dot.title = title;
+                }
+            }
+        }
+    }
+
+    // Gedrosselter Einstieg fuer den MutationObserver: die DOM-Scans
+    // (Badge + Listen-Ampeln) laufen maximal einmal pro Sekunde.
     let badgeLastRun = 0;
     let badgeQueued = false;
+
+    function waitTick() {
+        ensureWaitBadge();
+        ensureListDots();
+    }
 
     function scheduleWaitBadge() {
         const now = Date.now();
         if (now - badgeLastRun > 1000) {
             badgeLastRun = now;
-            ensureWaitBadge();
+            waitTick();
         } else if (!badgeQueued) {
             badgeQueued = true;
             setTimeout(() => {
                 badgeQueued = false;
                 badgeLastRun = Date.now();
-                ensureWaitBadge();
+                waitTick();
             }, 1200);
         }
     }
@@ -748,12 +843,61 @@
             if (ok && mk.abonnieren) {
                 await subscribeTicket(null);
             }
+            if (ok && mk.schliessen) {
+                // Speichern/Abo-Aktionen kurz wirken lassen, dann Fenster zu
+                await sleep(800);
+                await closeTicketWindow();
+            }
         } catch (err) {
             console.warn("Ticket-Termin: Makro '" + mk.name + "' fehlgeschlagen:", err);
             ok = false;
         }
         btn.textContent = ok ? "✓ erledigt" : "✗ Fehler";
         setTimeout(() => { btn.textContent = old; }, 2500);
+    }
+
+    // Ticket-Fenster schliessen: Titelzeile "Ticket #<nr> - ..." suchen und
+    // das Schliessen-Symbol klicken. Heuristik: bevorzugt ein Element mit
+    // "schliessen/close" in title/aria/Klasse, sonst das am weitesten rechts
+    // stehende Symbol der Titelleiste (dort sitzt das X).
+    async function closeTicketWindow() {
+        let titleLeaf = null;
+        for (const el of document.querySelectorAll("div, span")) {
+            if (el.childElementCount === 0 && /^Ticket #\d+/.test((el.textContent || "").trim()) && isVisible(el)) {
+                titleLeaf = el;
+                break;
+            }
+        }
+        if (!titleLeaf) {
+            console.warn("Ticket-Termin: Ticket-Fenster-Titelzeile nicht gefunden - Schliessen uebersprungen.");
+            return false;
+        }
+        let barEl = titleLeaf.parentElement;
+        let depth = 0;
+        let candidates = [];
+        while (barEl && depth < 5) {
+            candidates = Array.from(barEl.querySelectorAll("i, button, a, span"))
+                .filter(isVisible)
+                .filter((c) => !c.contains(titleLeaf) && (c.textContent || "").trim().length <= 2);
+            if (candidates.length >= 2) {
+                break;
+            }
+            barEl = barEl.parentElement;
+            depth++;
+        }
+        let closeEl = candidates.find((c) =>
+            /schlie|close/i.test((c.getAttribute("title") || "") + " " +
+                (c.getAttribute("aria-label") || "") + " " + String(c.className || "")));
+        if (!closeEl && candidates.length > 0) {
+            closeEl = candidates.reduce((a, b) =>
+                a.getBoundingClientRect().right >= b.getBoundingClientRect().right ? a : b);
+        }
+        if (!closeEl) {
+            console.warn("Ticket-Termin: Schliessen-Symbol nicht gefunden.");
+            return false;
+        }
+        realClick(closeEl);
+        return true;
     }
 
     function closeMakroPanel() {
@@ -782,6 +926,7 @@
             if ((mk.eintrag || "").trim()) { parts.push("Eintrag"); }
             if ((mk.status || "").trim()) { parts.push("Status: " + mk.status.trim()); }
             if (mk.abonnieren) { parts.push("Abonnieren"); }
+            if (mk.schliessen) { parts.push("Fenster schließen"); }
             b.title = parts.join(" + ") || "Keine Aktionen konfiguriert";
             b.addEventListener("click", () => {
                 closeMakroPanel();
@@ -970,59 +1115,64 @@
         // in der Senden/Verwerfen-Leiste).
         const toolbars = document.querySelectorAll(".ap-toolbar--fullscreen-at-top");
         let attached = false;
+        // Einzel-Schalter: Button anlegen, wenn aktiv - entfernen, wenn nicht
+        const ensureOne = (tb, host, cls, enabled, build) => {
+            const existing = tb.querySelector("." + cls);
+            if (enabled && !existing) {
+                host.appendChild(build());
+            } else if (!enabled && existing) {
+                existing.remove();
+            }
+        };
         for (const tb of toolbars) {
             attached = true;
             const host = tb.firstElementChild || tb;
-            if (!tb.querySelector(".__tt_tbtn")) {
+            ensureOne(tb, host, "__tt_termin_tbtn", settings.ftTermin !== false, () => {
                 const btn = document.createElement("button");
                 btn.type = "button";
-                btn.className = "ap-button light __tt_tbtn";
+                btn.className = "ap-button light __tt_tbtn __tt_termin_tbtn";
                 btn.title = "Aus diesem Ticket einen Outlook-Termin erstellen";
                 btn.textContent = "📅 Termin";
                 btn.addEventListener("click", () => togglePanel(btn));
-                host.appendChild(btn);
-            }
-            if (!tb.querySelector(".__tt_ne_tbtn")) {
+                return btn;
+            });
+            ensureOne(tb, host, "__tt_ne_tbtn", settings.ftNichtErreicht !== false, () => {
                 const neBtn = document.createElement("button");
                 neBtn.type = "button";
                 neBtn.className = "ap-button light __tt_tbtn __tt_ne_tbtn";
                 neBtn.title = "Ticket-Eintrag 'Nicht erreicht' anlegen und speichern";
                 neBtn.textContent = "📵 Nicht erreicht";
                 neBtn.addEventListener("click", () => createNichtErreichtEintrag());
-                host.appendChild(neBtn);
-            }
-            if (!tb.querySelector(".__tt_abo_tbtn")) {
+                return neBtn;
+            });
+            ensureOne(tb, host, "__tt_abo_tbtn", settings.ftAbo !== false, () => {
                 const aboBtn = document.createElement("button");
                 aboBtn.type = "button";
                 aboBtn.className = "ap-button light __tt_tbtn __tt_abo_tbtn";
                 aboBtn.title = "Dieses Ticket abonnieren (klickt den nativen Abonnieren-Button, bei Bedarf über den Abonnenten-Tab)";
                 aboBtn.textContent = "🔔 Abo";
                 aboBtn.addEventListener("click", (e) => subscribeTicket(e.currentTarget));
-                host.appendChild(aboBtn);
-            }
-            if (!tb.querySelector(".__tt_route_tbtn")) {
+                return aboBtn;
+            });
+            ensureOne(tb, host, "__tt_route_tbtn", settings.ftAnfahrt !== false, () => {
                 const rBtn = document.createElement("button");
                 rBtn.type = "button";
                 rBtn.className = "ap-button light __tt_tbtn __tt_route_tbtn";
                 rBtn.title = "Anfahrt zur Kundenadresse planen (Google Maps)";
                 rBtn.textContent = "🚗 Anfahrt";
                 rBtn.addEventListener("click", () => toggleRoutePanel(rBtn));
-                host.appendChild(rBtn);
-            }
-            // Makro-Button nur, wenn Makros konfiguriert sind
+                return rBtn;
+            });
             const hasMakros = Array.isArray(settings.makros) && settings.makros.some((m) => m && m.name);
-            const mBtnExisting = tb.querySelector(".__tt_makro_tbtn");
-            if (hasMakros && !mBtnExisting) {
+            ensureOne(tb, host, "__tt_makro_tbtn", settings.ftMakros !== false && hasMakros, () => {
                 const mBtn = document.createElement("button");
                 mBtn.type = "button";
                 mBtn.className = "ap-button light __tt_tbtn __tt_makro_tbtn";
                 mBtn.title = "Aktions-Makros ausführen (konfigurierbar in den Optionen)";
                 mBtn.textContent = "⚡ Makros";
                 mBtn.addEventListener("click", () => toggleMakroPanel(mBtn));
-                host.appendChild(mBtn);
-            } else if (!hasMakros && mBtnExisting) {
-                mBtnExisting.remove();
-            }
+                return mBtn;
+            });
         }
         // Kein schwebender Fallback mehr: ohne Ticket-Toolbar (Startseite,
         // Ticketliste) gibt es keinen Termin-Button.
@@ -1264,7 +1414,7 @@
     let moduleEnabled = true;
 
     function removeTerminUi() {
-        document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge").forEach((el) => el.remove());
+        document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge, .__tt_list_dot").forEach((el) => el.remove());
         ["__tt_btn", "__tt_panel", "__tt_route_panel", "__tt_makro_panel"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) {
@@ -1278,7 +1428,7 @@
             moduleEnabled = items.modTermin !== false;
             if (moduleEnabled) {
                 ensureButtons();
-                ensureWaitBadge();
+                waitTick();
             } else {
                 // Falls der Observer vor dem Storage-Read schon gerendert hat
                 removeTerminUi();
@@ -1289,7 +1439,7 @@
                 moduleEnabled = changes.modTermin.newValue !== false;
                 if (moduleEnabled) {
                     ensureButtons();
-                    ensureWaitBadge();
+                    waitTick();
                 } else {
                     removeTerminUi();
                 }
@@ -1303,10 +1453,11 @@
             }
         });
         obs.observe(document.documentElement, { childList: true, subtree: true });
-        // Badge-Anzeige minuetlich auffrischen (relevant fuer Prio-Hoch-Ampel)
+        // Anzeige minuetlich auffrischen (relevant fuer Prio-Hoch-Ampel)
         setInterval(() => {
             if (moduleEnabled) {
                 renderWaitBadge();
+                ensureListDots();
             }
         }, 60000);
     }

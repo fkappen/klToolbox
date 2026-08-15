@@ -80,6 +80,14 @@
         }
     ];
 
+    // Eintrags-Vorlagen: eigene, kuerzere Liste fuer interne Ticket-Eintraege
+    const DEFAULT_ENTRY_TEMPLATES = [
+        { name: "Nicht erreicht", text: "Kunde telefonisch nicht erreicht ({datum}, {zeit})." },
+        { name: "Rückruf erledigt", text: "Rückruf mit dem Kunden erfolgt ({datum}, {zeit}). Ergebnis:\n- " },
+        { name: "Arbeiten abgeschlossen", text: "Arbeiten abgeschlossen und mit dem Kunden abgestimmt ({datum})." },
+        { name: "Warte auf Rückmeldung", text: "Warte auf Rückmeldung des Kunden (angefragt am {datum})." }
+    ];
+
     // Nur im Frame mit sichtbaren Eingabefeldern oder im Top-Frame Button anzeigen -
     // der Panel-Code laeuft aber in jedem Frame, damit das Einfuegen dort klappt,
     // wo der Editor tatsaechlich liegt.
@@ -87,6 +95,7 @@
     let lastRange = null;       // Range fuer contenteditable
     let panelOpen = false;
     let panelEditor = null;     // Editor des Mail-Fensters, aus dem das Panel geoeffnet wurde
+    let panelKind = "mail";     // "mail" = Mail-Vorlagen, "entry" = Eintrags-Vorlagen
 
     // ---------------------------------------------------------- Fokus-Tracking
 
@@ -570,7 +579,9 @@
         }
 
         for (const t of toolbars) {
-            if (!t.bar.querySelector(".__vorlagen_tbtn")) {
+            const mailBtn = Array.from(t.bar.querySelectorAll(".__vorlagen_tbtn"))
+                .find((b) => !b.classList.contains("__ki_draft_tbtn"));
+            if (ft.ftVorlagenMail !== false && !mailBtn) {
                 const btn = document.createElement("button");
                 btn.type = "button";
                 btn.className = "__vorlagen_tbtn";
@@ -580,8 +591,11 @@
                 btn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
                 btn.addEventListener("click", () => togglePanel(btn));
                 t.bar.appendChild(btn);
+            } else if (ft.ftVorlagenMail === false && mailBtn) {
+                mailBtn.remove();
             }
-            if (!t.bar.querySelector(".__ki_draft_tbtn")) {
+            const kiBtn = t.bar.querySelector(".__ki_draft_tbtn");
+            if (ft.ftKiAntwort !== false && !kiBtn) {
                 const kBtn = document.createElement("button");
                 kBtn.type = "button";
                 kBtn.className = "__vorlagen_tbtn __ki_draft_tbtn";
@@ -591,6 +605,8 @@
                 kBtn.addEventListener("mousedown", (e) => e.preventDefault());
                 kBtn.addEventListener("click", () => draftReply(kBtn));
                 t.bar.appendChild(kBtn);
+            } else if (ft.ftKiAntwort === false && kiBtn) {
+                kiBtn.remove();
             }
         }
 
@@ -614,6 +630,10 @@
     // (Mail-Fenster: Senden/Verwerfen OHNE Speichern -> ausgeschlossen).
     // Der Vorlagen-Button wird direkt vor den Speichern-Button gesetzt.
     function ensureEntryButtons() {
+        if (ft.ftVorlagenEintrag === false) {
+            document.querySelectorAll(".__vorlagen_ebtn").forEach((b) => b.remove());
+            return;
+        }
         const isVis = (e) => {
             const r = e.getBoundingClientRect();
             return r.width > 0 && r.height > 0;
@@ -654,9 +674,10 @@
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "__vorlagen_tbtn __vorlagen_ebtn";
-            btn.title = "Textvorlagen in den Eintrag einfügen";
+            btn.title = "Eintrags-Vorlagen einfügen (eigene Liste, Optionen → Eintrags-Vorlagen)";
             btn.textContent = "📋 Vorlagen";
             btn.__editor = ed;
+            btn.__kind = "entry";
             btn.addEventListener("mousedown", (e) => e.preventDefault());
             btn.addEventListener("click", (e) => {
                 e.preventDefault();
@@ -761,6 +782,7 @@
             closePanel();
         } else {
             panelEditor = (anchor && anchor.__editor) ? anchor.__editor : null;
+            panelKind = (anchor && anchor.__kind) ? anchor.__kind : "mail";
             openPanel(anchor);
         }
     }
@@ -908,6 +930,19 @@
     // ---------------------------------------------------------- Storage
 
     function loadTemplates(cb) {
+        // Eintrags-Editor hat eine EIGENE Vorlagenliste (entryTemplates),
+        // das Mail-Fenster die klassische (templates).
+        if (panelKind === "entry") {
+            chrome.storage.local.get({ entryTemplates: null }, (items) => {
+                if (!items.entryTemplates || !Array.isArray(items.entryTemplates) || items.entryTemplates.length === 0) {
+                    chrome.storage.local.set({ entryTemplates: DEFAULT_ENTRY_TEMPLATES });
+                    cb(DEFAULT_ENTRY_TEMPLATES);
+                } else {
+                    cb(items.entryTemplates);
+                }
+            });
+            return;
+        }
         chrome.storage.local.get({ templates: null }, (items) => {
             if (!items.templates || !Array.isArray(items.templates) || items.templates.length === 0) {
                 chrome.storage.local.set({ templates: DEFAULT_TEMPLATES });
@@ -924,6 +959,26 @@
 
     // Modul-Schalter (Optionen -> "Module"): live zu-/abschaltbar
     let moduleEnabled = true;
+
+    // Einzel-Schalter fuer die Inline-Funktionen (Optionen -> Ticketsystem-
+    // Funktionen einzeln) - falls eine Erweiterung Probleme macht.
+    let ft = { ftVorlagenMail: true, ftKiAntwort: true, ftVorlagenEintrag: true };
+    chrome.storage.local.get(ft, (items) => { ft = items; });
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== "local") {
+            return;
+        }
+        let touched = false;
+        for (const k of Object.keys(ft)) {
+            if (changes[k]) {
+                ft[k] = changes[k].newValue !== false;
+                touched = true;
+            }
+        }
+        if (touched && moduleEnabled) {
+            ensureButtons();
+        }
+    });
 
     function removeVorlagenUi() {
         document.querySelectorAll(".__vorlagen_tbtn").forEach((el) => el.remove());

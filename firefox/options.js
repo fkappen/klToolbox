@@ -19,6 +19,21 @@ const KI_DEFAULTS = {
     kiKontext: ""
 };
 
+// Feinschalter fuer die Inline-Erweiterungen im Ticketsystem -
+// Checkboxen speichern sofort (wie die Module)
+const FT_DEFAULTS = {
+    ftTermin: true,
+    ftNichtErreicht: true,
+    ftAbo: true,
+    ftAnfahrt: true,
+    ftMakros: true,
+    ftWaitBadge: true,
+    ftWaitList: true,
+    ftVorlagenMail: true,
+    ftKiAntwort: true,
+    ftVorlagenEintrag: true
+};
+
 // Branding (Name + zwei Farben) kommt per Settings-Import; ohne Import
 // bleibt der neutrale Look. Dunkle Variante wird automatisch abgeleitet.
 const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "" };
@@ -138,12 +153,14 @@ let m365Links = [];
 let datevLinks = [];
 let kiActions = [];
 let makros = [];
+let entryTemplates = [];
 
 // ---------------------------------------------------------------- Laden
 
 function loadAll() {
-    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, {
+    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, {
         templates: [],
+        entryTemplates: [],
         quickLinks: DEFAULT_QUICKLINKS,
         m365Links: DEFAULT_M365LINKS,
         datevLinks: DEFAULT_DATEVLINKS,
@@ -156,9 +173,14 @@ function loadAll() {
         renderKiActions();
         makros = Array.isArray(items.makros) ? items.makros : [];
         renderMakros();
+        entryTemplates = Array.isArray(items.entryTemplates) ? items.entryTemplates : [];
+        renderEntryTemplates();
         renderStatus();
-        // Module
+        // Module + Feinschalter
         for (const key of Object.keys(MODULE_DEFAULTS)) {
+            document.getElementById(key).checked = items[key] !== false;
+        }
+        for (const key of Object.keys(FT_DEFAULTS)) {
             document.getElementById(key).checked = items[key] !== false;
         }
         // Cleaner-Whitelist (Array -> eine Zeile pro Eintrag)
@@ -265,6 +287,57 @@ function renderKiActions() {
     });
 }
 
+// ---------------------------------------------------------------- Eintrags-Vorlagen
+
+function renderEntryTemplates() {
+    const list = document.getElementById("entryTplList");
+    list.textContent = "";
+    entryTemplates.forEach((t, i) => {
+        const box = document.createElement("div");
+        box.className = "tpl";
+
+        const name = document.createElement("input");
+        name.type = "text";
+        name.placeholder = "Name der Eintrags-Vorlage";
+        name.value = t.name || "";
+        name.addEventListener("input", () => { entryTemplates[i].name = name.value; });
+
+        const text = document.createElement("textarea");
+        text.style.minHeight = "60px";
+        text.placeholder = "Eintragstext… ({datum}/{zeit} möglich)";
+        text.value = t.text || "";
+        text.addEventListener("input", () => { entryTemplates[i].text = text.value; });
+
+        const row = document.createElement("div");
+        row.className = "row";
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "Löschen";
+        del.addEventListener("click", () => {
+            entryTemplates.splice(i, 1);
+            renderEntryTemplates();
+        });
+        row.appendChild(del);
+
+        box.appendChild(name);
+        box.appendChild(text);
+        box.appendChild(row);
+        list.appendChild(box);
+    });
+}
+
+function saveEntryTemplates() {
+    const clean = entryTemplates
+        .map((t) => ({ name: (t.name || "").trim(), text: (t.text || "").trim() }))
+        .filter((t) => t.name.length > 0 && t.text.length > 0);
+    entryTemplates = clean;
+    // Leere Liste speichern = beim naechsten Oeffnen laden die Defaults neu
+    chrome.storage.local.set({ entryTemplates: clean }, () => {
+        flashStatus("statusEntryTpl");
+        renderEntryTemplates();
+    });
+}
+
 // ---------------------------------------------------------------- Aktions-Makros
 
 function renderMakros() {
@@ -304,6 +377,14 @@ function renderMakros() {
         aboLabel.appendChild(abo);
         aboLabel.appendChild(document.createTextNode(" Abonnieren"));
 
+        const closeLabel = document.createElement("label");
+        const closeCb = document.createElement("input");
+        closeCb.type = "checkbox";
+        closeCb.checked = m.schliessen === true;
+        closeCb.addEventListener("change", () => { makros[i].schliessen = closeCb.checked; });
+        closeLabel.appendChild(closeCb);
+        closeLabel.appendChild(document.createTextNode(" Ticket-Fenster danach schließen"));
+
         const del = document.createElement("button");
         del.className = "danger";
         del.textContent = "Löschen";
@@ -314,6 +395,7 @@ function renderMakros() {
 
         row.appendChild(status);
         row.appendChild(aboLabel);
+        row.appendChild(closeLabel);
         row.appendChild(del);
 
         box.appendChild(name);
@@ -329,9 +411,10 @@ function saveMakros() {
             name: (m.name || "").trim(),
             eintrag: (m.eintrag || "").trim(),
             status: (m.status || "").trim(),
-            abonnieren: m.abonnieren === true
+            abonnieren: m.abonnieren === true,
+            schliessen: m.schliessen === true
         }))
-        .filter((m) => m.name.length > 0 && (m.eintrag.length > 0 || m.status.length > 0 || m.abonnieren));
+        .filter((m) => m.name.length > 0 && (m.eintrag.length > 0 || m.status.length > 0 || m.abonnieren || m.schliessen));
     makros = clean;
     chrome.storage.local.set({ makros: clean }, () => {
         flashStatus("statusMakro");
@@ -802,7 +885,7 @@ document.addEventListener("DOMContentLoaded", () => {
             e.target.value = "";
         }
     });
-    // Module: Checkboxen speichern sofort (kein eigener Speichern-Button)
+    // Module + Feinschalter: Checkboxen speichern sofort
     for (const key of Object.keys(MODULE_DEFAULTS)) {
         document.getElementById(key).addEventListener("change", (e) => {
             const update = {};
@@ -810,6 +893,18 @@ document.addEventListener("DOMContentLoaded", () => {
             chrome.storage.local.set(update, () => flashStatus("statusModule"));
         });
     }
+    for (const key of Object.keys(FT_DEFAULTS)) {
+        document.getElementById(key).addEventListener("change", (e) => {
+            const update = {};
+            update[key] = e.target.checked;
+            chrome.storage.local.set(update, () => flashStatus("statusFt"));
+        });
+    }
+    document.getElementById("entryTplAdd").addEventListener("click", () => {
+        entryTemplates.push({ name: "", text: "" });
+        renderEntryTemplates();
+    });
+    document.getElementById("entryTplSave").addEventListener("click", saveEntryTemplates);
     document.getElementById("saveCleaner").addEventListener("click", saveCleaner);
 });
 

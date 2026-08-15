@@ -38,6 +38,9 @@
         .mod-list label:first-child { margin-top: 0; }
         .mod-list label input { width: auto; }
         .mod-desc { color: #777; font-size: 12px; margin-left: 24px; }
+        .ft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+        .ft-grid label { font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
+        .ft-grid label input { width: auto; }
         .status-list div { display: flex; gap: 8px; padding: 3px 0; }
         .status-list .ok { color: #1a7f37; font-weight: 700; }
         .status-list .warn { color: #b3261e; font-weight: 700; }
@@ -74,6 +77,24 @@
             <div class="mod-desc">Chat-Seite mit dem konfigurierten KI-Anbieter, erreichbar über das Popup. Wird auch von der InnoGPT-Suche verwendet – bei Deaktivierung verschwindet auch der InnoGPT-Suchbutton.</div>
         </div>
         <span id="statusModule" class="status"></span>
+    </fieldset>
+
+    <fieldset>
+        <legend>Ticketsystem-Funktionen einzeln</legend>
+        <p class="hint">Feinschalter für die einzelnen Inline-Erweiterungen im Ticketsystem — falls eine davon Probleme macht. Änderungen wirken sofort. Die Module oben („Ticket-Vorlagen“, „Ticket-Termin &amp; Wartezeit“) schalten jeweils alles auf einmal.</p>
+        <div class="ft-grid">
+            <label><input type="checkbox" id="ftTermin"> 📅 Termin-Button</label>
+            <label><input type="checkbox" id="ftNichtErreicht"> 📵 Nicht erreicht</label>
+            <label><input type="checkbox" id="ftAbo"> 🔔 Abo-Button</label>
+            <label><input type="checkbox" id="ftAnfahrt"> 🚗 Anfahrt</label>
+            <label><input type="checkbox" id="ftMakros"> ⚡ Makros-Button</label>
+            <label><input type="checkbox" id="ftWaitBadge"> ⏱ Wartezeit-Badge (Ticket)</label>
+            <label><input type="checkbox" id="ftWaitList"> 🔴 Wartezeit-Ampeln (Ticketliste)</label>
+            <label><input type="checkbox" id="ftVorlagenMail"> 📋 Vorlagen (Mail-Fenster)</label>
+            <label><input type="checkbox" id="ftKiAntwort"> ✨ KI-Antwort (Mail-Fenster)</label>
+            <label><input type="checkbox" id="ftVorlagenEintrag"> 📋 Vorlagen (Eintrags-Editor)</label>
+        </div>
+        <span id="statusFt" class="status"></span>
     </fieldset>
 
     <!-- ================================================== KI-Umformulierer -->
@@ -209,6 +230,16 @@
         <button id="tplImport" class="secondary">Import (JSON)</button>
         <input type="file" id="tplImportFile" accept=".json" style="display:none">
         <span id="statusTpl" class="status"></span>
+    </div>
+
+    <!-- ================================================== Eintrags-Vorlagen -->
+    <h2>Eintrags-Vorlagen (Ticket-Einträge)</h2>
+    <p class="hint">Separate Liste für den „📋 Vorlagen“-Button am Eintrags-Editor (neben „Speichern“). Platzhalter <code>{datum}</code>/<code>{zeit}</code> funktionieren; <code>{anrede}</code> ist hier nicht sinnvoll.</p>
+    <div id="entryTplList"></div>
+    <div class="toolbar">
+        <button id="entryTplAdd" class="secondary">+ Neue Eintrags-Vorlage</button>
+        <button id="entryTplSave" class="primary">Eintrags-Vorlagen speichern</button>
+        <span id="statusEntryTpl" class="status"></span>
     </div>
 
     <!-- ================================================== Aktions-Makros -->

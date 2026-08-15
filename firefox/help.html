@@ -23,7 +23,9 @@
 <body>
     <h1><img src="icon32.png" alt=""><span id="brandTitle">klToolbox – Hilfe</span></h1>
     <p>Alle Funktionen im Überblick. Die Einstellungen dazu findest du in den
-    <a href="options.html" target="_blank">Optionen</a>; dort lassen sich alle Module auch einzeln abschalten.</p>
+    <a href="options.html" target="_blank">Optionen</a>; dort lassen sich alle Module abschalten —
+    die Ticketsystem-Erweiterungen zusätzlich auch <b>einzeln</b> („Ticketsystem-Funktionen einzeln“),
+    falls eine davon Probleme macht.</p>
 
     <h2>Erste Einrichtung</h2>
     <ul>
@@ -45,7 +47,7 @@
 
     <h2>Ticketsystem</h2>
     <h3>Vorlagen</h3>
-    <p>Button <b>„📋 Vorlagen“</b> im „Email senden“-Fenster <i>und</i> am Eintrags-Editor (neben „Speichern“). Vorlagen werden vor der Signatur bzw. an der Cursor-Position eingefügt und in den Optionen gepflegt (Reihenfolge, Import/Export als JSON).</p>
+    <p>Button <b>„📋 Vorlagen“</b> im „Email senden“-Fenster <i>und</i> am Eintrags-Editor (neben „Speichern“) — mit <b>getrennten Listen</b>: Mail-Vorlagen und Eintrags-Vorlagen werden in den Optionen jeweils separat gepflegt. Eingefügt wird vor der Signatur bzw. an der Cursor-Position.</p>
     <table>
         <tr><th>Platzhalter</th><th>Wird ersetzt durch</th></tr>
         <tr><td><code>{anrede}</code></td><td>„Frau/Herr Nachname“ aus dem An-Feld; unbekannter Vorname → voller Name; kein Empfänger → entfällt</td></tr>
@@ -62,9 +64,9 @@
         <li><b>⚡ Makros:</b> selbst konfigurierte Aktionsketten (siehe unten). Der Button erscheint nur, wenn Makros angelegt sind.</li>
     </ul>
     <h3>Aktions-Makros</h3>
-    <p>In den Optionen unter „Aktions-Makros“ definierst du Ketten aus: Eintragstext anlegen und/oder Status setzen (beides wird als <b>ein</b> Ticket-Eintrag gespeichert) und/oder Ticket abonnieren. Der Statusname muss exakt dem Text im Status-Dropdown entsprechen. Beispiel: „Nicht erreicht + Wiedervorlage“ = Eintrag „Kunde nicht erreicht ({datum} {zeit})“ + Status „Wiedervorlage“.</p>
-    <h3>Wartezeit-Ampel</h3>
-    <p>Oben links im Ticket: Zeit seit Ticketerstellung (Basis: ältester sichtbarer Eintrag). Farben bei normaler Priorität: grün &lt; 1 Tag, gelb &lt; 3 Tage, rot ab 3 Tagen. Bei Priorität „Hoch“: grün &lt; 15 Min, gelb &lt; 1 Std, rot ab 1 Std.</p>
+    <p>In den Optionen unter „Aktions-Makros“ definierst du Ketten aus: Eintragstext anlegen und/oder Status setzen (beides wird als <b>ein</b> Ticket-Eintrag gespeichert), Ticket abonnieren und/oder das Ticket-Fenster danach schließen. Der Statusname muss exakt dem Text im Status-Dropdown entsprechen. Beispiel: „Nicht erreicht + Wiedervorlage“ = Eintrag „Kunde nicht erreicht ({datum} {zeit})“ + Status „Wiedervorlage“ + Fenster schließen.</p>
+    <h3>Wartezeit-Ampeln</h3>
+    <p>Im geöffneten Ticket oben links als Badge (Basis: ältester sichtbarer Eintrag) und in der <b>Ticketliste</b> als farbiger Punkt vor der Ticketnummer (Basis: Spalte „Erstellt am“ — die Spalte muss eingeblendet sein). Farben bei normaler Priorität: grün &lt; 1 Tag, gelb &lt; 3 Tage, rot ab 3 Tagen. Bei Priorität „Hoch“: grün &lt; 15 Min, gelb &lt; 1 Std, rot ab 1 Std.</p>
 
     <h2>Popup (Klick aufs Toolbar-Icon)</h2>
     <ul>
