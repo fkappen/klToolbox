@@ -109,6 +109,14 @@
     <h2>KI-Umformulierer (Rechtsklick auf markierten Text)</h2>
 
     <fieldset>
+        <legend>Datenübertragung an den KI-Anbieter</legend>
+        <p style="margin:6px 0;">Die KI-Funktionen senden den <b>von dir markierten Text</b> bzw. die von dir angestoßenen Inhalte (z.&nbsp;B. den sichtbaren Ticketverlauf beim Antwortentwurf) direkt aus deinem Browser an den unten gewählten KI-Anbieter — ausschließlich zur Erzeugung des angeforderten Ergebnisses und <b>nur, wenn du eine KI-Funktion ausdrücklich auslöst</b>. Der Entwickler der Erweiterung erhält dabei keine Daten. Details: <a href="https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md" target="_blank">Datenschutzerklärung</a>.</p>
+        <label style="font-weight:600; display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <input type="checkbox" id="kiConsent" style="width:auto;"> Ich stimme dieser Übertragung zu (erforderlich für alle KI-Funktionen)
+        </label>
+    </fieldset>
+
+    <fieldset>
         <legend>Anbieter</legend>
         <div class="radio-row">
             <label><input type="radio" name="provider" value="claude"> Claude (Anthropic)</label>

@@ -16,7 +16,10 @@ const KI_DEFAULTS = {
     openaiModel: "gpt-4o-mini",
     innogptApiKey: "",
     innogptModel: "gpt-5",
-    kiKontext: ""
+    kiKontext: "",
+    // Einmalige, ausdrueckliche Zustimmung zur Uebertragung an den
+    // KI-Anbieter (CWS-Vorgabe: Offenlegung + Consent in der Oberflaeche)
+    kiConsent: false
 };
 
 // Feinschalter fuer die Inline-Erweiterungen im Ticketsystem -
@@ -195,6 +198,7 @@ function loadAll() {
         document.getElementById("innogptApiKey").value = items.innogptApiKey;
         document.getElementById("innogptModel").value = items.innogptModel;
         document.getElementById("kiKontext").value = items.kiKontext;
+        document.getElementById("kiConsent").checked = items.kiConsent === true;
         // Termin
         document.getElementById("subjectTemplate").value = items.subjectTemplate;
         document.getElementById("bodyTemplate").value = items.bodyTemplate;
@@ -228,11 +232,19 @@ function flashStatus(id) {
 // ---------------------------------------------------------------- KI
 
 function saveKi() {
+    const consent = document.getElementById("kiConsent").checked;
+    const anyKey = document.getElementById("claudeApiKey").value.trim() ||
+        document.getElementById("openaiApiKey").value.trim() ||
+        document.getElementById("innogptApiKey").value.trim();
+    if (anyKey && !consent) {
+        alert("Bitte zuerst der Datenübertragung an den KI-Anbieter zustimmen (Häkchen oben im KI-Bereich) - ohne Zustimmung bleiben die KI-Funktionen deaktiviert.");
+    }
     const cleanActions = kiActions
         .map((a) => ({ name: (a.name || "").trim(), prompt: (a.prompt || "").trim() }))
         .filter((a) => a.name.length > 0 && a.prompt.length > 0);
     kiActions = cleanActions;
     chrome.storage.local.set({
+        kiConsent: consent,
         provider: document.querySelector('input[name="provider"]:checked').value,
         claudeApiKey: document.getElementById("claudeApiKey").value.trim(),
         claudeModel: document.getElementById("claudeModel").value.trim() || KI_DEFAULTS.claudeModel,
@@ -446,6 +458,7 @@ function renderStatus() {
         const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey };
         const hasKey = !!(keyMap[s.provider] || "").trim();
         row(hasKey, "KI-Anbieter: " + s.provider, hasKey ? "API-Key hinterlegt" : "kein API-Key hinterlegt");
+        row(s.kiConsent === true, "KI-Datenübertragung", s.kiConsent === true ? "Zustimmung erteilt" : "Zustimmung fehlt (KI-Funktionen deaktiviert)");
 
         let origin = null;
         try {

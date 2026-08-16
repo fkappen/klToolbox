@@ -1,7 +1,8 @@
 # klToolbox
 
 Browser-Erweiterung für IT-Service-Teams — in zwei Varianten: **Chromium**
-(Chrome, Brave, Edge) und **Firefox**.
+(Chrome, Brave, Edge) und **Firefox**. Datenschutz: siehe
+[PRIVACY.md](PRIVACY.md).
 
 Die Erweiterung wird als **neutrale Hülle** ausgeliefert: keine vorbelegten
 Links, kein Branding, keine Firmendaten. Konfiguration (Schnellzugriffe,

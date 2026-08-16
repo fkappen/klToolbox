@@ -54,8 +54,18 @@ const DEFAULTS = {
     openaiModel: "gpt-4o-mini",
     innogptApiKey: "",
     innogptModel: "gpt-5",
-    kiKontext: ""
+    kiKontext: "",
+    kiConsent: false
 };
+
+// CWS-Vorgabe: VOR der ersten Uebertragung an den KI-Anbieter braucht es
+// eine sichtbare Offenlegung mit Zustimmung in der Oberflaeche - die steht
+// in den Optionen (KI-Bereich). Ohne Zustimmung keine Uebertragung.
+function requireConsent(settings) {
+    if (settings.kiConsent !== true) {
+        throw new Error("Bitte zuerst in den Optionen (Bereich KI) der Datenübertragung an den KI-Anbieter zustimmen.");
+    }
+}
 
 // System-Prompt inkl. konfigurierbarem Kontext (Optionen)
 function buildSystemPrompt(settings) {
@@ -566,6 +576,7 @@ function buildChatSystem(settings) {
 }
 
 async function chatProvider(settings, messages, systemOverride) {
+    requireConsent(settings);
     let system = systemOverride || buildChatSystem(settings);
     if (!systemOverride && settings.provider === "innogpt") {
         // Laut InnoGPT-Doku wird die Websuche per Prompt aktiviert
@@ -701,6 +712,7 @@ function getSettings() {
 // ---------------------------------------------------------------- API-Aufrufe
 
 async function callProvider(settings, instruction, text) {
+    requireConsent(settings);
     if (settings.provider === "openai") {
         if (!settings.openaiApiKey) {
             throw new Error("Kein OpenAI API-Key hinterlegt (Erweiterungs-Optionen öffnen).");

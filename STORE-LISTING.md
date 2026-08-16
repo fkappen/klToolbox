@@ -24,6 +24,30 @@ klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams:
 
 Die Erweiterung wird neutral ausgeliefert; Einstellungen kommen per Import oder Unternehmensrichtlinie (Managed Storage).
 
+## Datenschutz (WICHTIG — Ablehnungsgrund „Purple Nickel" 08/2026)
+
+**Datenschutzerklärungs-URL** (Devconsole → Datenschutz):
+```
+https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+```
+NICHT die Firmen-/Inhaberwebsite verlinken — CWS verlangt eine eigenständige,
+extension-spezifische Erklärung, auf die der Link DIREKT führt.
+
+**Datennutzung (Privacy practices / „Welche Nutzerdaten…"):**
+- ☑ **Website-Inhalte** (Website content) ankreuzen — Begründung: Der vom
+  Nutzer markierte Text bzw. von ihm angestoßene Seiteninhalte werden auf
+  ausdrückliche Aktion an den vom Nutzer konfigurierten KI-Anbieter
+  übertragen (eigener API-Schlüssel; ohne Einrichtung und ohne die
+  Zustimmung in den Optionen findet keine Übertragung statt).
+- Alle übrigen Kategorien: **nicht** ankreuzen.
+- Die drei Zusicherungen bestätigen (kein Verkauf, keine zweckfremde
+  Nutzung/Weitergabe, keine Kreditwürdigkeits-/Kreditvergabezwecke).
+
+**In-Product-Disclosure:** Seit v3.8.0 zeigt der KI-Bereich der Optionen eine
+sichtbare Offenlegung mit Zustimmungs-Checkbox; ohne Zustimmung blockiert die
+Erweiterung jede Übertragung (Fehlermeldung verweist auf die Optionen). Damit
+sind Offenlegung + Einwilligung VOR der ersten Übertragung erfüllt.
+
 ## Devconsole-Schnellausfüllung (Datenschutz-Tab)
 
 **Einziger Zweck (Single Purpose):**
@@ -40,7 +64,7 @@ Die Erweiterung wird neutral ausgeliefert; Einstellungen kommen per Import oder 
 
 **Remote Code:** Nein. Es werden keine Skripte nachgeladen; alle Inhalte liegen im Paket.
 
-**Datennutzung:** Keine Erhebung durch den Entwickler. API-Aufrufe erfolgen direkt vom Browser des Nutzers zum von ihm gewählten KI-Anbieter mit seinem eigenen Schlüssel.
+**Datennutzung:** Kategorie „Website-Inhalte" wird gehandhabt (siehe oben) — keine Erhebung durch den Entwickler. API-Aufrufe erfolgen direkt vom Browser des Nutzers zum von ihm gewählten und mit eigenem Schlüssel konfigurierten KI-Anbieter, erst nach Zustimmung in den Optionen.
 
 ## AMO (Firefox) — Reviewer-Hinweise
 
