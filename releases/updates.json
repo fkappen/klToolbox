@@ -1,12 +1,16 @@
 ﻿{
-  "addons": {
-    "app@kltoolbox.dev": {
-      "updates": [
-        {
-          "update_link": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v3.7.3.xpi",
-          "version": "3.7.3"
-        }
-      ]
-    }
-  }
+    "addons":  {
+                   "app@kltoolbox.dev":  {
+                                             "updates":  [
+                                                             {
+                                                                 "version":  "3.7.3",
+                                                                 "update_link":  "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v3.7.3.xpi"
+                                                             },
+                                                             {
+                                                                 "version":  "3.8.0",
+                                                                 "update_link":  "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v3.8.0.xpi"
+                                                             }
+                                                         ]
+                                         }
+               }
 }
