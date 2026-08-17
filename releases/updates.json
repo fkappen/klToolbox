@@ -3,8 +3,8 @@
     "app@kltoolbox.dev": {
       "updates": [
         {
-          "version": "3.10.3",
-          "update_link": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v3.10.3.xpi"
+          "update_link": "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases/kl-toolbox-firefox-v3.10.3.xpi",
+          "version": "3.10.3"
         }
       ]
     }

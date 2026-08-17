@@ -37,6 +37,40 @@
 
     <h2>KI-Funktionen</h2>
     <p>Der KI-Anbieter und das Modell werden in den Optionen gewählt — verfügbar sind Claude (Anthropic), ChatGPT (OpenAI), InnoGPT (mit großem Modellkatalog inkl. Preisen je 1 Mio. Tokens) und <b>Azure OpenAI</b> als „Copilot for Business“-Weg (eigene Azure-Ressource des Microsoft-Tenants: Endpoint, Deployment, Key). „Eigenes Modell…“ erlaubt beliebige Modell-IDs. Darunter zeigt die <b>Token-Verbrauchsstatistik</b> die genutzten Tokens der letzten 24 Stunden, 7/30 Tage und des letzten Jahres (nur lokal erfasst).</p>
+    <h3>KI-Anbieter einrichten</h3>
+    <p>Für alle Anbieter gilt: Key in den Optionen eintragen, die <b>Zustimmung zur Datenübertragung</b> anhaken, speichern — der Status-Bereich oben zeigt, ob alles grün ist. Es genügt, <b>einen</b> Anbieter einzurichten.</p>
+
+    <p><b>Claude (Anthropic):</b></p>
+    <ol>
+        <li><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> → Konto anlegen bzw. anmelden, unter <i>Billing</i> Guthaben/Zahlungsmittel hinterlegen</li>
+        <li><i>API Keys</i> → <i>Create Key</i> → Key (<code>sk-ant-…</code>) kopieren — er wird nur einmal angezeigt</li>
+        <li>In den Optionen bei „Claude" eintragen; Modell-Empfehlung: Haiku (günstig) für Alltagsaufgaben</li>
+    </ol>
+
+    <p><b>ChatGPT (OpenAI):</b></p>
+    <ol>
+        <li><a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a> → anmelden, unter <i>Billing</i> Guthaben aufladen (Prepaid)</li>
+        <li><i>API keys</i> → <i>Create new secret key</i> → Key (<code>sk-…</code>) kopieren</li>
+        <li>In den Optionen bei „ChatGPT (OpenAI)" eintragen</li>
+    </ol>
+
+    <p><b>InnoGPT:</b></p>
+    <ol>
+        <li>Bei <a href="https://app.innogpt.de" target="_blank" rel="noopener">app.innogpt.de</a> anmelden (Zugang der Organisation)</li>
+        <li>Im Bereich <i>Entwickler &amp; API</i> einen API-Key (<code>sk_live_…</code>) erzeugen</li>
+        <li>In den Optionen bei „InnoGPT" eintragen; Modell aus dem Katalog wählen (nach Kosten sortiert)</li>
+    </ol>
+
+    <p><b>Azure OpenAI („Copilot for Business“-Weg):</b> Daten bleiben in der gewählten Azure-Region eures Microsoft-Tenants und werden nicht zum Training verwendet; Abrechnung über den Azure-Vertrag.</p>
+    <ol>
+        <li><a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> → <i>Ressource erstellen</i> → „Azure OpenAI" → Abonnement, Ressourcengruppe, Region (z. B. <i>Germany West Central</i> oder <i>Sweden Central</i>) und einen Ressourcennamen wählen → erstellen</li>
+        <li>In der Ressource (bzw. im <i>Azure AI Foundry</i>-Portal) unter <i>Deployments</i> ein Modell bereitstellen — z. B. <code>gpt-4o-mini</code>. Der dabei vergebene <b>Deployment-Name</b> ist frei wählbar und wird später exakt so in den Optionen eingetragen</li>
+        <li>In der Ressource unter <i>Keys and Endpoint</i>: den <b>Endpoint</b> (<code>https://&lt;ressourcenname&gt;.openai.azure.com</code>) und <b>KEY 1</b> kopieren</li>
+        <li>In den Optionen bei „Azure OpenAI": Endpoint, Deployment-Name, Key eintragen; API-Version im Zweifel auf <code>2024-06-01</code> lassen → Anbieter „Azure OpenAI (Business)" auswählen, Zustimmung anhaken, speichern</li>
+        <li>Kurztest: Text markieren → Rechtsklick → „KI: Text bearbeiten" → Umformulieren. Bei Fehler 404 stimmt meist der Deployment-Name nicht, bei 401 der Key</li>
+    </ol>
+    <div class="tip">Direktzugriff auf M365 Copilot per API-Key gibt es nicht — Azure OpenAI ist der von Microsoft vorgesehene Weg für eigene Anwendungen mit Unternehmens-Datenschutz.</div>
+
     <h3>Text bearbeiten (Rechtsklick)</h3>
     <p>Text auf einer beliebigen Webseite markieren → Rechtsklick → „KI: Text bearbeiten“. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld; ist das Feld nicht beschreibbar, erscheint ein Overlay mit Kopieren-Button. Eingebaute Aktionen: Umformulieren, Formeller, Lockerer, Kürzer, Rechtschreibkorrektur, Übersetzen (DE/EN). <b>Eigene Aktionen</b> mit eigenem Prompt lassen sich in den Optionen ergänzen.</p>
     <h3>KI-Antwort im Ticket</h3>
