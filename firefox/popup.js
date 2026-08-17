@@ -161,7 +161,8 @@ function render() {
 let defaultSearch = "datev";
 let hasTicketUrl = false;
 let hasKundenUrl = false;
-const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "InnoGPT" };
+const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "KI" };
+const PROVIDER_LABELS = { claude: "Claude", openai: "ChatGPT", innogpt: "InnoGPT", azure: "Azure KI" };
 
 function classifyQuery(value) {
     // Ticket-/Kunden-Erkennung nur, wenn das jeweilige Linkziel auch
@@ -352,7 +353,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // KI-Chat nur zeigen, wenn Modul aktiv UND fuer den gewaehlten Anbieter
-    // ein API-Key hinterlegt ist (sonst ist der Button ohnehin funktionslos).
+    // ein API-Key hinterlegt ist; der dritte Such-Button traegt den Namen
+    // des gewaehlten Anbieters (Frage geht an den KI-Chat mit ebendiesem).
     chrome.storage.local.get({
         modChat: true, provider: "claude",
         claudeApiKey: "", openaiApiKey: "", innogptApiKey: "", azureApiKey: ""
@@ -361,9 +363,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const chatOk = items.modChat !== false && !!(keyMap[items.provider] || "").trim();
         if (!chatOk) {
             document.getElementById("openChat").style.display = "none";
-        }
-        if (items.modChat === false) {
             document.getElementById("sInno").style.display = "none";
+        } else {
+            const label = PROVIDER_LABELS[items.provider] || "KI";
+            const btn = document.getElementById("sInno");
+            btn.textContent = label;
+            btn.title = "Im KI-Chat fragen (" + label + ")" + (btn.classList.contains("default") ? " (Enter)" : "");
+            SEARCH_LABELS.innogpt = label;
         }
     });
 });
@@ -404,9 +410,10 @@ function doSearch(target) {
         return;
     }
     if (target === "innogpt") {
-        // Kein URL-Suchparameter bei InnoGPT -> eigener KI-Chat mit Override
+        // "KI"-Ziel: Frage im eigenen KI-Chat mit dem KONFIGURIERTEN
+        // Anbieter stellen (kein Provider-Override mehr)
         chrome.tabs.create({
-            url: chrome.runtime.getURL("chat.html") + "?provider=innogpt&q=" + encodeURIComponent(term)
+            url: chrome.runtime.getURL("chat.html") + "?q=" + encodeURIComponent(term)
         });
         window.close();
         return;

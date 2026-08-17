@@ -297,7 +297,7 @@ function rebuildMenus() {
                 });
                 chrome.contextMenus.create({
                     id: "innogpt_suche",
-                    title: "In InnoGPT fragen: „%s“",
+                    title: "Mit KI fragen: „%s“",
                     contexts: ["selection"]
                 });
             }
@@ -642,13 +642,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         return;
     }
 
-    // InnoGPT hat keinen URL-Suchparameter (offizielle Doku geprueft) ->
-    // eigener KI-Chat mit Provider-Override, Frage wird automatisch gesendet.
+    // "Mit KI fragen": Frage im eigenen KI-Chat mit dem konfigurierten
+    // Anbieter stellen, wird automatisch gesendet.
     if (info.menuItemId === "innogpt_suche") {
         const term = (info.selectionText || "").replace(/\s+/g, " ").trim();
         if (term) {
             chrome.tabs.create({
-                url: chrome.runtime.getURL("chat.html") + "?provider=innogpt&q=" + encodeURIComponent(term)
+                url: chrome.runtime.getURL("chat.html") + "?q=" + encodeURIComponent(term)
             });
         }
         return;
