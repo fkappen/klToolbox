@@ -89,7 +89,7 @@ async function azureChat(settings, system, messages) {
     }
     const data = await res.json();
     if (data.usage) {
-        recordUsage("azure", data.usage.prompt_tokens, data.usage.completion_tokens);
+        recordUsage("azure", data.usage.prompt_tokens, data.usage.completion_tokens, dep);
     }
     const out = data.choices && data.choices[0] && data.choices[0].message
         ? data.choices[0].message.content
@@ -103,7 +103,7 @@ async function azureChat(settings, system, messages) {
 // Token-Verbrauch protokollieren (nur LOKAL, fuer die Statistik in den
 // Optionen): Roh-Events {ts, p(rovider), i(nput), o(utput)}, 1 Jahr
 // Aufbewahrung, Obergrenze als Schutz.
-function recordUsage(provider, tokIn, tokOut) {
+function recordUsage(provider, tokIn, tokOut, model) {
     const i = Number(tokIn) || 0;
     const o = Number(tokOut) || 0;
     if (i === 0 && o === 0) {
@@ -112,7 +112,7 @@ function recordUsage(provider, tokIn, tokOut) {
     chrome.storage.local.get({ kiUsage: [] }, (s) => {
         const cutoff = Date.now() - 370 * 24 * 3600 * 1000;
         const arr = (Array.isArray(s.kiUsage) ? s.kiUsage : []).filter((e) => e && e.ts >= cutoff);
-        arr.push({ ts: Date.now(), p: provider, i: i, o: o });
+        arr.push({ ts: Date.now(), p: provider, i: i, o: o, m: String(model || "") });
         if (arr.length > 20000) {
             arr.splice(0, arr.length - 20000);
         }
@@ -760,7 +760,7 @@ async function chatProvider(settings, messages, systemOverride) {
             throw new Error("Anfrage wurde vom Modell abgelehnt.");
         }
         if (data.usage) {
-            recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens);
+            recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens, settings.claudeModel || DEFAULTS.claudeModel);
         }
         const out = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
         if (!out) {
@@ -797,7 +797,7 @@ async function chatProvider(settings, messages, systemOverride) {
     }
     const data = await res.json();
     if (data.usage) {
-        recordUsage(settings.provider, data.usage.prompt_tokens, data.usage.completion_tokens);
+        recordUsage(settings.provider, data.usage.prompt_tokens, data.usage.completion_tokens, model);
     }
     const out = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
     if (!out) {
@@ -967,7 +967,7 @@ async function callClaude(settings, instruction, text) {
         throw new Error("Anfrage wurde vom Modell abgelehnt.");
     }
     if (data.usage) {
-        recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens);
+        recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens, settings.claudeModel || DEFAULTS.claudeModel);
     }
     const out = (data.content || [])
         .filter((b) => b.type === "text")
@@ -1003,7 +1003,7 @@ async function callOpenAICompatible(cfg, instruction, text) {
 
     const data = await res.json();
     if (data.usage) {
-        recordUsage(cfg.label === "InnoGPT" ? "innogpt" : "openai", data.usage.prompt_tokens, data.usage.completion_tokens);
+        recordUsage(cfg.label === "InnoGPT" ? "innogpt" : "openai", data.usage.prompt_tokens, data.usage.completion_tokens, cfg.model);
     }
     const out = data.choices && data.choices[0] && data.choices[0].message
         ? data.choices[0].message.content

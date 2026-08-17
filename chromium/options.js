@@ -370,11 +370,58 @@ function restoreBackup() {
 
 // ---------------------------------------------------------------- Token-Statistik
 
+// Preisliste in EUR je 1 Mio. Tokens [Eingabe, Ausgabe] - Richtwerte
+// (Stand 08/2026, Basis InnoGPT-Preisliste; die APIs liefern keine Preise).
+// Match: exakte Modell-ID oder als Teilstring (deckt Azure-Deployment-Namen
+// wie "gpt-4o-mini-prod" ab).
+const PRICE_TABLE = {
+    "claude-haiku-4-5": [1.11, 5.57],
+    "claude-sonnet-5": [3.34, 16.70],
+    "claude-opus-5": [5.57, 27.83],
+    "claude-fable-5": [11.13, 55.66],
+    "gpt-4o-mini": [0.17, 0.65],
+    "gpt-4o": [2.98, 11.94],
+    "gpt-5.5": [4.68, 28.05],
+    "gpt-5-mini": [0.26, 2.06],
+    "gpt-5": [1.29, 10.29],
+    "gemini-2.5-flash": [0.47, 2.82],
+    "gemini-2.5-pro": [1.18, 9.37],
+    "deepseek-v3": [0.20, 1.01],
+    "mistral-large-3": [0.51, 1.52]
+};
+
+function priceFor(model) {
+    const m = String(model || "").toLowerCase();
+    if (!m) {
+        return null;
+    }
+    if (PRICE_TABLE[m]) {
+        return PRICE_TABLE[m];
+    }
+    // Teilstring-Match: laengste passende ID gewinnt (gpt-4o-mini vor gpt-4o)
+    let best = null;
+    for (const key of Object.keys(PRICE_TABLE)) {
+        if (m.indexOf(key) !== -1 && (!best || key.length > best.length)) {
+            best = key;
+        }
+    }
+    return best ? PRICE_TABLE[best] : null;
+}
+
 function renderUsage() {
-    chrome.storage.local.get({ kiUsage: [] }, (s) => {
+    chrome.storage.local.get({
+        kiUsage: [],
+        claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini",
+        innogptModel: "gpt-5", azureDeployment: ""
+    }, (s) => {
         const events = Array.isArray(s.kiUsage) ? s.kiUsage : [];
+        // Alt-Events ohne Modellangabe: aktuelles Modell des Anbieters als Schaetzung
+        const providerModel = { claude: s.claudeModel, openai: s.openaiModel, innogpt: s.innogptModel, azure: s.azureDeployment };
         const now = Date.now();
         const fmt = (n) => n.toLocaleString("de-DE");
+        const fmtEur = (v) => (v > 0 && v < 0.005)
+            ? "< 0,01 €"
+            : v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
         const windows = [
             ["24 Stunden", 1],
             ["7 Tage", 7],
@@ -388,21 +435,26 @@ function renderUsage() {
             let calls = 0;
             let tokIn = 0;
             let tokOut = 0;
+            let cost = 0;
             for (const e of events) {
                 if (e && e.ts >= cutoff) {
                     calls++;
                     tokIn += e.i || 0;
                     tokOut += e.o || 0;
+                    const price = priceFor(e.m || providerModel[e.p] || "");
+                    if (price) {
+                        cost += (e.i || 0) / 1e6 * price[0] + (e.o || 0) / 1e6 * price[1];
+                    }
                 }
             }
             const tr = document.createElement("tr");
-            const cells = [label, fmt(calls), fmt(tokIn), fmt(tokOut), fmt(tokIn + tokOut)];
+            const cells = [label, fmt(calls), fmt(tokIn), fmt(tokOut), fmt(tokIn + tokOut), fmtEur(cost)];
             cells.forEach((text, i) => {
                 const td = document.createElement("td");
                 td.textContent = text;
                 td.style.cssText = i === 0
                     ? "padding:4px 8px 4px 0; font-weight:600;"
-                    : "padding:4px 8px; text-align:right;" + (i === 4 ? " font-weight:600;" : "");
+                    : "padding:4px 8px; text-align:right;" + (i === 5 ? " font-weight:600;" : "");
                 tr.appendChild(td);
             });
             body.appendChild(tr);
