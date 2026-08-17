@@ -6,7 +6,7 @@ param(
 )
 
 #Version
-$version = "2.1.0"
+$version = "2.1.1"
 $datum = "2026-08-17"
 $autor = "Felix Kappen"
 
@@ -148,6 +148,17 @@ try {
 
     # ------------------------------------------- 5. GitHub-Release (-Release)
     if ($Release) {
+        # Der Release-Tag zeigt auf origin/main - uncommittete/ungepushte
+        # Aenderungen waeren zwar in den Assets, aber nicht im Tag-Stand.
+        $dirty = @(& git -C $root status --porcelain 2>$null)
+        if ($dirty.Count -gt 0) {
+            Write-Warning "Arbeitsbaum hat uncommittete Aenderungen - erst committen/pushen, dann -Release (Tag zeigt sonst auf einen aelteren Stand)."
+        }
+        $localHead = (& git -C $root rev-parse HEAD 2>$null)
+        $remoteHead = (& git -C $root rev-parse origin/main 2>$null)
+        if ($null -ne $localHead -and $null -ne $remoteHead -and $localHead -ne $remoteHead) {
+            Write-Warning "Lokaler Stand ist nicht mit origin/main synchron - erst pushen, dann -Release."
+        }
         $token = Get-GitHubToken
         $tag = "v" + $ver
         $rel = $null
