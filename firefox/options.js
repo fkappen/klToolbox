@@ -390,22 +390,53 @@ const PRICE_TABLE = {
     "mistral-large-3": [0.51, 1.52]
 };
 
-function priceFor(model) {
+// Azure OpenAI: verifizierte EUR-Listenpreise aus der Azure Retail Prices API
+// (prices.azure.com, Global-Standard-Deployment, Region Sweden Central, Stand 08/2026).
+const AZURE_PRICE_TABLE = {
+    "gpt-4o-mini": [0.10, 0.50],
+    "gpt-4o": [2.20, 8.78],
+    "gpt-4.1-mini": [0.40, 1.40],
+    "gpt-4.1-nano": [0.10, 0.40],
+    "gpt-4.1": [1.80, 7.00],
+    "gpt-5-mini": [0.22, 1.76],
+    "gpt-5-nano": [0.04, 0.35],
+    "gpt-5-chat": [1.10, 8.78],
+    "gpt-5.1": [1.10, 8.78],
+    "gpt-5.2": [1.54, 12.29],
+    "gpt-5.5": [4.39, 26.33],
+    "gpt-5": [1.10, 8.78],
+    "o3": [1.80, 7.00],
+    "o4-mini": [1.00, 3.90]
+};
+
+function matchPrice(table, m) {
+    if (table[m]) {
+        return table[m];
+    }
+    // Teilstring-Match: laengste passende ID gewinnt (gpt-4o-mini vor gpt-4o;
+    // deckt Azure-Deployment-Namen wie "gpt-4o-mini-prod"). Kurze Keys (<4
+    // Zeichen, z. B. "o3") nur exakt, sonst falsche Treffer in anderen Namen.
+    let best = null;
+    for (const key of Object.keys(table)) {
+        if (key.length >= 4 && m.indexOf(key) !== -1 && (!best || key.length > best.length)) {
+            best = key;
+        }
+    }
+    return best ? table[best] : null;
+}
+
+function priceFor(model, provider) {
     const m = String(model || "").toLowerCase();
     if (!m) {
         return null;
     }
-    if (PRICE_TABLE[m]) {
-        return PRICE_TABLE[m];
-    }
-    // Teilstring-Match: laengste passende ID gewinnt (gpt-4o-mini vor gpt-4o)
-    let best = null;
-    for (const key of Object.keys(PRICE_TABLE)) {
-        if (m.indexOf(key) !== -1 && (!best || key.length > best.length)) {
-            best = key;
+    if (provider === "azure") {
+        const p = matchPrice(AZURE_PRICE_TABLE, m);
+        if (p) {
+            return p;
         }
     }
-    return best ? PRICE_TABLE[best] : null;
+    return matchPrice(PRICE_TABLE, m);
 }
 
 function renderUsage() {
@@ -441,7 +472,7 @@ function renderUsage() {
                     calls++;
                     tokIn += e.i || 0;
                     tokOut += e.o || 0;
-                    const price = priceFor(e.m || providerModel[e.p] || "");
+                    const price = priceFor(e.m || providerModel[e.p] || "", e.p);
                     if (price) {
                         cost += (e.i || 0) / 1e6 * price[0] + (e.o || 0) / 1e6 * price[1];
                     }
