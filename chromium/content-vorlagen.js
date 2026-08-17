@@ -218,9 +218,15 @@
         return "";
     }
 
-    // "Jasmin Schneiss" -> "Frau Schneiss"; unbekannter Vorname -> voller Name
+    // "Jasmin Schneiss" -> "Frau Schneiss"; unbekannter Vorname -> voller Name.
+    // Klammer-Zusaetze wie "(WB)" oder "(WB ASP)" werden entfernt - sonst
+    // wuerde "(WB)" als Nachname enden ("Frau (WB)").
     function buildAnrede(editor) {
-        const name = extractRecipient(editor);
+        const raw = extractRecipient(editor);
+        if (!raw) {
+            return "";
+        }
+        const name = raw.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
         if (!name) {
             return "";
         }
