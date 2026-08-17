@@ -26,6 +26,7 @@ Die folgenden Daten verbleiben **ausschließlich lokal im Browser**
 - der Verlauf des KI-Chats (löschbar über „Neuer Chat")
 - eine lokale Token-Verbrauchsstatistik der KI-Funktionen (Aufbewahrung 1 Jahr)
 - der Clipper-Verlauf (Titel/URL geclippter Artikel, 30 Tage)
+- automatische lokale Konfigurations-Sicherungen (30 Tage, zum Wiederherstellen)
 
 Der **Artikel-Clipper** bereinigt die aktuelle Seite auf ausdrückliche
 Nutzeraktion vollständig **lokal** (Extraktion mit der mitgelieferten
@@ -50,6 +51,8 @@ KI-Anbieter — ausschließlich zur Erzeugung des angeforderten Ergebnisses:
 - Anthropic (api.anthropic.com) — [Datenschutz](https://www.anthropic.com/privacy)
 - OpenAI (api.openai.com) — [Datenschutz](https://openai.com/privacy)
 - InnoGPT (app.innogpt.de) — Datenschutzhinweise des Anbieters
+- Azure OpenAI (\*.openai.azure.com) — eine Azure-Ressource des eigenen
+  Microsoft-Tenants ([Microsoft-Datenschutz](https://privacy.microsoft.com))
 
 Dabei gilt:
 

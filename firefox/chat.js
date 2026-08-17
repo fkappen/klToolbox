@@ -94,7 +94,7 @@ function addBubble(cls, text) {
 }
 
 function updateMeta() {
-    chrome.storage.local.get({ provider: "claude", claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini", innogptModel: "gpt-5", brandPrimary: "", brandAccent: "", brandIcon: "" }, (s) => {
+    chrome.storage.local.get({ provider: "claude", claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini", innogptModel: "gpt-5", azureDeployment: "", brandPrimary: "", brandAccent: "", brandIcon: "" }, (s) => {
         if (s.brandIcon) {
             const img = document.querySelector("header img");
             if (img) {
@@ -120,7 +120,7 @@ function updateMeta() {
             document.documentElement.style.setProperty("--klt-a", s.brandAccent);
         }
         const provider = providerOverride || s.provider;
-        const model = provider === "openai" ? s.openaiModel : (provider === "innogpt" ? s.innogptModel : s.claudeModel);
+        const model = provider === "openai" ? s.openaiModel : (provider === "innogpt" ? s.innogptModel : (provider === "azure" ? (s.azureDeployment || "Deployment") : s.claudeModel));
         el("meta").textContent = provider + " · " + model;
     });
 }

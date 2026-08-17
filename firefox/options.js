@@ -19,7 +19,11 @@ const KI_DEFAULTS = {
     kiKontext: "",
     // Einmalige, ausdrueckliche Zustimmung zur Uebertragung an den
     // KI-Anbieter (CWS-Vorgabe: Offenlegung + Consent in der Oberflaeche)
-    kiConsent: false
+    kiConsent: false,
+    azureEndpoint: "",
+    azureDeployment: "",
+    azureApiKey: "",
+    azureApiVersion: "2024-06-01"
 };
 
 // Modell-Auswahl: Dropdown mit Presets (Preisstufe relativ) + "Eigenes
@@ -28,7 +32,9 @@ const KI_DEFAULTS = {
 const MODEL_PRESETS = {
     claude: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5"],
     openai: ["gpt-4o-mini", "gpt-4o"],
-    innogpt: ["gpt-5"]
+    innogpt: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5",
+        "gpt-5-mini", "gpt-5", "gpt-5.5", "gpt-4o-mini", "gpt-4o",
+        "gemini-2.5-flash", "gemini-2.5-pro", "deepseek-v3", "mistral-large-3"]
 };
 
 function initModelSelect(prefix) {
@@ -239,7 +245,12 @@ function loadAll() {
         initModelSelect("claude");
         initModelSelect("openai");
         initModelSelect("innogpt");
+        document.getElementById("azureEndpoint").value = items.azureEndpoint;
+        document.getElementById("azureDeployment").value = items.azureDeployment;
+        document.getElementById("azureApiKey").value = items.azureApiKey;
+        document.getElementById("azureApiVersion").value = items.azureApiVersion;
         renderUsage();
+        renderBackups();
         document.getElementById("kiKontext").value = items.kiKontext;
         document.getElementById("kiConsent").checked = items.kiConsent === true;
         // Termin
@@ -295,11 +306,65 @@ function saveKi() {
         openaiModel: document.getElementById("openaiModel").value.trim() || KI_DEFAULTS.openaiModel,
         innogptApiKey: document.getElementById("innogptApiKey").value.trim(),
         innogptModel: document.getElementById("innogptModel").value.trim() || KI_DEFAULTS.innogptModel,
+        azureEndpoint: document.getElementById("azureEndpoint").value.trim(),
+        azureDeployment: document.getElementById("azureDeployment").value.trim(),
+        azureApiKey: document.getElementById("azureApiKey").value.trim(),
+        azureApiVersion: document.getElementById("azureApiVersion").value.trim() || KI_DEFAULTS.azureApiVersion,
         kiKontext: document.getElementById("kiKontext").value.trim(),
         customKiActions: cleanActions
     }, () => {
         flashStatus("statusKi");
         renderKiActions();
+    });
+}
+
+// ---------------------------------------------------------------- Auto-Backup / Restore
+
+function renderBackups() {
+    chrome.storage.local.get({ configBackups: [] }, (s) => {
+        const sel = document.getElementById("backupSel");
+        sel.textContent = "";
+        const backups = Array.isArray(s.configBackups) ? s.configBackups : [];
+        if (backups.length === 0) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "Noch keine automatische Sicherung vorhanden";
+            sel.appendChild(opt);
+            document.getElementById("backupRestore").disabled = true;
+            return;
+        }
+        document.getElementById("backupRestore").disabled = false;
+        backups.forEach((b) => {
+            const opt = document.createElement("option");
+            opt.value = String(b.ts);
+            opt.textContent = new Date(b.ts).toLocaleString("de-DE", {
+                day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+            }) + " Uhr (" + Object.keys(b.data || {}).length + " Einstellungen)";
+            sel.appendChild(opt);
+        });
+    });
+}
+
+function restoreBackup() {
+    const ts = Number(document.getElementById("backupSel").value);
+    if (!ts) {
+        return;
+    }
+    chrome.storage.local.get({ configBackups: [] }, (s) => {
+        const backup = (Array.isArray(s.configBackups) ? s.configBackups : []).find((b) => b && b.ts === ts);
+        if (!backup || !backup.data) {
+            alert("Sicherung nicht gefunden.");
+            return;
+        }
+        const when = new Date(backup.ts).toLocaleString("de-DE");
+        if (!confirm("Konfiguration auf den Stand vom " + when + " zurücksetzen?\n\nDie aktuellen Einstellungen werden mit der Sicherung überschrieben (Chat-Verlauf und Statistik bleiben unberührt).")) {
+            return;
+        }
+        chrome.storage.local.set(backup.data, () => {
+            flashStatus("statusBackup");
+            loadAll();
+            updateHostPermissionUi();
+        });
     });
 }
 
@@ -540,7 +605,7 @@ function renderStatus() {
         const version = chrome.runtime.getManifest().version;
         row(true, "klToolbox v" + version);
 
-        const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey };
+        const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey, azure: s.azureApiKey };
         const hasKey = !!(keyMap[s.provider] || "").trim();
         row(hasKey, "KI-Anbieter: " + s.provider, hasKey ? "API-Key hinterlegt" : "kein API-Key hinterlegt");
         row(s.kiConsent === true, "KI-Datenübertragung", s.kiConsent === true ? "Zustimmung erteilt" : "Zustimmung fehlt (KI-Funktionen deaktiviert)");
@@ -1005,6 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("sectionsSave").addEventListener("click", saveSections);
     document.getElementById("settingsExport").addEventListener("click", exportAllSettings);
+    document.getElementById("backupRestore").addEventListener("click", restoreBackup);
     document.getElementById("grantHost").addEventListener("click", grantTicketHostPermission);
     document.getElementById("settingsReset").addEventListener("click", resetAllSettings);
     document.getElementById("kiActionAdd").addEventListener("click", () => {

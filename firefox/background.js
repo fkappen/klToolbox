@@ -55,8 +55,50 @@ const DEFAULTS = {
     innogptApiKey: "",
     innogptModel: "gpt-5",
     kiKontext: "",
-    kiConsent: false
+    kiConsent: false,
+    // Azure OpenAI ("Copilot for Business"-Weg: eigener Tenant, EU-Region)
+    azureEndpoint: "",
+    azureDeployment: "",
+    azureApiKey: "",
+    azureApiVersion: "2024-06-01"
 };
+
+// Azure OpenAI: gleiches Chat-Format wie OpenAI, aber Deployment-URL und
+// "api-key"-Header. Endpoint/Deployment/Key kommen aus den Optionen.
+async function azureChat(settings, system, messages) {
+    const ep = (settings.azureEndpoint || "").trim().replace(/\/+$/, "");
+    const dep = (settings.azureDeployment || "").trim();
+    if (!ep || !dep || !settings.azureApiKey) {
+        throw new Error("Azure OpenAI ist nicht vollständig konfiguriert (Endpoint, Deployment und API-Key in den Optionen).");
+    }
+    const url = ep + "/openai/deployments/" + encodeURIComponent(dep) +
+        "/chat/completions?api-version=" + encodeURIComponent((settings.azureApiVersion || "2024-06-01").trim());
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "content-type": "application/json",
+            "api-key": settings.azureApiKey
+        },
+        body: JSON.stringify({
+            messages: [{ role: "system", content: system }].concat(messages)
+        })
+    });
+    if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error("Azure OpenAI API " + res.status + ": " + shorten(body));
+    }
+    const data = await res.json();
+    if (data.usage) {
+        recordUsage("azure", data.usage.prompt_tokens, data.usage.completion_tokens);
+    }
+    const out = data.choices && data.choices[0] && data.choices[0].message
+        ? data.choices[0].message.content
+        : "";
+    if (!out) {
+        throw new Error("Leere Antwort von der Azure OpenAI API.");
+    }
+    return out.trim();
+}
 
 // Token-Verbrauch protokollieren (nur LOKAL, fuer die Statistik in den
 // Optionen): Roh-Events {ts, p(rovider), i(nput), o(utput)}, 1 Jahr
@@ -412,6 +454,39 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
 });
 
+// ---------------------------------------------------------------- Auto-Backup
+//
+// Taegliche Sicherung der Konfiguration (ohne volatile Daten wie Chat-
+// Verlauf/Statistik) - 30 Tage / max. 30 Staende, Wiederherstellung in
+// den Optionen unter Sicherung.
+const BACKUP_EXCLUDE = ["configBackups", "kiUsage", "chatHistory", "clipResult", "clipHistory", "managedDefaultsApplied", "fixDatevSection1"];
+
+function autoBackup() {
+    chrome.storage.local.get(null, (all) => {
+        const backups = Array.isArray(all.configBackups) ? all.configBackups : [];
+        const lastTs = backups.length > 0 ? backups[0].ts : 0;
+        if (Date.now() - lastTs < 24 * 3600 * 1000) {
+            return;
+        }
+        const snap = {};
+        for (const [k, v] of Object.entries(all)) {
+            if (!BACKUP_EXCLUDE.includes(k)) {
+                snap[k] = v;
+            }
+        }
+        if (Object.keys(snap).length === 0) {
+            return;
+        }
+        const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+        const next = [{ ts: Date.now(), data: snap }]
+            .concat(backups.filter((b) => b && b.ts >= cutoff))
+            .slice(0, 30);
+        chrome.storage.local.set({ configBackups: next });
+        console.log("klToolbox: Konfigurations-Backup erstellt (" + next.length + " Stände vorgehalten)");
+    });
+}
+autoBackup();
+
 // ---------------------------------------------------------------- Seitenleiste (optional)
 //
 // Option "Seitenleiste statt Popup" (Chromium): Klick aufs Toolbar-Icon
@@ -653,6 +728,10 @@ async function chatProvider(settings, messages, systemOverride) {
         system += "\nNutze bei Bedarf die Websuche für aktuelle Informationen.";
     }
 
+    if (settings.provider === "azure") {
+        return azureChat(settings, system, messages);
+    }
+
     if (settings.provider === "claude") {
         if (!settings.claudeApiKey) {
             throw new Error("Kein Anthropic API-Key hinterlegt (Optionen).");
@@ -823,6 +902,11 @@ function getSettings() {
 
 async function callProvider(settings, instruction, text) {
     requireConsent(settings);
+    if (settings.provider === "azure") {
+        return azureChat(settings, buildSystemPrompt(settings), [
+            { role: "user", content: "Aufgabe: " + instruction + "\n\nText:\n" + text }
+        ]);
+    }
     if (settings.provider === "openai") {
         if (!settings.openaiApiKey) {
             throw new Error("Kein OpenAI API-Key hinterlegt (Erweiterungs-Optionen öffnen).");

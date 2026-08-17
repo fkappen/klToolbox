@@ -24,7 +24,8 @@
     "host_permissions": [
         "https://api.anthropic.com/*",
         "https://api.openai.com/*",
-        "https://app.innogpt.de/*"
+        "https://app.innogpt.de/*",
+        "https://*.openai.azure.com/*"
     ],
     "optional_host_permissions": [
         "https://*/*"

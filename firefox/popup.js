@@ -266,9 +266,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.add("panel");
         chrome.storage.local.get({
             modChat: true, provider: "claude",
-            claudeApiKey: "", openaiApiKey: "", innogptApiKey: ""
+            claudeApiKey: "", openaiApiKey: "", innogptApiKey: "", azureApiKey: ""
         }, (s) => {
-            const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey };
+            const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey, azure: s.azureApiKey };
             if (s.modChat !== false && !!(keyMap[s.provider] || "").trim()) {
                 document.getElementById("chatFrame").src = chrome.runtime.getURL("chat.html");
             } else {
@@ -355,9 +355,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // ein API-Key hinterlegt ist (sonst ist der Button ohnehin funktionslos).
     chrome.storage.local.get({
         modChat: true, provider: "claude",
-        claudeApiKey: "", openaiApiKey: "", innogptApiKey: ""
+        claudeApiKey: "", openaiApiKey: "", innogptApiKey: "", azureApiKey: ""
     }, (items) => {
-        const keyMap = { claude: items.claudeApiKey, openai: items.openaiApiKey, innogpt: items.innogptApiKey };
+        const keyMap = { claude: items.claudeApiKey, openai: items.openaiApiKey, innogpt: items.innogptApiKey, azure: items.azureApiKey };
         const chatOk = items.modChat !== false && !!(keyMap[items.provider] || "").trim();
         if (!chatOk) {
             document.getElementById("openChat").style.display = "none";
