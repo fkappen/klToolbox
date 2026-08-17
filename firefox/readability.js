@@ -1050,7 +1050,8 @@ Readability.prototype = {
       return null;
     }
 
-    var pageCacheHtml = page.innerHTML;
+    // klToolbox-Patch (AMO-Linter, kein innerHTML): DOM-Klon statt HTML-String cachen
+    var pageCacheNode = page.cloneNode(true);
 
     while (true) {
       this.log("Starting grabArticle loop");
@@ -1571,8 +1572,13 @@ Readability.prototype = {
       var textLength = this._getInnerText(articleContent, true).length;
       if (textLength < this._charThreshold) {
         parseSuccessful = false;
-        // eslint-disable-next-line no-unsanitized/property
-        page.innerHTML = pageCacheHtml;
+        // klToolbox-Patch (AMO-Linter, kein innerHTML): Seite aus dem Klon
+        // wiederherstellen; Klon bleibt fuer weitere Durchlaeufe erhalten
+        page.textContent = "";
+        var pageRestore = pageCacheNode.cloneNode(true);
+        while (pageRestore.firstChild) {
+          page.appendChild(pageRestore.firstChild);
+        }
 
         this._attempts.push({
           articleContent,
@@ -1945,13 +1951,11 @@ Readability.prototype = {
       if (!this._isSingleImage(noscript)) {
         return;
       }
-      var tmp = doc.createElement("div");
-      // We're running in the document context, and using unmodified
-      // document contents, so doing this should be safe.
-      // (Also we heavily discourage people from allowing script to
-      // run at all in this document...)
-      // eslint-disable-next-line no-unsanitized/property
-      tmp.innerHTML = noscript.innerHTML;
+      // klToolbox-Patch (AMO-Linter, kein innerHTML): noscript-Inhalt inert
+      // per DOMParser parsen (fuehrt keine Scripte aus) und importieren
+      var tmpDoc = new DOMParser().parseFromString(
+        "<div>" + noscript.innerHTML + "</div>", "text/html");
+      var tmp = doc.importNode(tmpDoc.body.firstChild, true);
 
       // If noscript has previous sibling and it only contains image,
       // replace it with noscript content. However we also keep old
