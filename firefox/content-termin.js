@@ -1,7 +1,7 @@
 // Version
 // version = "1.5.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-13"
-// autor   = "Felix Kappen"
+// autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
 // aus der Ticketansicht und erstellt daraus einen Outlook-Termin
@@ -408,7 +408,7 @@
     // ---------------------------------------------------------- Wartezeit-Badge
     // Zeigt links in der Ticket-Toolbar die Zeit seit Ticketerstellung an.
     // Quelle: aeltester sichtbarer Eintrags-Zeitstempel im DOM (bewusst KEIN
-    // API-Zugriff - die Venabo-REST-API verlangt einen x-api-token, und der
+    // API-Zugriff - die REST-API des Ticketsystems verlangt einen API-Token, und der
     // gehoert nicht in ein oeffentlich verteiltes Addin).
     // Ampel: Prio Hoch  -> gruen <15 Min, gelb <1 Std, rot ab 1 Std
     //        sonst      -> gruen <1 Tag,  gelb <3 Tage, rot ab 3 Tagen

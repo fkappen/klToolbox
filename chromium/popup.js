@@ -1,7 +1,7 @@
 // Version
 // version = "2.0.0"  (Modul Popup, klToolbox)
 // datum   = "2026-08-13"
-// autor   = "Felix Kappen"
+// autor   = "FK"
 //
 // Popup am Extension-Icon: Start-Leiste, Schnellzugriffe (Favicons via Web),
 // M365-Admin-Links (privates Fenster) und Ticketnummern-Suche.
@@ -27,7 +27,7 @@ const DEFAULT_SECTIONS = [
 ];
 
 // Favicon-Kette: 1. favicon.ico direkt vom Host (erreicht auch interne
-// Seiten wie PSU/CIPP), 2. Google-Favicon-Dienst, 3. Buchstaben-Kachel.
+// Seiten), 2. Google-Favicon-Dienst, 3. Buchstaben-Kachel.
 function attachIcon(btn, url, name) {
     const img = document.createElement("img");
     img.alt = "";
@@ -159,14 +159,18 @@ function render() {
 // (Enter-Ziel konfigurierbar). Der Button wechselt Beschriftung + Farbe.
 
 let defaultSearch = "datev";
+let hasTicketUrl = false;
+let hasKundenUrl = false;
 const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "InnoGPT" };
 
 function classifyQuery(value) {
+    // Ticket-/Kunden-Erkennung nur, wenn das jeweilige Linkziel auch
+    // konfiguriert ist (neutrale Installation: alles ist Websuche)
     const t = value.trim();
-    if (/^\d{6,10}$/.test(t)) {
+    if (/^\d{6,10}$/.test(t) && hasTicketUrl) {
         return "ticket";
     }
-    if (/^\d{4,5}$/.test(t)) {
+    if (/^\d{4,5}$/.test(t) && hasKundenUrl) {
         return "kunde";
     }
     return "web";
@@ -285,10 +289,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
     document.getElementById("searchGo").addEventListener("click", runSearch);
-    chrome.storage.local.get({ defaultSearch: "datev" }, (s) => {
+    chrome.storage.local.get({ defaultSearch: "datev", linkTemplate: "", kundenLinkTemplate: "" }, (s) => {
         if (SEARCH_LABELS[s.defaultSearch]) {
             defaultSearch = s.defaultSearch;
         }
+        hasTicketUrl = !!(s.linkTemplate || "").trim();
+        hasKundenUrl = !!(s.kundenLinkTemplate || "").trim();
         // Standard-Ziel markieren (das nimmt auch die Enter-Taste)
         const map = { datev: "sDatev", google: "sGoogle", innogpt: "sInno" };
         for (const id of Object.values(map)) {

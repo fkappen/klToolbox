@@ -1,7 +1,7 @@
 // Version
 // version = "1.6.0"
 // datum   = "2026-08-14"
-// autor   = "Felix Kappen"
+// autor   = "FK"
 //
 // Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
 // (Host wird zur Laufzeit registriert, siehe background.js).

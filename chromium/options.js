@@ -1,7 +1,7 @@
 // Version
 // version = "2.0.0"
 // datum   = "2026-08-13"
-// autor   = "Felix Kappen"
+// autor   = "FK"
 //
 // Kombinierte Options-Seite: KI-Umformulierer, Ticket-Termin, Ticket-Vorlagen.
 // Die Storage-Keys entsprechen den frueheren Einzel-Extensions.

@@ -1,7 +1,7 @@
 // Version
 // version = "1.0.0"  (Modul KI-Chat, klToolbox)
 // datum   = "2026-08-13"
-// autor   = "Felix Kappen"
+// autor   = "FK"
 //
 // Chat-Seite: nutzt den konfigurierten Anbieter (Optionen) ueber den
 // Service Worker (Message "kiChat"). Verlauf wird in storage.local

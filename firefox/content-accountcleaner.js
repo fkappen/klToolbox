@@ -1,5 +1,5 @@
 // MS Account Cleaner
-// Version 1.3.0 - 2026-08-03 - Felix Kappen
+// Version 1.3.0 - 2026-08-03 - FK
 //
 // Entfernt auf der Microsoft-Kontoauswahl (login.microsoftonline.com /
 // login.live.com) alle gemerkten Konten ueber deren "..."-Menue.

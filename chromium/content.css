@@ -1,4 +1,4 @@
-/* Version 2.6.2 - 2026-08-13 - Felix Kappen
+/* Version 2.6.2 - 2026-08-13 - FK
    Neutrale Farben via CSS-Variablen; Branding kommt per Settings-Import
    Panels der Module Ticket-Vorlagen und Ticket-Termin (Ticketsystem) */
 
@@ -371,7 +371,7 @@ a.__tt_code_link:hover {
     font: inherit;
     min-width: 0;
     box-sizing: border-box;
-    /* Venabo setzt global niedrige Hoehen auf select/input - die schneiden
+    /* Das Ticketsystem setzt global niedrige Hoehen auf select/input - die schneiden
        unsere Controls ab. Deshalb hier hart ueberschreiben. */
     height: auto !important;
     min-height: 32px !important;

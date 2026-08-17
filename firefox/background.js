@@ -1,7 +1,7 @@
 // Version
 // version = "1.1.0"
 // datum   = "2026-07-29"
-// autor   = "Felix Kappen"
+// autor   = "FK"
 //
 // Service Worker: Kontextmenü, API-Aufrufe (Claude/OpenAI), Ergebnis-Injection.
 
