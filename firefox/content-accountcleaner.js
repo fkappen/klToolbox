@@ -1,5 +1,5 @@
 // MS Account Cleaner
-// Version 1.3.0 - 2026-08-03 - FK
+// Version 1.4.0 - 2026-08-17 - FK
 //
 // Entfernt auf der Microsoft-Kontoauswahl (login.microsoftonline.com /
 // login.live.com) alle gemerkten Konten ueber deren "..."-Menue.
@@ -24,6 +24,10 @@
 //           oeffnet kein Menue
 // v1.3.0: - Menuepunkt-Auswahl mit Prioritaet: "Abmelden und vergessen"
 //           bevorzugt, dann "Vergessen", dann generisch "entfernen"
+// v1.4.0: - neues MS-Login-Design (08/2026) zeigt KEINE Status-Zeile
+//           mehr unter den Konten -> Fallback-Erkennung ueber die
+//           E-Mail-Adresse, aber nur wenn die Kontoauswahl-Ueberschrift
+//           ("Konto auswaehlen" / "Pick an account") auf der Seite steht
 
 (function () {
     'use strict';
@@ -91,45 +95,74 @@
         return m ? m.length : 0;
     }
 
-    // Alle Blatt-Elemente finden, deren Text exakt einem der Status-Texte
-    // entspricht, und daraus die komplette Konto-ZEILE ableiten: vom
-    // Status-Text so weit nach oben klettern, wie der Container genau
-    // EINE E-Mail-Adresse enthaelt. Der letzte solche Container ist die
-    // ganze Zeile inkl. Avatar- und Menue-Zelle; eine Ebene hoeher
-    // beginnt die Liste (mehrere E-Mails).
+    // Ueberschrift der Kontoauswahl (DE/EN) - Gate fuer die E-Mail-
+    // Fallback-Erkennung, damit der Button nicht z. B. auf der
+    // Kennwort-Seite (dort steht auch eine E-Mail) erscheint.
+    var PICKER_HEADINGS = ['Konto auswählen', 'Pick an account', 'Choose an account'];
+
+    function pickerHeadingPresent() {
+        var all = document.body.querySelectorAll('div, span, h1, h2, [role="heading"]');
+        for (var i = 0; i < all.length; i++) {
+            if (all[i].children.length > 0) { continue; }
+            if (PICKER_HEADINGS.indexOf(textOf(all[i])) !== -1) { return true; }
+        }
+        return false;
+    }
+
+    // Vom Anker-Element so weit nach oben klettern, wie der Container
+    // genau EINE E-Mail-Adresse enthaelt. Der letzte solche Container ist
+    // die ganze Konto-ZEILE inkl. Avatar- und Menue-Zelle; eine Ebene
+    // hoeher beginnt die Liste (mehrere E-Mails).
+    function climbToTile(el) {
+        var node = el.parentElement;
+        var tile = null;
+        for (var depth = 0; depth < 12 && node && node !== document.body; depth++) {
+            var n = emailCount(node);
+            if (n === 1) { tile = node; }
+            if (n > 1) { break; }
+            node = node.parentElement;
+        }
+        return tile;
+    }
+
+    // Skip-/Whitelist-Pruefung + Dedupe fuer eine gefundene Kachel
+    function addTile(tiles, tile) {
+        if (!tile) { return; }
+        var tileText = textOf(tile);
+        var skip = SKIP_TEXTS.some(function (s) { return tileText.indexOf(s) !== -1; });
+        if (skip) { return; }
+        // Whitelist (Optionen): Konto nie entfernen, wenn die E-Mail
+        // einen Whitelist-Eintrag enthaelt (z. B. "@firma.de"
+        // schuetzt alle Firmenkonten, exakte Adresse schuetzt eines)
+        var mailMatch = tileText.match(/\S+@\S+\.\S+/);
+        if (mailMatch && isWhitelisted(mailMatch[0])) { return; }
+        if (tiles.indexOf(tile) === -1) {
+            tiles.push(tile);
+        }
+    }
+
+    // Konto-Kacheln finden. Primaer ueber die Status-Zeile (altes Design);
+    // das neue Design (08/2026) hat keine Status-Zeile mehr -> Fallback
+    // ueber die E-Mail-Adresse selbst, aber nur auf der Kontoauswahl-Seite
+    // (Ueberschrift vorhanden).
     function findAccountTiles() {
         var tiles = [];
         var all = document.body.querySelectorAll('div, small, span');
-        for (var i = 0; i < all.length; i++) {
+        var i;
+        for (i = 0; i < all.length; i++) {
             var el = all[i];
             if (el.children.length > 0) { continue; }
-            var t = textOf(el);
-            if (STATUS_TEXTS.indexOf(t) === -1) { continue; }
-
-            var node = el.parentElement;
-            var tile = null;
-            for (var depth = 0; depth < 12 && node && node !== document.body; depth++) {
-                var n = emailCount(node);
-                if (n === 1) { tile = node; }
-                if (n > 1) { break; }
-                node = node.parentElement;
-            }
-            if (!tile) { continue; }
-
-            var tileText = textOf(tile);
-            var skip = SKIP_TEXTS.some(function (s) { return tileText.indexOf(s) !== -1; });
-            if (skip) { continue; }
-
-            // Whitelist (Optionen): Konto nie entfernen, wenn die E-Mail
-            // einen Whitelist-Eintrag enthaelt (z. B. "@firma.de"
-            // schuetzt alle Firmenkonten, exakte Adresse schuetzt eines)
-            var mailMatch = tileText.match(/\S+@\S+\.\S+/);
-            if (mailMatch && isWhitelisted(mailMatch[0])) {
-                continue;
-            }
-
-            if (tiles.indexOf(tile) === -1) {
-                tiles.push(tile);
+            if (STATUS_TEXTS.indexOf(textOf(el)) === -1) { continue; }
+            addTile(tiles, climbToTile(el));
+        }
+        if (tiles.length === 0 && pickerHeadingPresent()) {
+            for (i = 0; i < all.length; i++) {
+                var leaf = all[i];
+                if (leaf.children.length > 0) { continue; }
+                var t = textOf(leaf);
+                // Blatt-Element, dessen Text im Kern die E-Mail ist
+                if (t.length > 80 || !/^\S+@\S+\.\S+$/.test(t)) { continue; }
+                addTile(tiles, climbToTile(leaf));
             }
         }
         return tiles;
@@ -346,7 +379,7 @@
         ].join(';');
         button.addEventListener('click', removeAll);
         document.body.appendChild(button);
-        log('v1.3.0 - Button eingeblendet (' + findAccountTiles().length + ' Konten erkannt)');
+        log('v1.4.0 - Button eingeblendet (' + findAccountTiles().length + ' Konten erkannt)');
     }
 
     // Modul-Schalter (Optionen -> "Module"): live zu-/abschaltbar.
