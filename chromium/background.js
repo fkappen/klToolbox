@@ -459,7 +459,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Taegliche Sicherung der Konfiguration (ohne volatile Daten wie Chat-
 // Verlauf/Statistik) - 30 Tage / max. 30 Staende, Wiederherstellung in
 // den Optionen unter Sicherung.
-const BACKUP_EXCLUDE = ["configBackups", "kiUsage", "chatHistory", "clipResult", "clipHistory", "managedDefaultsApplied", "fixDatevSection1"];
+const BACKUP_EXCLUDE = ["configBackups", "kiUsage", "chatHistory", "chatConversations", "chatCurrentId", "clipResult", "clipHistory", "managedDefaultsApplied", "fixDatevSection1"];
 
 function autoBackup() {
     chrome.storage.local.get(null, (all) => {
