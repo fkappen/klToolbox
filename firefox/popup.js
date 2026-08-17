@@ -175,13 +175,17 @@ function classifyQuery(value) {
 function updateSearchGo() {
     const mode = classifyQuery(document.getElementById("searchInput").value);
     const btn = document.getElementById("searchGo");
-    btn.className = mode === "ticket" ? "" : mode;
-    if (mode === "ticket") {
-        btn.textContent = "🎫 Ticket";
-    } else if (mode === "kunde") {
-        btn.textContent = "👤 Kunde";
+    const engines = document.querySelector(".search-btns");
+    if (mode === "ticket" || mode === "kunde") {
+        // Nummer erkannt: farbiger Aktions-Button, Suchziele ausblenden
+        btn.style.display = "block";
+        engines.style.display = "none";
+        btn.className = mode === "ticket" ? "" : "kunde";
+        btn.textContent = mode === "ticket" ? "🎫 Ticket" : "👤 Kunde";
     } else {
-        btn.textContent = SEARCH_LABELS[defaultSearch] || "Suchen";
+        // Freitext/leer: nur die drei Suchziele (Enter = Standard-Ziel)
+        btn.style.display = "none";
+        engines.style.display = "flex";
     }
 }
 
@@ -284,6 +288,16 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.storage.local.get({ defaultSearch: "datev" }, (s) => {
         if (SEARCH_LABELS[s.defaultSearch]) {
             defaultSearch = s.defaultSearch;
+        }
+        // Standard-Ziel markieren (das nimmt auch die Enter-Taste)
+        const map = { datev: "sDatev", google: "sGoogle", innogpt: "sInno" };
+        for (const id of Object.values(map)) {
+            document.getElementById(id).classList.remove("default");
+        }
+        const target = document.getElementById(map[defaultSearch]);
+        if (target) {
+            target.classList.add("default");
+            target.title += " (Enter)";
         }
         updateSearchGo();
     });

@@ -43,6 +43,7 @@
 
         .search-btns button { flex: 1; padding: 6px 4px; font-size: 12px; background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; }
         .search-btns button:hover { background: var(--kl-blau); color: #fff; border-color: var(--kl-blau); }
+        .search-btns button.default { border-color: var(--kl-blau); box-shadow: inset 0 0 0 1px var(--kl-blau); font-weight: 700; }
 
         #hint { min-height: 0; }
         #hint:empty { display: none; }
@@ -54,11 +55,10 @@
         #searchGo.web { background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; }
         #searchGo.web:hover { background: var(--kl-blau); color: #fff; }
 
-        /* Werkzeug-Buttons unten */
-        .toolrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e3eaef; }
-        .toolbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #fff; color: #26323a; border: 1px solid #e3eaef; border-radius: 10px; padding: 6px 2px 5px; cursor: pointer; font: 10.5px/1.2 system-ui, sans-serif; transition: box-shadow .12s, border-color .12s, transform .12s; }
-        .toolbtn:hover { border-color: var(--kl-blau); box-shadow: 0 3px 10px rgba(0, 0, 0, .14); transform: translateY(-1px); background: #fff; color: #26323a; }
-        .toolbtn .ti { font-size: 17px; line-height: 1; }
+        /* Werkzeug-Buttons unten: schlanke Pills im Stil der Suchbuttons */
+        .toolrow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e3eaef; }
+        .toolbtn { flex: 1 1 30%; display: flex; align-items: center; justify-content: center; gap: 5px; background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; border-radius: 8px; padding: 6px 6px; font: 11.5px/1.2 system-ui, sans-serif; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .toolbtn:hover { background: var(--kl-blau); color: #fff; border-color: var(--kl-blau); }
 
         /* Seitenleisten-Modus (popup.html?panel=1): volle Breite nutzen,
            Kacheln fuellen den Platz, KI-Chat fuellt den unteren Bereich */
@@ -90,12 +90,12 @@
     <div id="hint"></div>
 
     <div class="toolrow">
-        <button class="toolbtn" id="openChat" title="KI-Chat öffnen"><span class="ti">🤖</span><span>KI-Chat</span></button>
-        <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren"><span class="ti">✂️</span><span>Clipper</span></button>
-        <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen"><span class="ti">🧹</span><span>Browserdaten</span></button>
-        <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)"><span class="ti">🕶️</span><span>Inkognito</span></button>
-        <button class="toolbtn" id="openOptions" title="Einstellungen öffnen"><span class="ti">⚙️</span><span>Optionen</span></button>
-        <button class="toolbtn" id="openHelp" title="Hilfe öffnen"><span class="ti">❓</span><span>Hilfe</span></button>
+        <button class="toolbtn" id="openChat" title="KI-Chat öffnen">🤖 KI-Chat</button>
+        <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren">✂ Clipper</button>
+        <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen">🧹 Browserdaten</button>
+        <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)">🕶 Inkognito</button>
+        <button class="toolbtn" id="openOptions" title="Einstellungen öffnen">⚙ Optionen</button>
+        <button class="toolbtn" id="openHelp" title="Hilfe öffnen">❓ Hilfe</button>
     </div>
     <iframe id="chatFrame" title="KI-Chat"></iframe>
     <script src="popup.js"></script>
