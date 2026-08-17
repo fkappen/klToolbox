@@ -104,6 +104,13 @@
             <input type="checkbox" id="sidebarMode" style="width:auto;"> Seitenleiste statt Popup (Chrome/Edge/Brave)
         </label>
         <div class="hint">Der Klick aufs Toolbar-Icon öffnet dann die dauerhafte Seitenleiste statt des Popups. In Firefox ist die Seitenleiste unabhängig davon über Menü → Ansicht → Symbolleisten/Sidebar erreichbar. Änderung wirkt sofort.</div>
+        <label for="defaultSearch" style="margin-top:14px;">Standard-Suche bei Enter (Popup-Suchfeld)</label>
+        <select id="defaultSearch">
+            <option value="datev">DATEV Wissensplattform</option>
+            <option value="google">Google</option>
+            <option value="innogpt">InnoGPT</option>
+        </select>
+        <div class="hint">Gilt für Freitext im Suchfeld; Ticket-/Kundennummern werden automatisch erkannt und direkt geöffnet. Speichert sofort.</div>
         <span id="statusView" class="status"></span>
     </fieldset>
 

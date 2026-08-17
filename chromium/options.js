@@ -164,6 +164,7 @@ let entryTemplates = [];
 function loadAll() {
     chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, {
         sidebarMode: false,
+        defaultSearch: "datev",
         templates: [],
         entryTemplates: [],
         sections: null,
@@ -187,6 +188,7 @@ function loadAll() {
             document.getElementById(key).checked = items[key] !== false;
         }
         document.getElementById("sidebarMode").checked = items.sidebarMode === true;
+        document.getElementById("defaultSearch").value = ["datev", "google", "innogpt"].includes(items.defaultSearch) ? items.defaultSearch : "datev";
         // Cleaner-Whitelist (Array -> eine Zeile pro Eintrag)
         document.getElementById("cleanerWhitelist").value =
             (Array.isArray(items.cleanerWhitelist) ? items.cleanerWhitelist : []).join("\n");
@@ -968,6 +970,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     document.getElementById("sidebarMode").addEventListener("change", (e) => {
         chrome.storage.local.set({ sidebarMode: e.target.checked }, () => flashStatus("statusView"));
+    });
+    document.getElementById("defaultSearch").addEventListener("change", (e) => {
+        chrome.storage.local.set({ defaultSearch: e.target.value }, () => flashStatus("statusView"));
     });
     document.getElementById("entryTplAdd").addEventListener("click", () => {
         entryTemplates.push({ name: "", text: "" });

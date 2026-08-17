@@ -26,6 +26,21 @@ function setStatus(msg, isError) {
 function sanitizeInto(target, html) {
     const doc = new DOMParser().parseFromString(html, "text/html");
     doc.querySelectorAll("script, style, iframe, object, embed, form, input, button, select, textarea, link, meta, noscript").forEach((n) => n.remove());
+    // Videos, Audio und Social-Media-Einbettungen raus - der Clip soll nur
+    // Text und echte Inhaltsbilder enthalten
+    doc.querySelectorAll(
+        "video, audio, source, track, " +
+        "blockquote.twitter-tweet, blockquote.instagram-media, blockquote.tiktok-embed, blockquote.reddit-embed-bq, " +
+        "[class*='twitter-embed'], [class*='instagram-embed'], [class*='facebook-embed'], [class*='tiktok-embed'], " +
+        "[class*='youtube-embed'], [class*='video-player'], [class*='video-embed'], [class*='social-embed'], " +
+        "[data-service], [data-video-id]"
+    ).forEach((n) => n.remove());
+    // Leere Reste (Figures/Container, deren Inhalt entfernt wurde) aufraeumen
+    doc.querySelectorAll("figure, div").forEach((n) => {
+        if (!n.querySelector("img") && (n.textContent || "").trim().length === 0) {
+            n.remove();
+        }
+    });
     for (const node of doc.body.querySelectorAll("*")) {
         for (const attr of Array.from(node.attributes)) {
             const name = attr.name.toLowerCase();
@@ -249,4 +264,44 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
     el("kiMail").addEventListener("click", () => mailShare(el("kiResult").textContent));
+    el("histToggle").addEventListener("click", () => {
+        const panel = el("histPanel");
+        if (panel.style.display !== "none") {
+            panel.style.display = "none";
+            return;
+        }
+        chrome.storage.local.get({ clipHistory: [] }, (s) => {
+            const list = el("histList");
+            list.textContent = "";
+            const hist = Array.isArray(s.clipHistory) ? s.clipHistory : [];
+            if (hist.length === 0) {
+                list.textContent = "Noch keine geclippten Artikel.";
+            }
+            for (const h of hist) {
+                if (!h || !h.url) {
+                    continue;
+                }
+                const row = document.createElement("div");
+                row.style.cssText = "padding:4px 0; border-bottom:1px solid #f0f2f4;";
+                const date = document.createElement("span");
+                date.style.cssText = "color:#6b7880; font-size:12px; margin-right:8px;";
+                date.textContent = new Date(h.ts).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+                const a = document.createElement("a");
+                a.href = h.url;
+                a.target = "_blank";
+                a.rel = "noopener";
+                a.textContent = h.title || h.url;
+                row.appendChild(date);
+                row.appendChild(a);
+                if (h.site) {
+                    const site = document.createElement("span");
+                    site.style.cssText = "color:#6b7880; font-size:12px; margin-left:8px;";
+                    site.textContent = h.site;
+                    row.appendChild(site);
+                }
+                list.appendChild(row);
+            }
+            panel.style.display = "block";
+        });
+    });
 });

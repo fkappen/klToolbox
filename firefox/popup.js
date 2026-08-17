@@ -154,23 +154,67 @@ function render() {
     });
 }
 
-// ---------------------------------------------------------------- Ticket-Suche
+// ---------------------------------------------------------------- Einheitliche Suche
+// EIN Feld: 6+ Ziffern = Ticket, 4-5 Ziffern = Kunde, sonst Websuche
+// (Enter-Ziel konfigurierbar). Der Button wechselt Beschriftung + Farbe.
 
-function openTicket() {
-    const raw = document.getElementById("ticketNr").value;
-    const nr = raw.replace(/\D/g, "");
-    if (!nr) {
-        document.getElementById("hint").textContent = "Bitte eine Ticketnummer eingeben.";
+let defaultSearch = "datev";
+const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "InnoGPT" };
+
+function classifyQuery(value) {
+    const t = value.trim();
+    if (/^\d{6,10}$/.test(t)) {
+        return "ticket";
+    }
+    if (/^\d{4,5}$/.test(t)) {
+        return "kunde";
+    }
+    return "web";
+}
+
+function updateSearchGo() {
+    const mode = classifyQuery(document.getElementById("searchInput").value);
+    const btn = document.getElementById("searchGo");
+    btn.className = mode === "ticket" ? "" : mode;
+    if (mode === "ticket") {
+        btn.textContent = "🎫 Ticket";
+    } else if (mode === "kunde") {
+        btn.textContent = "👤 Kunde";
+    } else {
+        btn.textContent = SEARCH_LABELS[defaultSearch] || "Suchen";
+    }
+}
+
+function runSearch() {
+    const value = document.getElementById("searchInput").value.trim();
+    if (!value) {
+        document.getElementById("hint").textContent = "Bitte Suchbegriff oder Nummer eingeben.";
         return;
     }
-    chrome.storage.local.get({ linkTemplate: "" }, (items) => {
-        if (!items.linkTemplate) {
-            document.getElementById("hint").textContent = "Ticketlink-Vorlage fehlt - Einstellungen importieren (Optionen).";
-            return;
-        }
-        chrome.tabs.create({ url: items.linkTemplate.replace(/%TICKETNR%/g, nr) });
-        window.close();
-    });
+    const mode = classifyQuery(value);
+    if (mode === "ticket") {
+        chrome.storage.local.get({ linkTemplate: "" }, (items) => {
+            if (!items.linkTemplate) {
+                document.getElementById("hint").textContent = "Ticketlink-Vorlage fehlt - Einstellungen importieren (Optionen).";
+                return;
+            }
+            chrome.tabs.create({ url: items.linkTemplate.replace(/%TICKETNR%/g, value) });
+            window.close();
+        });
+        return;
+    }
+    if (mode === "kunde") {
+        chrome.storage.local.get({ kundenLinkTemplate: "" }, (items) => {
+            if (!items.kundenLinkTemplate) {
+                document.getElementById("hint").textContent = "Kundenlink-Vorlage fehlt - Einstellungen importieren (Optionen).";
+                return;
+            }
+            chrome.tabs.create({ url: items.kundenLinkTemplate.replace(/%KDNR%/g, value) });
+            window.close();
+        });
+        return;
+    }
+    doSearch(defaultSearch);
 }
 
 // Branding: Name + Farben kommen per Settings-Import; ohne bleibt es neutral.
@@ -212,8 +256,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const isPanel = new URLSearchParams(location.search).has("panel");
     if (isPanel) {
         document.body.classList.add("panel");
-        chrome.storage.local.get({ modChat: true }, (s) => {
-            if (s.modChat !== false) {
+        chrome.storage.local.get({
+            modChat: true, provider: "claude",
+            claudeApiKey: "", openaiApiKey: "", innogptApiKey: ""
+        }, (s) => {
+            const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey };
+            if (s.modChat !== false && !!(keyMap[s.provider] || "").trim()) {
                 document.getElementById("chatFrame").src = chrome.runtime.getURL("chat.html");
             } else {
                 document.getElementById("chatFrame").style.display = "none";
@@ -224,26 +272,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     applyBrand();
     render();
-    const input = document.getElementById("ticketNr");
+    const input = document.getElementById("searchInput");
     input.focus();
+    input.addEventListener("input", updateSearchGo);
     input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-            openTicket();
+            runSearch();
         }
     });
-    document.getElementById("open").addEventListener("click", openTicket);
-    const kdInput = document.getElementById("kundenNr");
-    kdInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            openKunde();
+    document.getElementById("searchGo").addEventListener("click", runSearch);
+    chrome.storage.local.get({ defaultSearch: "datev" }, (s) => {
+        if (SEARCH_LABELS[s.defaultSearch]) {
+            defaultSearch = s.defaultSearch;
         }
-    });
-    document.getElementById("openKunde").addEventListener("click", openKunde);
-    const webInput = document.getElementById("webSuche");
-    webInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            doSearch("datev");
-        }
+        updateSearchGo();
     });
     document.getElementById("sDatev").addEventListener("click", () => doSearch("datev"));
     document.getElementById("sGoogle").addEventListener("click", () => doSearch("google"));
@@ -265,15 +307,13 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.storage.local.get({ modClipper: true }, (s) => {
         if (s.modClipper === false) {
             document.getElementById("clipPage").style.display = "none";
-            document.getElementById("clipSep").style.display = "none";
         }
     });
     // Inkognito-Reset nur anbieten, wenn das Popup in einem privaten
     // Fenster geoeffnet wurde (erfordert "Im Inkognito-Modus zulassen").
     chrome.windows.getCurrent((w) => {
         if (w && w.incognito) {
-            document.getElementById("incogSep").style.display = "";
-            document.getElementById("resetIncognito").style.display = "";
+            document.getElementById("resetIncognito").style.display = "flex";
         }
     });
     document.getElementById("resetIncognito").addEventListener("click", (e) => {
@@ -291,12 +331,18 @@ document.addEventListener("DOMContentLoaded", () => {
         window.close();
     });
 
-    // Modul "KI-Chat" deaktiviert -> Chat-Link und InnoGPT-Suche ausblenden
-    // (die InnoGPT-Suche laeuft ueber dieselbe Chat-Seite)
-    chrome.storage.local.get({ modChat: true }, (items) => {
-        if (items.modChat === false) {
+    // KI-Chat nur zeigen, wenn Modul aktiv UND fuer den gewaehlten Anbieter
+    // ein API-Key hinterlegt ist (sonst ist der Button ohnehin funktionslos).
+    chrome.storage.local.get({
+        modChat: true, provider: "claude",
+        claudeApiKey: "", openaiApiKey: "", innogptApiKey: ""
+    }, (items) => {
+        const keyMap = { claude: items.claudeApiKey, openai: items.openaiApiKey, innogpt: items.innogptApiKey };
+        const chatOk = items.modChat !== false && !!(keyMap[items.provider] || "").trim();
+        if (!chatOk) {
             document.getElementById("openChat").style.display = "none";
-            document.getElementById("chatSep").style.display = "none";
+        }
+        if (items.modChat === false) {
             document.getElementById("sInno").style.display = "none";
         }
     });
@@ -327,7 +373,7 @@ function openClearBrowsingData() {
 
 // Freitextsuche: ein Feld, drei Ziele (DATEV / Google / InnoGPT)
 function doSearch(target) {
-    const term = document.getElementById("webSuche").value.replace(/\s+/g, " ").trim();
+    const term = document.getElementById("searchInput").value.replace(/\s+/g, " ").trim();
     if (!term) {
         document.getElementById("hint").textContent = "Bitte einen Suchbegriff eingeben.";
         return;
@@ -363,18 +409,3 @@ function resetIncognito() {
 }
 
 // Kundensuche: URL-Vorlage kommt per Settings-Import (Platzhalter %KDNR%)
-function openKunde() {
-    const nr = document.getElementById("kundenNr").value.replace(/\D/g, "");
-    if (!nr) {
-        document.getElementById("hint").textContent = "Bitte eine Kundennummer eingeben.";
-        return;
-    }
-    chrome.storage.local.get({ kundenLinkTemplate: "" }, (items) => {
-        if (!items.kundenLinkTemplate) {
-            document.getElementById("hint").textContent = "Kundenlink-Vorlage fehlt - Einstellungen importieren (Optionen).";
-            return;
-        }
-        chrome.tabs.create({ url: items.kundenLinkTemplate.replace(/%KDNR%/g, nr) });
-        window.close();
-    });
-}

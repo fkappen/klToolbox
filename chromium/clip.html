@@ -49,6 +49,7 @@
             <button id="saveHtml" title="Als eigenständige HTML-Datei speichern">💾 HTML</button>
             <button id="printPage" title="Drucken / als PDF speichern">🖨 Drucken</button>
             <button id="mailShare" title="Per E-Mail teilen">✉ Teilen</button>
+            <button id="histToggle" title="Geclippte Artikel der letzten 30 Tage">🕘 Verlauf</button>
         </div>
         <div class="hrow" style="margin-top:6px;">
             <span style="font-size:12px; opacity:.85;">KI:</span>
@@ -63,6 +64,10 @@
 
     <div class="wrap">
         <div id="status"></div>
+        <div id="histPanel" style="display:none; background:#fff; border:1px solid #e2e6ea; border-radius:12px; padding:16px 20px; margin-bottom:18px;">
+            <b>Geclippte Artikel (letzte 30 Tage)</b>
+            <div id="histList" style="margin-top:8px; font-size:14px;"></div>
+        </div>
         <div id="kiResult"></div>
         <div id="kiResultBar">
             <button id="kiCopy">📋 Ergebnis kopieren</button>

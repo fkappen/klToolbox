@@ -277,6 +277,18 @@ async function clipPage(tab) {
         }
     }
     await chrome.storage.local.set({ clipResult: result });
+    // Verlauf: erfolgreiche Clips der letzten 30 Tage (max. 100)
+    if (result.ok) {
+        const s = await new Promise((resolve) => {
+            chrome.storage.local.get({ clipHistory: [] }, resolve);
+        });
+        const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+        const hist = [{ title: result.title, url: result.url, site: result.siteName, ts: Date.now() }]
+            .concat((Array.isArray(s.clipHistory) ? s.clipHistory : [])
+                .filter((h) => h && h.ts >= cutoff && h.url !== result.url))
+            .slice(0, 100);
+        await chrome.storage.local.set({ clipHistory: hist });
+    }
     await chrome.tabs.create({ url: chrome.runtime.getURL("clip.html") });
 }
 

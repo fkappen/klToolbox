@@ -47,9 +47,18 @@
         #hint { min-height: 0; }
         #hint:empty { display: none; }
 
-        .links { margin-top: 8px; padding-top: 6px; border-top: 1px solid #e3eaef; }
-        .links a { color: var(--kl-blau); text-decoration: none; font-size: 12px; font-weight: 600; }
-        .links a:hover { text-decoration: underline; }
+        /* Dynamischer Such-Button: Farbe je nach erkanntem Ziel */
+        #searchGo { min-width: 78px; }
+        #searchGo.kunde { background: var(--kl-gruen-dunkel); }
+        #searchGo.kunde:hover { background: var(--kl-gruen); }
+        #searchGo.web { background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; }
+        #searchGo.web:hover { background: var(--kl-blau); color: #fff; }
+
+        /* Werkzeug-Buttons unten */
+        .toolrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e3eaef; }
+        .toolbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #fff; color: #26323a; border: 1px solid #e3eaef; border-radius: 10px; padding: 6px 2px 5px; cursor: pointer; font: 10.5px/1.2 system-ui, sans-serif; transition: box-shadow .12s, border-color .12s, transform .12s; }
+        .toolbtn:hover { border-color: var(--kl-blau); box-shadow: 0 3px 10px rgba(0, 0, 0, .14); transform: translateY(-1px); background: #fff; color: #26323a; }
+        .toolbtn .ti { font-size: 17px; line-height: 1; }
 
         /* Seitenleisten-Modus (popup.html?panel=1): volle Breite nutzen,
            Kacheln fuellen den Platz, KI-Chat fuellt den unteren Bereich */
@@ -58,7 +67,8 @@
         body.panel .grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
         body.panel .tile span { max-width: none; }
         body.panel #chatFrame { display: block; flex: 1; min-height: 280px; width: 100%; border: 0; border-top: 2px solid var(--kl-gruen); margin-top: 10px; }
-        body.panel #openChat, body.panel #chatSep { display: none; }
+        body.panel #openChat { display: none !important; }
+        body.panel .toolrow { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
     </style>
 </head>
 <body>
@@ -69,15 +79,8 @@
 
     <h2>Suche</h2>
     <div class="row" style="margin-bottom:6px;">
-        <input type="text" id="ticketNr" placeholder="Ticketnummer, z. B. 123456" autofocus>
-        <button id="open">Ticket</button>
-    </div>
-    <div class="row" style="margin-bottom:6px;">
-        <input type="text" id="kundenNr" placeholder="Kundennummer, z. B. 12345">
-        <button id="openKunde">Kunde</button>
-    </div>
-    <div class="row" style="margin-bottom:6px;">
-        <input type="text" id="webSuche" placeholder="Suche… (Enter = DATEV)">
+        <input type="text" id="searchInput" placeholder="Suchbegriff, Ticket- oder Kundennummer" autofocus>
+        <button id="searchGo">Suchen</button>
     </div>
     <div class="row search-btns">
         <button id="sDatev" title="DATEV Wissensplattform">DATEV</button>
@@ -86,10 +89,13 @@
     </div>
     <div id="hint"></div>
 
-    <div class="links">
-        <a href="#" id="openChat">🤖 KI-Chat</a><span id="chatSep"> &middot; </span><a href="#" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren (Kopie, HTML, Markdown, KI-Zusammenfassung/-Übersetzung)">✂ Clipper</a><span id="clipSep"> &middot; </span><a href="#" id="clearData" title="Öffnet den Browser-Dialog „Browserdaten löschen“">🧹 Browserdaten</a><span id="incogSep" style="display:none;"> &middot; </span><a href="#" id="resetIncognito" style="display:none;" title="Schließt alle privaten Fenster – die Inkognito-Sitzung (Cookies, Logins) wird dadurch zurückgesetzt">🕶 Inkognito-Reset</a> &middot;
-        <a href="#" id="openOptions">Optionen</a> &middot;
-        <a href="#" id="openHelp">Hilfe</a>
+    <div class="toolrow">
+        <button class="toolbtn" id="openChat" title="KI-Chat öffnen"><span class="ti">🤖</span><span>KI-Chat</span></button>
+        <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren"><span class="ti">✂️</span><span>Clipper</span></button>
+        <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen"><span class="ti">🧹</span><span>Browserdaten</span></button>
+        <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)"><span class="ti">🕶️</span><span>Inkognito</span></button>
+        <button class="toolbtn" id="openOptions" title="Einstellungen öffnen"><span class="ti">⚙️</span><span>Optionen</span></button>
+        <button class="toolbtn" id="openHelp" title="Hilfe öffnen"><span class="ti">❓</span><span>Hilfe</span></button>
     </div>
     <iframe id="chatFrame" title="KI-Chat"></iframe>
     <script src="popup.js"></script>
