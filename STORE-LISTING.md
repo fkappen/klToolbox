@@ -9,20 +9,27 @@ klToolbox
 
 ## Kurzbeschreibung (≤132 Zeichen)
 
-Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.
+Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Artikel-Clipper, Ticket-Helfer, KI-Chat, Schnellzugriffe und Konto-Aufräumer.
 
 ## Beschreibung (lang)
 
-klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams:
+klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams in einer Erweiterung:
 
-- **KI-Umformulierer**: Markierten Text per Rechtsklick umformulieren, korrigieren oder übersetzen — mit eigenem API-Key bei Anthropic, OpenAI oder InnoGPT. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld.
-- **Kontextmenü-Suchen**: Markierten Text (z. B. eine Fehlermeldung) in der DATEV Wissensplattform, bei Google oder per KI nachschlagen.
-- **Ticket-Vorlagen und Ticket-Termin**: Textbausteine und Termin-Erstellung für das firmeneigene Ticketsystem. Das Ticketsystem wird vom Nutzer konfiguriert und erst nach ausdrücklicher Erlaubnis (optionale Berechtigung) eingebunden.
-- **Popup**: konfigurierbare Schnellzugriffe, Links in privaten Fenstern, Ticket-/Kunden-/Websuche.
-- **KI-Chat**: Chat-Seite mit dem konfigurierten Anbieter.
-- **MS Account Cleaner**: Entfernt auf der Microsoft-Kontoauswahl gemerkte Konten über das seiteneigene Menü — nur per sichtbarem Button, mit Whitelist.
+**KI-Textbearbeitung** — Markierten Text per Rechtsklick umformulieren, formeller oder lockerer fassen, kürzen, Rechtschreibung korrigieren oder übersetzen; eigene Aktionen mit eigenem Prompt definierbar. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld. Funktioniert mit dem eigenen API-Schlüssel bei Anthropic (Claude), OpenAI, InnoGPT oder Azure OpenAI (Ressource im eigenen Microsoft-Tenant). Ohne Schlüssel und ohne ausdrückliche Zustimmung in den Optionen findet keine Übertragung statt.
 
-Die Erweiterung wird neutral ausgeliefert; Einstellungen kommen per Import oder Unternehmensrichtlinie (Managed Storage).
+**KI-Chat** — Chat-Seite mit dem konfigurierten Anbieter, Unterhaltungs-Verlauf der letzten 30 Tage (nur lokal gespeichert). Token-Statistik mit Kosten-Richtwerten in den Optionen.
+
+**Artikel-Clipper** — Liest Artikel werbefrei und sauber formatiert aus (ohne Videos und Social-Media-Einbettungen). Export: formatiert in die Zwischenablage (OneNote/Word/Outlook), Markdown, HTML-Datei, Drucken/PDF, per E-Mail teilen; auf Wunsch per KI zusammenfassen oder übersetzen. Clip-Verlauf 30 Tage, lokal.
+
+**Suche** — Ein Suchfeld im Popup: erkennt Ticket- und Kundennummern (sobald ein Ticketsystem konfiguriert ist) und sucht sonst im Web, in der DATEV Wissensplattform oder per KI. Markierten Text per Rechtsklick nachschlagen.
+
+**Ticket-Helfer (optional)** — Für das firmeneigene, vom Nutzer konfigurierte Ticketsystem: E-Mail- und Eintrags-Vorlagen mit automatischer Anrede und Tagesgruß, Outlook-Termin aus dem Ticket (ICS oder Outlook Web, inkl. Anfahrts-Termin und „Mit Vorbehalt"), Wartezeit-Ampeln in Ticket und Liste, Aktions-Makros, Fehlercode-Verlinkung, Routenplanung. Das Ticketsystem wird erst eingebunden, nachdem der Nutzer die URL eingetragen und den Zugriff auf genau diese Website ausdrücklich erlaubt hat (optionale Berechtigung).
+
+**MS Account Cleaner** — Entfernt auf der Microsoft-Kontoauswahl gemerkte Konten über das seiteneigene „Vergessen"-Menü — nur per sichtbarem Button und nach Bestätigung. Konten „Mit Windows verbunden" und Whitelist-Einträge bleiben erhalten.
+
+**Sonstiges** — Optionale Seitenleiste, frei konfigurierbare Popup-Bereiche (Schnellzugriffe), Links in privaten Fenstern, automatische lokale Sicherung der Einstellungen (30 Tage) mit Wiederherstellung, ausführliche eingebaute Hilfe.
+
+Die Erweiterung wird neutral ausgeliefert und erhebt keine Daten; Einstellungen kommen per Import oder Unternehmensrichtlinie (Managed Storage). Datenschutzerklärung: https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
 
 ## Datenschutz (WICHTIG — Ablehnungsgrund „Purple Nickel" 08/2026)
 
@@ -65,6 +72,57 @@ sind Offenlegung + Einwilligung VOR der ersten Übertragung erfüllt.
 **Remote Code:** Nein. Es werden keine Skripte nachgeladen; alle Inhalte liegen im Paket.
 
 **Datennutzung:** Kategorie „Website-Inhalte" wird gehandhabt (siehe oben) — keine Erhebung durch den Entwickler. API-Aufrufe erfolgen direkt vom Browser des Nutzers zum von ihm gewählten und mit eigenem Schlüssel konfigurierten KI-Anbieter, erst nach Zustimmung in den Optionen.
+
+## Testanweisungen (Devconsole → „Anleitungen zum Testen")
+
+Englisch, damit jedes Review-Team sie lesen kann:
+
+```
+The extension ships "neutral" and works without any account or login.
+Settings are stored locally only (chrome.storage.local); enterprise
+defaults can come via managed storage. Privacy policy:
+https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+
+1. AI features (context menu "KI: Text bearbeiten", AI chat, summarize/
+   translate in the clipper) require the user's OWN API key (Anthropic,
+   OpenAI, InnoGPT or Azure OpenAI) AND an explicit consent checkbox in
+   Options -> "KI". Without key + consent, every AI action shows an error
+   toast and NOTHING is transmitted. To test end-to-end, enter any
+   Anthropic or OpenAI API key, tick the consent checkbox, select text on
+   any page -> right-click -> "KI: Text bearbeiten" -> "Umformulieren":
+   the selection is replaced by the AI result. The request goes directly
+   from the browser to the provider chosen by the user - no developer
+   server is involved.
+
+2. Article clipper: open any news article -> toolbar popup -> clipper
+   button (or right-click -> page context menu). A clean reader view
+   opens with copy/export buttons. Needs no configuration; uses
+   activeTab only.
+
+3. One search field in the popup: plain terms open a web search; ticket/
+   customer number detection only activates after the user configures
+   their internal ticket system URLs in the options.
+
+4. Ticket-system module: built for a company-internal ticket system that
+   is not publicly reachable. It is fully inert until the user (a) enters
+   the ticket URL in Options and (b) explicitly grants the optional host
+   permission via the "Zugriff erlauben" button (Chrome then shows the
+   permission prompt for that single origin). Without that grant no
+   content script is registered on any site. You can verify the flow with
+   any https URL.
+
+5. MS Account Cleaner: on https://login.microsoftonline.com with
+   remembered accounts ("Pick an account" screen), a red button
+   "Alle Konten entfernen" appears bottom right. After an explicit
+   confirmation dialog it removes remembered accounts by clicking the
+   page's own "Forget" menu items. Accounts "Connected to Windows" and
+   whitelisted accounts are skipped. No credentials are read, stored or
+   transmitted. Without remembered accounts the button stays hidden.
+
+6. No remote code: all scripts/resources are bundled. Network requests
+   are limited to the user-initiated AI calls described in (1) and
+   favicons for user-configured quick links.
+```
 
 ## AMO (Firefox) — Reviewer-Hinweise
 
