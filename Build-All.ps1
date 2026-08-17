@@ -6,7 +6,7 @@ param(
 )
 
 #Version
-$version = "2.1.1"
+$version = "2.1.2"
 $datum = "2026-08-17"
 $autor = "Felix Kappen"
 
@@ -184,16 +184,31 @@ try {
             $assets += @{ file = $xpiSource; name = $xpiName; type = "application/x-xpinstall" }
         }
         foreach ($a in $assets) {
-            # gleichnamiges Asset ersetzen (Re-Run derselben Version)
-            $existing = Invoke-GitHubApi -Method Get -Uri "https://api.github.com/repos/$slug/releases/$($rel.id)/assets" -Token $token
-            foreach ($e in @($existing)) {
-                if ($null -ne $e -and $e.name -eq $a.name) {
-                    Invoke-GitHubApi -Method Delete -Uri "https://api.github.com/repos/$slug/releases/assets/$($e.id)" -Token $token | Out-Null
+            # uploads.github.com liefert sporadisch "Server Error" (5xx) und
+            # kann halbe Assets hinterlassen, die den Namen blockieren -
+            # deshalb pro Versuch: gleichnamige Assets loeschen, dann Upload.
+            $ok = $false
+            for ($try = 1; $try -le 3 -and -not $ok; $try++) {
+                $existing = Invoke-GitHubApi -Method Get -Uri "https://api.github.com/repos/$slug/releases/$($rel.id)/assets" -Token $token
+                foreach ($e in @($existing)) {
+                    if ($null -ne $e -and $e.name -eq $a.name) {
+                        Invoke-GitHubApi -Method Delete -Uri "https://api.github.com/repos/$slug/releases/assets/$($e.id)" -Token $token | Out-Null
+                    }
+                }
+                try {
+                    Invoke-GitHubApi -Method Post -Token $token -InFile $a.file -ContentType $a.type `
+                        -Uri ("https://uploads.github.com/repos/$slug/releases/$($rel.id)/assets?name=" + [uri]::EscapeDataString($a.name)) | Out-Null
+                    $ok = $true
+                    Write-Host ("Asset hochgeladen: " + $a.name) -ForegroundColor Green
+                }
+                catch {
+                    Write-Warning ("Upload-Versuch " + $try + "/3 fehlgeschlagen (" + $a.name + "): " + $_.Exception.Message)
+                    Start-Sleep -Seconds 3
                 }
             }
-            Invoke-GitHubApi -Method Post -Token $token -InFile $a.file -ContentType $a.type `
-                -Uri ("https://uploads.github.com/repos/$slug/releases/$($rel.id)/assets?name=" + [uri]::EscapeDataString($a.name)) | Out-Null
-            Write-Host ("Asset hochgeladen: " + $a.name) -ForegroundColor Green
+            if (-not $ok) {
+                throw ("Asset-Upload endgueltig fehlgeschlagen: " + $a.name + " - Script spaeter erneut mit -Release ausfuehren.")
+            }
         }
     }
 
