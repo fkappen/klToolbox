@@ -133,7 +133,8 @@ const MODULE_DEFAULTS = {
     modSuche: true,
     modTicket: true,
     modCleaner: true,
-    modChat: true
+    modChat: true,
+    modClipper: true
 };
 
 // Popup-Bereiche: frei definierbar (Name + Links mit Start-/Privat-Haken).

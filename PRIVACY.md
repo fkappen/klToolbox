@@ -25,6 +25,11 @@ Die folgenden Daten verbleiben **ausschließlich lokal im Browser**
 - API-Schlüssel, die der Nutzer selbst für KI-Anbieter hinterlegt
 - der Verlauf des KI-Chats (löschbar über „Neuer Chat")
 
+Der **Artikel-Clipper** bereinigt die aktuelle Seite auf ausdrückliche
+Nutzeraktion vollständig **lokal** (Extraktion mit der mitgelieferten
+Mozilla-Readability-Bibliothek); Exporte gehen in die Zwischenablage, als
+Datei-Download oder in das lokale E-Mail-Programm des Nutzers.
+
 Auf Seiten des vom Nutzer konfigurierten Ticketsystems liest die Erweiterung
 Seiteninhalte (z. B. Kundenname, Ticketnummer, Einträge) **ausschließlich
 lokal**, um dort Funktionen wie Textvorlagen, Terminerstellung oder die
@@ -35,7 +40,7 @@ Ausnahme der ausdrücklich vom Nutzer ausgelösten KI-Funktionen.
 ## 3. Übertragung an KI-Anbieter (nur auf ausdrückliche Nutzeraktion)
 
 Die KI-Funktionen (Text umformulieren, KI-Chat, KI-Antwortentwurf,
-Zusammenfassungen) übertragen den **vom Nutzer markierten Text bzw. die vom
+Zusammenfassungen und Übersetzungen im Clipper) übertragen den **vom Nutzer markierten Text bzw. die vom
 Nutzer angestoßenen Inhalte** (z. B. den sichtbaren Ticketverlauf beim
 Antwortentwurf) an **einen** der folgenden, vom Nutzer ausgewählten
 KI-Anbieter — ausschließlich zur Erzeugung des angeforderten Ergebnisses:

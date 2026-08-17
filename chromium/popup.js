@@ -257,6 +257,17 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         openClearBrowsingData();
     });
+    document.getElementById("clipPage").addEventListener("click", (e) => {
+        e.preventDefault();
+        chrome.runtime.sendMessage({ type: "clipPage" });
+        window.close();
+    });
+    chrome.storage.local.get({ modClipper: true }, (s) => {
+        if (s.modClipper === false) {
+            document.getElementById("clipPage").style.display = "none";
+            document.getElementById("clipSep").style.display = "none";
+        }
+    });
     // Inkognito-Reset nur anbieten, wenn das Popup in einem privaten
     // Fenster geoeffnet wurde (erfordert "Im Inkognito-Modus zulassen").
     chrome.windows.getCurrent((w) => {

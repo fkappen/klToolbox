@@ -1,0 +1,252 @@
+// Version
+// version = "1.0.0"  (Modul Clipper, klToolbox)
+//
+// Vorschau-/Export-Seite des Clippers: zeigt den per Readability
+// extrahierten Artikel (bereinigt, ohne Werbung) und bietet Export als
+// formatierte Kopie (OneNote/Word), Markdown, HTML-Datei, Druck/PDF und
+// E-Mail - plus KI-Zusammenfassung/-Übersetzung. Alles lokal; KI nur auf
+// Klick über den konfigurierten Anbieter (Zustimmung erforderlich).
+
+let clip = null;
+
+function el(id) {
+    return document.getElementById(id);
+}
+
+function setStatus(msg, isError) {
+    const s = el("status");
+    s.textContent = msg || "";
+    s.style.color = isError ? "#b3261e" : "#56646d";
+}
+
+// ---------------------------------------------------------------- Sanitizer
+// Readability liefert bereinigtes HTML, trotzdem defensiv: Skripte, Frames
+// und Event-Handler entfernen; Einbau ausschliesslich ueber DOM-Knoten
+// (kein innerHTML-Assignment).
+function sanitizeInto(target, html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("script, style, iframe, object, embed, form, input, button, select, textarea, link, meta, noscript").forEach((n) => n.remove());
+    for (const node of doc.body.querySelectorAll("*")) {
+        for (const attr of Array.from(node.attributes)) {
+            const name = attr.name.toLowerCase();
+            if (name.indexOf("on") === 0) {
+                node.removeAttribute(attr.name);
+            } else if ((name === "href" || name === "src") && /^\s*javascript:/i.test(attr.value)) {
+                node.removeAttribute(attr.name);
+            }
+        }
+    }
+    for (const child of Array.from(doc.body.childNodes)) {
+        target.appendChild(document.importNode(child, true));
+    }
+}
+
+// ---------------------------------------------------------------- Markdown
+function htmlToMd(node) {
+    let out = "";
+    for (const child of node.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+            out += child.nodeValue.replace(/\s+/g, " ");
+            continue;
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE) {
+            continue;
+        }
+        const tag = child.tagName.toLowerCase();
+        const inner = () => htmlToMd(child).trim();
+        if (/^h[1-6]$/.test(tag)) {
+            out += "\n\n" + "#".repeat(Number(tag.charAt(1))) + " " + inner() + "\n\n";
+        } else if (tag === "p" || tag === "div" || tag === "section" || tag === "article" || tag === "figure") {
+            out += "\n\n" + htmlToMd(child).trim() + "\n\n";
+        } else if (tag === "br") {
+            out += "\n";
+        } else if (tag === "strong" || tag === "b") {
+            out += "**" + inner() + "**";
+        } else if (tag === "em" || tag === "i") {
+            out += "*" + inner() + "*";
+        } else if (tag === "code") {
+            out += "`" + child.textContent + "`";
+        } else if (tag === "pre") {
+            out += "\n\n```\n" + child.textContent.replace(/\n$/, "") + "\n```\n\n";
+        } else if (tag === "a") {
+            const href = child.getAttribute("href") || "";
+            out += href ? "[" + inner() + "](" + href + ")" : inner();
+        } else if (tag === "img") {
+            const src = child.getAttribute("src") || "";
+            if (src) {
+                out += "\n\n![" + (child.getAttribute("alt") || "") + "](" + src + ")\n\n";
+            }
+        } else if (tag === "li") {
+            const ordered = child.parentElement && child.parentElement.tagName.toLowerCase() === "ol";
+            out += "\n" + (ordered ? "1. " : "- ") + inner();
+        } else if (tag === "ul" || tag === "ol") {
+            out += "\n" + htmlToMd(child) + "\n";
+        } else if (tag === "blockquote") {
+            out += "\n\n> " + inner().replace(/\n/g, "\n> ") + "\n\n";
+        } else if (tag === "figcaption") {
+            out += "\n*" + inner() + "*\n";
+        } else if (tag === "hr") {
+            out += "\n\n---\n\n";
+        } else {
+            out += htmlToMd(child);
+        }
+    }
+    return out;
+}
+
+function buildMarkdown() {
+    return "# " + clip.title + "\n\n" +
+        "Quelle: " + clip.url + (clip.byline ? " — " + clip.byline : "") + "\n" +
+        htmlToMd(el("article")).replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+
+function buildStandaloneHtml() {
+    return "<!DOCTYPE html>\n<html lang=\"de\"><head><meta charset=\"utf-8\">" +
+        "<title>" + escapeHtml(clip.title) + "</title>" +
+        "<style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 16px;color:#222;}img{max-width:100%;height:auto;}pre{background:#f0f2f4;padding:12px;border-radius:8px;overflow-x:auto;}blockquote{border-left:4px solid #999;margin-left:0;padding-left:14px;color:#444;}</style>" +
+        "</head><body><h1>" + escapeHtml(clip.title) + "</h1>" +
+        "<p><a href=\"" + escapeHtml(clip.url) + "\">" + escapeHtml(clip.url) + "</a>" +
+        (clip.byline ? " — " + escapeHtml(clip.byline) : "") + "</p>" +
+        el("article").innerHTML +
+        "</body></html>";
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ---------------------------------------------------------------- Exporte
+
+async function copyFormatted() {
+    try {
+        const html = "<h1>" + escapeHtml(clip.title) + "</h1>" +
+            "<p><a href=\"" + escapeHtml(clip.url) + "\">" + escapeHtml(clip.url) + "</a></p>" +
+            el("article").innerHTML;
+        await navigator.clipboard.write([new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([clip.title + "\n" + clip.url + "\n\n" + el("article").innerText], { type: "text/plain" })
+        })]);
+        setStatus("Formatiert kopiert - jetzt z. B. in OneNote/Word mit Strg+V einfügen.");
+    } catch (err) {
+        setStatus("Kopieren fehlgeschlagen: " + err.message, true);
+    }
+}
+
+async function copyMarkdown() {
+    try {
+        await navigator.clipboard.writeText(buildMarkdown());
+        setStatus("Markdown kopiert.");
+    } catch (err) {
+        setStatus("Kopieren fehlgeschlagen: " + err.message, true);
+    }
+}
+
+function saveHtml() {
+    const blob = new Blob([buildStandaloneHtml()], { type: "text/html;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (clip.title || "artikel").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80) + ".html";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function mailShare(text) {
+    const body = (text || (clip.text || "").slice(0, 1500) + " […]") + "\n\nQuelle: " + clip.url;
+    location.href = "mailto:?subject=" + encodeURIComponent(clip.title) +
+        "&body=" + encodeURIComponent(body.slice(0, 1800));
+}
+
+// ---------------------------------------------------------------- KI
+
+function kiTransform(task) {
+    const lang = el("kiLang").value;
+    const btn = task === "translate" ? el("kiTranslate") : el("kiSummary");
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "… arbeitet";
+    setStatus("");
+    chrome.runtime.sendMessage({ type: "kiTransform", task: task, lang: lang, text: clip.text || "" }, (resp) => {
+        btn.disabled = false;
+        btn.textContent = old;
+        if (chrome.runtime.lastError || !resp || !resp.ok) {
+            const err = chrome.runtime.lastError
+                ? chrome.runtime.lastError.message
+                : (resp && resp.error ? resp.error : "keine Antwort");
+            setStatus("KI-Funktion fehlgeschlagen: " + err, true);
+            return;
+        }
+        el("kiResult").textContent = resp.text;
+        el("kiResult").style.display = "block";
+        el("kiResultBar").style.display = "flex";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+}
+
+// ---------------------------------------------------------------- Init
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Branding
+    chrome.storage.local.get({ brandPrimary: "", brandAccent: "", brandIcon: "", clipResult: null }, (s) => {
+        const root = document.documentElement;
+        if (s.brandPrimary) {
+            root.style.setProperty("--klt-p", s.brandPrimary);
+        }
+        if (s.brandAccent) {
+            root.style.setProperty("--klt-a", s.brandAccent);
+        }
+        if (s.brandIcon) {
+            document.querySelectorAll("img[src='icon32.png']").forEach((i) => { i.src = s.brandIcon; });
+            const fav = document.querySelector("link[rel='icon']");
+            if (fav) {
+                fav.href = s.brandIcon;
+            }
+        }
+
+        clip = s.clipResult;
+        if (!clip || clip.ok !== true) {
+            const box = document.createElement("div");
+            box.className = "error";
+            box.textContent = "Clippen fehlgeschlagen: " +
+                (clip && clip.error ? clip.error : "Kein Ergebnis vorhanden.") +
+                " Hinweis: Auf Browser-internen Seiten (chrome://, Store) ist kein Zugriff möglich.";
+            el("article").appendChild(box);
+            return;
+        }
+
+        document.title = "✂ " + clip.title;
+        const h1 = document.createElement("h1");
+        h1.className = "title";
+        h1.textContent = clip.title;
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const a = document.createElement("a");
+        a.href = clip.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = clip.siteName || clip.url;
+        meta.appendChild(a);
+        if (clip.byline) {
+            meta.appendChild(document.createTextNode(" — " + clip.byline));
+        }
+        el("article").appendChild(h1);
+        el("article").appendChild(meta);
+        sanitizeInto(el("article"), clip.content);
+    });
+
+    el("copyHtml").addEventListener("click", copyFormatted);
+    el("copyMd").addEventListener("click", copyMarkdown);
+    el("saveHtml").addEventListener("click", saveHtml);
+    el("printPage").addEventListener("click", () => window.print());
+    el("mailShare").addEventListener("click", () => mailShare(null));
+    el("kiSummary").addEventListener("click", () => kiTransform("summarize"));
+    el("kiTranslate").addEventListener("click", () => kiTransform("translate"));
+    el("kiCopy").addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(el("kiResult").textContent);
+            setStatus("KI-Ergebnis kopiert.");
+        } catch (err) {
+            setStatus("Kopieren fehlgeschlagen: " + err.message, true);
+        }
+    });
+    el("kiMail").addEventListener("click", () => mailShare(el("kiResult").textContent));
+});

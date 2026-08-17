@@ -96,7 +96,8 @@ const MODULE_DEFAULTS = {
     modSuche: true,     // Kontextmenue-Suchen (DATEV/Google/InnoGPT)
     modTicket: true,    // alle Ticketsystem-Erweiterungen (gebuendelt)
     modCleaner: true,   // MS Account Cleaner
-    modChat: true       // KI-Chat (Popup)
+    modChat: true,      // KI-Chat (Popup)
+    modClipper: true    // Artikel-Clipper
 };
 
 // Migration (3.5.0): die frueheren Einzel-Module modVorlagen/modTermin
@@ -213,6 +214,13 @@ function rebuildMenus() {
                     }
                 });
             }
+            if (mods.modClipper !== false) {
+                chrome.contextMenus.create({
+                    id: "clip_page",
+                    title: "✂ Seite als Artikel exportieren (Clipper)",
+                    contexts: ["page"]
+                });
+            }
             if (mods.modSuche !== false) {
                 // Markierten Text (z. B. Fehlermeldung) in der DATEV Wissensplattform suchen
                 chrome.contextMenus.create({
@@ -242,10 +250,35 @@ if (chrome.runtime.onStartup) {
 
 // Modul-Schalter oder eigene Aktionen geaendert -> Menues sofort anpassen
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && (changes.modKi || changes.modSuche || changes.customKiActions)) {
+    if (area === "local" && (changes.modKi || changes.modSuche || changes.modClipper || changes.customKiActions)) {
         rebuildMenus();
     }
 });
+
+// ---------------------------------------------------------------- Clipper
+//
+// Extrahiert die aktive Seite als bereinigten Artikel (Mozilla Readability,
+// im Paket enthalten) - nur auf Nutzeraktion via activeTab, alles lokal.
+// Ergebnis (oder Fehler) landet in storage.local, die Vorschau-Seite
+// clip.html zeigt es an und bietet die Export-/KI-Funktionen.
+async function clipPage(tab) {
+    let result = { ok: false, error: "Kein aktiver Tab gefunden." };
+    if (tab && tab.id) {
+        try {
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ["readability.js", "clipper-extract.js"]
+            });
+            result = (results && results[0] && results[0].result)
+                ? results[0].result
+                : { ok: false, error: "Extraktion lieferte kein Ergebnis." };
+        } catch (err) {
+            result = { ok: false, error: (err && err.message) ? err.message : String(err) };
+        }
+    }
+    await chrome.storage.local.set({ clipResult: result });
+    await chrome.tabs.create({ url: chrome.runtime.getURL("clip.html") });
+}
 
 // ---------------------------------------------------------------- Ticket-Modul (dynamisch)
 //
@@ -475,6 +508,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    // Clipper: aktive Seite als Artikel exportieren
+    if (info.menuItemId === "clip_page") {
+        clipPage(tab);
+        return;
+    }
     // DATEV-Suche: markierten Text an die Wissensplattform uebergeben
     if (info.menuItemId === "datev_suche") {
         const term = (info.selectionText || "").replace(/\s+/g, " ").trim().slice(0, 255);
@@ -674,6 +712,40 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                     role: "user",
                     content: "Ticketverlauf (Reihenfolge wie im Ticket angezeigt):\n\n" + msg.history +
                         "\n\nBitte verfasse jetzt den Antwortentwurf an den Kunden."
+                }], system);
+                sendResponse({ ok: true, text: text });
+            } catch (err) {
+                sendResponse({ ok: false, error: (err && err.message) ? err.message : String(err) });
+            }
+        })();
+        return true;
+    }
+    // Clipper aus dem Popup ausloesen
+    if (msg && msg.type === "clipPage") {
+        (async () => {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            await clipPage(tabs && tabs[0] ? tabs[0] : null);
+            sendResponse({ ok: true });
+        })();
+        return true;
+    }
+    // KI-Transformation fuer den Clipper: zusammenfassen oder uebersetzen
+    if (msg && msg.type === "kiTransform" && typeof msg.text === "string") {
+        (async () => {
+            try {
+                const settings = await getSettings();
+                const lang = msg.lang === "en" ? "Englisch" : "Deutsch";
+                let system;
+                if (msg.task === "translate") {
+                    system = "Du bist ein professioneller Übersetzer. Übersetze den folgenden Text vollständig nach " + lang + ". " +
+                        "Behalte Absatzstruktur und Aufzählungen bei. Gib AUSSCHLIESSLICH die Übersetzung zurück, ohne Kommentare.";
+                } else {
+                    system = "Fasse den folgenden Artikel auf " + lang + " zusammen: zuerst 3-6 Kernpunkte als Aufzählung (- ), " +
+                        "danach ein kurzer Absatz mit Einordnung/Fazit. Erfinde nichts hinzu. Gib nur die Zusammenfassung zurück.";
+                }
+                const text = await chatProvider(settings, [{
+                    role: "user",
+                    content: String(msg.text).slice(0, 24000)
                 }], system);
                 sendResponse({ ok: true, text: text });
             } catch (err) {
