@@ -144,26 +144,41 @@
         <legend>Claude (Anthropic)</legend>
         <label for="claudeApiKey">API-Key</label>
         <input type="password" id="claudeApiKey" placeholder="sk-ant-...">
-        <label for="claudeModel">Modell</label>
-        <input type="text" id="claudeModel" placeholder="claude-haiku-4-5">
-        <div class="hint">Standard: claude-haiku-4-5 (günstig/schnell) &middot; leistungsstärker: claude-opus-5</div>
+        <label for="claudeModelSel">Modell</label>
+        <select id="claudeModelSel">
+            <option value="claude-haiku-4-5">Haiku 4.5 — € günstig &amp; schnell</option>
+            <option value="claude-sonnet-5">Sonnet 5 — €€ ausgewogen</option>
+            <option value="claude-opus-5">Opus 5 — €€€ leistungsstark</option>
+            <option value="claude-fable-5">Fable 5 — €€€€ Spitzenmodell</option>
+            <option value="__custom">Eigenes Modell…</option>
+        </select>
+        <input type="text" id="claudeModel" placeholder="Modell-ID, z. B. claude-haiku-4-5" style="display:none; margin-top:6px;">
     </fieldset>
 
     <fieldset>
         <legend>ChatGPT (OpenAI)</legend>
         <label for="openaiApiKey">API-Key</label>
         <input type="password" id="openaiApiKey" placeholder="sk-...">
-        <label for="openaiModel">Modell</label>
-        <input type="text" id="openaiModel" placeholder="gpt-4o-mini">
+        <label for="openaiModelSel">Modell</label>
+        <select id="openaiModelSel">
+            <option value="gpt-4o-mini">GPT-4o mini — € günstig &amp; schnell</option>
+            <option value="gpt-4o">GPT-4o — €€€ leistungsstark</option>
+            <option value="__custom">Eigenes Modell…</option>
+        </select>
+        <input type="text" id="openaiModel" placeholder="Modell-ID, z. B. gpt-4o-mini" style="display:none; margin-top:6px;">
     </fieldset>
 
     <fieldset>
         <legend>InnoGPT</legend>
         <label for="innogptApiKey">API-Key</label>
         <input type="password" id="innogptApiKey" placeholder="sk_live_...">
-        <label for="innogptModel">Modell</label>
-        <input type="text" id="innogptModel" placeholder="gpt-5">
-        <div class="hint">OpenAI-kompatible API unter app.innogpt.de (Beta-Zugang erforderlich)</div>
+        <label for="innogptModelSel">Modell</label>
+        <select id="innogptModelSel">
+            <option value="gpt-5">gpt-5 — Standard</option>
+            <option value="__custom">Eigenes Modell…</option>
+        </select>
+        <input type="text" id="innogptModel" placeholder="Modell-ID, z. B. gpt-5" style="display:none; margin-top:6px;">
+        <div class="hint">OpenAI-kompatible API unter app.innogpt.de (Beta-Zugang erforderlich). Preisstufen (€) sind relative Richtwerte je Anbieter.</div>
     </fieldset>
 
     <fieldset>
@@ -173,6 +188,23 @@
         <div class="toolbar">
             <button id="kiActionAdd" class="secondary">+ Neue Aktion</button>
         </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Token-Verbrauch (lokal erfasst)</legend>
+        <table id="usageTable" style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="text-align:left; color:#56646d;">
+                    <th style="padding:4px 8px 4px 0;">Zeitraum</th>
+                    <th style="padding:4px 8px; text-align:right;">Anfragen</th>
+                    <th style="padding:4px 8px; text-align:right;">Eingabe</th>
+                    <th style="padding:4px 8px; text-align:right;">Ausgabe</th>
+                    <th style="padding:4px 0 4px 8px; text-align:right;">Gesamt</th>
+                </tr>
+            </thead>
+            <tbody id="usageBody"></tbody>
+        </table>
+        <div class="hint">Zählt die von den KI-Anbietern gemeldeten Tokens aller Funktionen (Umformulieren, Chat, KI-Antwort, Clipper). Nur lokal gespeichert; Aufbewahrung 1 Jahr.</div>
     </fieldset>
 
     <div class="toolbar">

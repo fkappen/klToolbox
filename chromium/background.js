@@ -58,6 +58,26 @@ const DEFAULTS = {
     kiConsent: false
 };
 
+// Token-Verbrauch protokollieren (nur LOKAL, fuer die Statistik in den
+// Optionen): Roh-Events {ts, p(rovider), i(nput), o(utput)}, 1 Jahr
+// Aufbewahrung, Obergrenze als Schutz.
+function recordUsage(provider, tokIn, tokOut) {
+    const i = Number(tokIn) || 0;
+    const o = Number(tokOut) || 0;
+    if (i === 0 && o === 0) {
+        return;
+    }
+    chrome.storage.local.get({ kiUsage: [] }, (s) => {
+        const cutoff = Date.now() - 370 * 24 * 3600 * 1000;
+        const arr = (Array.isArray(s.kiUsage) ? s.kiUsage : []).filter((e) => e && e.ts >= cutoff);
+        arr.push({ ts: Date.now(), p: provider, i: i, o: o });
+        if (arr.length > 20000) {
+            arr.splice(0, arr.length - 20000);
+        }
+        chrome.storage.local.set({ kiUsage: arr });
+    });
+}
+
 // CWS-Vorgabe: VOR der ersten Uebertragung an den KI-Anbieter braucht es
 // eine sichtbare Offenlegung mit Zustimmung in der Oberflaeche - die steht
 // in den Optionen (KI-Bereich). Ohne Zustimmung keine Uebertragung.
@@ -660,6 +680,9 @@ async function chatProvider(settings, messages, systemOverride) {
         if (data.stop_reason === "refusal") {
             throw new Error("Anfrage wurde vom Modell abgelehnt.");
         }
+        if (data.usage) {
+            recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens);
+        }
         const out = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
         if (!out) {
             throw new Error("Leere Antwort von der Anthropic API.");
@@ -694,6 +717,9 @@ async function chatProvider(settings, messages, systemOverride) {
         throw new Error((isInno ? "InnoGPT" : "OpenAI") + " API " + res.status + ": " + shorten(body));
     }
     const data = await res.json();
+    if (data.usage) {
+        recordUsage(settings.provider, data.usage.prompt_tokens, data.usage.completion_tokens);
+    }
     const out = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
     if (!out) {
         throw new Error("Leere Antwort von der API.");
@@ -856,6 +882,9 @@ async function callClaude(settings, instruction, text) {
     if (data.stop_reason === "refusal") {
         throw new Error("Anfrage wurde vom Modell abgelehnt.");
     }
+    if (data.usage) {
+        recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens);
+    }
     const out = (data.content || [])
         .filter((b) => b.type === "text")
         .map((b) => b.text)
@@ -889,6 +918,9 @@ async function callOpenAICompatible(cfg, instruction, text) {
     }
 
     const data = await res.json();
+    if (data.usage) {
+        recordUsage(cfg.label === "InnoGPT" ? "innogpt" : "openai", data.usage.prompt_tokens, data.usage.completion_tokens);
+    }
     const out = data.choices && data.choices[0] && data.choices[0].message
         ? data.choices[0].message.content
         : "";

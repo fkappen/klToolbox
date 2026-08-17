@@ -24,6 +24,8 @@ Die folgenden Daten verbleiben **ausschließlich lokal im Browser**
 - Einstellungen (Links, Vorlagen, Farben, Modul-Schalter, Konfiguration)
 - API-Schlüssel, die der Nutzer selbst für KI-Anbieter hinterlegt
 - der Verlauf des KI-Chats (löschbar über „Neuer Chat")
+- eine lokale Token-Verbrauchsstatistik der KI-Funktionen (Aufbewahrung 1 Jahr)
+- der Clipper-Verlauf (Titel/URL geclippter Artikel, 30 Tage)
 
 Der **Artikel-Clipper** bereinigt die aktuelle Seite auf ausdrückliche
 Nutzeraktion vollständig **lokal** (Extraktion mit der mitgelieferten

@@ -22,6 +22,42 @@ const KI_DEFAULTS = {
     kiConsent: false
 };
 
+// Modell-Auswahl: Dropdown mit Presets (Preisstufe relativ) + "Eigenes
+// Modell..." fuer alles, was nicht in der Liste steht. Quelle der Wahrheit
+// bleibt das (versteckte) Textfeld - saveKi liest weiterhin nur das Input.
+const MODEL_PRESETS = {
+    claude: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5"],
+    openai: ["gpt-4o-mini", "gpt-4o"],
+    innogpt: ["gpt-5"]
+};
+
+function initModelSelect(prefix) {
+    const sel = document.getElementById(prefix + "ModelSel");
+    const inp = document.getElementById(prefix + "Model");
+    const current = (inp.value || "").trim();
+    if (MODEL_PRESETS[prefix].includes(current)) {
+        sel.value = current;
+        inp.style.display = "none";
+    } else {
+        sel.value = "__custom";
+        inp.style.display = "block";
+    }
+}
+
+function wireModelSelect(prefix) {
+    const sel = document.getElementById(prefix + "ModelSel");
+    const inp = document.getElementById(prefix + "Model");
+    sel.addEventListener("change", () => {
+        if (sel.value === "__custom") {
+            inp.style.display = "block";
+            inp.focus();
+        } else {
+            inp.value = sel.value;
+            inp.style.display = "none";
+        }
+    });
+}
+
 // Feinschalter fuer die Inline-Erweiterungen im Ticketsystem -
 // Checkboxen speichern sofort (wie die Module)
 const FT_DEFAULTS = {
@@ -200,6 +236,10 @@ function loadAll() {
         document.getElementById("openaiModel").value = items.openaiModel;
         document.getElementById("innogptApiKey").value = items.innogptApiKey;
         document.getElementById("innogptModel").value = items.innogptModel;
+        initModelSelect("claude");
+        initModelSelect("openai");
+        initModelSelect("innogpt");
+        renderUsage();
         document.getElementById("kiKontext").value = items.kiKontext;
         document.getElementById("kiConsent").checked = items.kiConsent === true;
         // Termin
@@ -260,6 +300,48 @@ function saveKi() {
     }, () => {
         flashStatus("statusKi");
         renderKiActions();
+    });
+}
+
+// ---------------------------------------------------------------- Token-Statistik
+
+function renderUsage() {
+    chrome.storage.local.get({ kiUsage: [] }, (s) => {
+        const events = Array.isArray(s.kiUsage) ? s.kiUsage : [];
+        const now = Date.now();
+        const fmt = (n) => n.toLocaleString("de-DE");
+        const windows = [
+            ["24 Stunden", 1],
+            ["7 Tage", 7],
+            ["30 Tage", 30],
+            ["1 Jahr", 365]
+        ];
+        const body = document.getElementById("usageBody");
+        body.textContent = "";
+        for (const [label, days] of windows) {
+            const cutoff = now - days * 24 * 3600 * 1000;
+            let calls = 0;
+            let tokIn = 0;
+            let tokOut = 0;
+            for (const e of events) {
+                if (e && e.ts >= cutoff) {
+                    calls++;
+                    tokIn += e.i || 0;
+                    tokOut += e.o || 0;
+                }
+            }
+            const tr = document.createElement("tr");
+            const cells = [label, fmt(calls), fmt(tokIn), fmt(tokOut), fmt(tokIn + tokOut)];
+            cells.forEach((text, i) => {
+                const td = document.createElement("td");
+                td.textContent = text;
+                td.style.cssText = i === 0
+                    ? "padding:4px 8px 4px 0; font-weight:600;"
+                    : "padding:4px 8px; text-align:right;" + (i === 4 ? " font-weight:600;" : "");
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        }
     });
 }
 
@@ -896,6 +978,9 @@ function importAllSettings(file, mode) {
 document.addEventListener("DOMContentLoaded", () => {
     loadAll();
     document.getElementById("saveKi").addEventListener("click", saveKi);
+    wireModelSelect("claude");
+    wireModelSelect("openai");
+    wireModelSelect("innogpt");
     document.getElementById("saveTermin").addEventListener("click", saveTermin);
     document.getElementById("tplAdd").addEventListener("click", () => {
         templates.push({ name: "", text: "" });
