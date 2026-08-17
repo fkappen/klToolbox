@@ -1,6 +1,6 @@
 // Version
-// version = "1.1.0"
-// datum   = "2026-07-29"
+// version = "1.1.1"
+// datum   = "2026-08-17"
 // autor   = "FK"
 //
 // Service Worker: Kontextmenü, API-Aufrufe (Claude/OpenAI), Ergebnis-Injection.
@@ -950,7 +950,6 @@ async function callClaude(settings, instruction, text) {
             model: settings.claudeModel || DEFAULTS.claudeModel,
             max_tokens: 8192,
             system: buildSystemPrompt(settings),
-            output_config: { effort: "low" },
             messages: [
                 { role: "user", content: "Aufgabe: " + instruction + "\n\nText:\n" + text }
             ]

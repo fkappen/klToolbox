@@ -1,6 +1,6 @@
 // Version
-// version = "1.5.0"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-08-13"
+// version = "1.6.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-08-17"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
@@ -1101,7 +1101,9 @@
         return parts.join("\r\n");
     }
 
-    function downloadIcs(subject, body, start, end, ticketNr, ort) {
+    // tentative: Frei/Gebucht = "Mit Vorbehalt" (Outlook liest
+    // X-MICROSOFT-CDO-BUSYSTATUS). filePrefix z. B. "Anfahrt".
+    function downloadIcs(subject, body, start, end, ticketNr, ort, tentative, filePrefix) {
         const dtstamp = new Date();
         const dtstampUtc = dtstamp.getUTCFullYear() + pad(dtstamp.getUTCMonth() + 1) + pad(dtstamp.getUTCDate()) +
             "T" + pad(dtstamp.getUTCHours()) + pad(dtstamp.getUTCMinutes()) + pad(dtstamp.getUTCSeconds()) + "Z";
@@ -1118,14 +1120,18 @@
             "DTEND:" + toIcsLocal(end),
             "SUMMARY:" + icsEscape(subject),
             "LOCATION:" + icsEscape(ort || ""),
-            "DESCRIPTION:" + icsEscape(body),
-            "END:VEVENT",
-            "END:VCALENDAR"
+            "DESCRIPTION:" + icsEscape(body)
         ];
+        if (tentative === true) {
+            lines.push("STATUS:TENTATIVE");
+            lines.push("X-MICROSOFT-CDO-BUSYSTATUS:TENTATIVE");
+        }
+        lines.push("END:VEVENT");
+        lines.push("END:VCALENDAR");
         const blob = new Blob([lines.map(foldIcsLine).join("\r\n")], { type: "text/calendar;charset=utf-8" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "Termin_" + (ticketNr || "Ticket") + ".ics";
+        a.download = (filePrefix || "Termin") + "_" + (ticketNr || "Ticket") + ".ics";
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }
@@ -1458,11 +1464,81 @@
 
         const addrRow = fieldRow("Adresse", "tt_addr", extractKundenAdresse());
         panel.appendChild(addrRow);
+
+        // Anfahrt (nur bei "Vor Ort"): separater Termin direkt vor dem
+        // Haupttermin, Startpunkt aktueller Ort oder Firmenadresse.
+        const anfRow = document.createElement("div");
+        anfRow.className = "tt-row tt-time";
+        const anfLabel = document.createElement("label");
+        anfLabel.textContent = "Anfahrt";
+        anfLabel.setAttribute("for", "tt_anf");
+        const anfWrap = document.createElement("div");
+        anfWrap.className = "tt-time-wrap";
+        const anfCheck = document.createElement("input");
+        anfCheck.type = "checkbox";
+        anfCheck.id = "tt_anf";
+        anfCheck.checked = true;
+        anfCheck.title = "Separaten Termin „Anfahrt…“ direkt vor dem Haupttermin anlegen";
+        const anfDur = document.createElement("select");
+        anfDur.id = "tt_anf_dur";
+        [15, 30, 45, 60, 90].forEach((min) => {
+            const o = document.createElement("option");
+            o.value = String(min);
+            o.textContent = min + " Min";
+            if (min === 30) {
+                o.selected = true;
+            }
+            anfDur.appendChild(o);
+        });
+        const anfVon = document.createElement("select");
+        anfVon.id = "tt_anf_von";
+        [["aktuell", "von aktuellem Ort"], ["firma", "von der Firma"]].forEach(([v, l]) => {
+            const o = document.createElement("option");
+            o.value = v;
+            o.textContent = l;
+            anfVon.appendChild(o);
+        });
+        const syncAnfEnabled = () => {
+            anfDur.disabled = !anfCheck.checked;
+            anfVon.disabled = !anfCheck.checked;
+        };
+        anfCheck.addEventListener("change", syncAnfEnabled);
+        syncAnfEnabled();
+        anfWrap.appendChild(anfCheck);
+        anfWrap.appendChild(anfDur);
+        anfWrap.appendChild(anfVon);
+        anfRow.appendChild(anfLabel);
+        anfRow.appendChild(anfWrap);
+        panel.appendChild(anfRow);
+
         const syncAddrRow = () => {
-            addrRow.style.display = (artSelect.value === "vorort") ? "" : "none";
+            const vorort = (artSelect.value === "vorort");
+            addrRow.style.display = vorort ? "" : "none";
+            anfRow.style.display = vorort ? "" : "none";
         };
         syncAddrRow();
         artSelect.addEventListener("change", syncAddrRow);
+
+        // Frei/Gebucht "Mit Vorbehalt" (nur ICS - der Outlook-Web-Link
+        // unterstuetzt den Frei/Gebucht-Status nicht)
+        const vbRow = document.createElement("div");
+        vbRow.className = "tt-row";
+        const vbLabel = document.createElement("label");
+        vbLabel.textContent = "Vorbehalt";
+        vbLabel.setAttribute("for", "tt_vb");
+        const vbWrap = document.createElement("div");
+        vbWrap.className = "tt-time-wrap";
+        const vbCheck = document.createElement("input");
+        vbCheck.type = "checkbox";
+        vbCheck.id = "tt_vb";
+        vbCheck.title = "Termin als „Mit Vorbehalt“ anlegen (wirkt nur bei der ICS-Datei - in Outlook Web bitte manuell setzen)";
+        const vbText = document.createElement("span");
+        vbText.textContent = "als „Mit Vorbehalt“ anlegen (nur ICS)";
+        vbWrap.appendChild(vbCheck);
+        vbWrap.appendChild(vbText);
+        vbRow.appendChild(vbLabel);
+        vbRow.appendChild(vbWrap);
+        panel.appendChild(vbRow);
 
         const bar = document.createElement("div");
         bar.className = "tt-bar";
@@ -1530,10 +1606,68 @@
                 ort = "Telefon";
             }
 
+            const vorbehalt = document.getElementById("tt_vb").checked;
+
+            // Anfahrt-Termin (nur "Vor Ort"): liegt direkt vor dem Haupttermin
+            let anfahrt = null;
+            if (art === "vorort" && document.getElementById("tt_anf").checked) {
+                const anfMin = Number(document.getElementById("tt_anf_dur").value) || 0;
+                if (anfMin > 0) {
+                    const von = document.getElementById("tt_anf_von").value;
+                    const firma = (settings.firmenAdresse || "").trim();
+                    if (von === "firma" && !firma) {
+                        alert("Keine Firmenadresse hinterlegt - bitte in den Optionen (Ticket-Termin) eintragen oder Einstellungen importieren.");
+                        return;
+                    }
+                    const vonText = (von === "firma") ? "Firma (" + firma + ")" : "aktueller Standort";
+                    anfahrt = {
+                        subject: "Anfahrt: " + (d.kunde || "Termin") + (d.ticketNr ? " (" + d.ticketNr + ")" : ""),
+                        body: "Anfahrt zum Vor-Ort-Termin" + (d.ticketNr ? " " + d.ticketNr : "") +
+                            "\nVon: " + vonText +
+                            (ort ? "\nZiel: " + ort : ""),
+                        start: new Date(startDt.getTime() - anfMin * 60000),
+                        end: startDt,
+                        ort: ort
+                    };
+                }
+            }
+
             if (mode === "ics") {
-                downloadIcs(subject, body, startDt, endDt, d.ticketNr, ort);
+                downloadIcs(subject, body, startDt, endDt, d.ticketNr, ort, vorbehalt);
+                if (anfahrt) {
+                    // zweiter Download leicht verzoegert (Browser fragt ggf.
+                    // einmalig "mehrere Downloads erlauben")
+                    setTimeout(() => {
+                        downloadIcs(anfahrt.subject, anfahrt.body, anfahrt.start, anfahrt.end, d.ticketNr, anfahrt.ort, vorbehalt, "Anfahrt");
+                    }, 300);
+                }
             } else {
                 openOutlookWeb(subject, body, startDt, endDt, ort);
+                if (anfahrt) {
+                    // Popup-Blocker erlauben nur ein Fenster pro Klick - der
+                    // Anfahrt-Termin braucht daher einen zweiten Klick
+                    if (settings.autoStatus !== false) {
+                        setStatusTerminVereinbart();
+                    }
+                    head.textContent = "Anfahrt-Termin öffnen";
+                    bar.textContent = "";
+                    const anfBtn = document.createElement("button");
+                    anfBtn.type = "button";
+                    anfBtn.className = "tt-primary";
+                    anfBtn.textContent = "🚗 Anfahrt in Outlook Web öffnen";
+                    anfBtn.addEventListener("click", () => {
+                        openOutlookWeb(anfahrt.subject, anfahrt.body, anfahrt.start, anfahrt.end, anfahrt.ort);
+                        closePanel();
+                    });
+                    const doneBtn = document.createElement("button");
+                    doneBtn.type = "button";
+                    doneBtn.className = "tt-secondary";
+                    doneBtn.textContent = "Ohne Anfahrt schließen";
+                    doneBtn.addEventListener("click", closePanel);
+                    bar.appendChild(anfBtn);
+                    bar.appendChild(doneBtn);
+                    return; // Panel bleibt fuer den zweiten Schritt offen
+                }
             }
             closePanel();
             if (settings.autoStatus !== false) {
