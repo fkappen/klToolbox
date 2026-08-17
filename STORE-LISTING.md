@@ -73,9 +73,15 @@ sind Offenlegung + Einwilligung VOR der ersten Übertragung erfüllt.
 
 **Datennutzung:** Kategorie „Website-Inhalte" wird gehandhabt (siehe oben) — keine Erhebung durch den Entwickler. API-Aufrufe erfolgen direkt vom Browser des Nutzers zum von ihm gewählten und mit eigenem Schlüssel konfigurierten KI-Anbieter, erst nach Zustimmung in den Optionen.
 
-## Testanweisungen (Devconsole → „Anleitungen zum Testen")
+## Testanweisungen (Devconsole → „Anleitungen zum Testen", max. 500 Zeichen)
 
-Englisch, damit jedes Review-Team sie lesen kann:
+Kurzfassung zum Einreichen (492 Zeichen, Englisch):
+
+```
+Works without account/login; ships neutral. AI actions (context menu, chat, clipper) need the user's OWN API key AND the consent checkbox in Options > KI - without both nothing is transmitted (error toast). Test: add key, tick consent, select text, right-click > "KI: Text bearbeiten". Ticket module is inert until the user enters their ticket URL and grants the optional host permission ("Zugriff erlauben"). Account cleaner only clicks the MS login page's own "Forget" menu. No remote code.
+```
+
+Ausführliche Fassung (Hintergrund, z. B. für Review-Rückfragen oder AMO-Notizen):
 
 ```
 The extension ships "neutral" and works without any account or login.
