@@ -1,5 +1,5 @@
 // Version
-// version = "1.7.0"
+// version = "1.8.0"
 // datum   = "2026-08-18"
 // autor   = "FK"
 //
@@ -172,20 +172,53 @@
     // konservativ: Ist der Vorname nicht eindeutig zuzuordnen, wird NICHT
     // geraten, sondern neutral der volle Name verwendet
     // ("Guten Tag Jasmin Schneiss,").
-    const VORNAMEN_W = new Set(("andrea anja anna anne annette angelika alexandra astrid barbara bettina birgit " +
-        "brigitte carina carmen christa christiane christina christine claudia cornelia daniela diana doris elke " +
-        "erika eva franziska gabi gabriele gisela hanna hannah heike helga ilona ines inge ingrid iris jana janina " +
-        "jasmin jennifer jessica julia jutta karin katharina kathrin katja katrin kerstin kirsten kristin laura lea " +
-        "lena lisa manuela maria marie marina marion martina melanie michaela monika nadine nicole petra pia regina " +
-        "renate rita sabine sabrina sandra sara sarah silke simone sonja sophie stefanie steffi susanne svenja tanja " +
-        "tatjana ulrike ursula ute vanessa vera verena viktoria yvonne").split(" "));
-    const VORNAMEN_M = new Set(("alexander andre andreas armin axel bernd bernhard bjoern björn carsten christian " +
-        "christoph daniel david dennis dieter dirk dominik erik fabian felix florian frank franz georg gerd gerhard " +
-        "guenter günter hans harald heiko heinz helmut henning holger horst ingo jan jens joachim jochen johannes " +
-        "jonas joerg jörg juergen jürgen kai karl karsten kevin klaus kurt lars lukas manfred marc marcel marco " +
-        "marcus mario mark markus martin matthias max maximilian michael mike nico niklas nils norbert olaf oliver " +
-        "pascal patrick paul peter philipp rainer ralf reiner rene robert roland rolf rudolf sascha sebastian simon " +
-        "stefan steffen sven thomas thorsten timo tobias torsten udo ulrich uwe volker walter werner wolfgang").split(" "));
+    const VORNAMEN_W = new Set(("agnes alexandra alina aline alma amalie amelie anastasia andrea anette angela " +
+        "angelika anika anita anja anke anna annalena anne annegret annemarie annett annette annika antje antonia " +
+        "ariane astrid baerbel barbara beate bettina bianca birgit birte brigitte britta carina carmen carola " +
+        "carolin caroline cathrin celina charlotte chiara christa christel christiane christin christina christine " +
+        "clara claudia constanze cornelia dagmar dana daniela denise diana doreen doris dorothea dorothee edith " +
+        "elena elfriede elisa elisabeth elke ella ellen elly emilia emily emma erika erna esther eva evelin evelyn " +
+        "fabienne felicitas fiona franziska frauke frieda friederike gabi gabriele gerda gertrud gisela greta " +
+        "gudrun hanna hannah hedwig heidi heidrun heike helen helena helene helga henriette hilde hildegard ida " +
+        "ilka ilona ina ines inga inge ingeborg ingrid inka irene irina irmgard iris isabel isabell isabella " +
+        "isabelle jacqueline jana jane janina jasmin jeanette jennifer jenny jessica joana johanna josefine " +
+        "josephine judith julia juliane julie jutta karin karla karola karolin karoline katharina kathleen kathrin " +
+        "katja katrin kerstin kirsten klara konstanze kristin kristina lara larissa laura lea lena leonie lidia " +
+        "lilli lilly linda lisa liselotte livia lotte louisa louise lucia luisa luise lydia magdalena maike maja " +
+        "malin mandy manuela mareike maren margarete margit margret maria marianne marie marika marina marion " +
+        "marlene marta martha martina mathilde maya meike melanie melina merle mia michaela miriam mirjam monika " +
+        "monique nadine nadja natalia natalie nathalie nele nicole nina nora olga paula pauline petra philippa pia " +
+        "ramona rebecca rebekka regina regine renate rita romy rosa rosemarie roswitha ruth sabine sabrina sandra " +
+        "sara sarah saskia selina sigrid silke silvia simone sina sofia sofie sonja sophia sophie stefanie steffi " +
+        "stephanie susann susanna susanne svenja sybille sylvia tabea tamara tanja tatjana thea theresa therese " +
+        "tina ulla ulrike ursel ursula ute valentina valeria vanessa vera verena veronika veronique victoria " +
+        "viktoria vivien vivienne waltraud wiebke wilma yasmin yvonne zoe").split(" "));
+    const VORNAMEN_M = new Set(("achim adam adrian albert albrecht alexander alfred alois andre andreas andrej " +
+        "anton armin arne arnd arnold arthur artur august axel benedikt benjamin benno bernd bernhard bernward " +
+        "bert berthold bjoern bodo boris bruno burkhard carl carlo carsten christian christoph claus clemens " +
+        "conrad constantin cornelius damian daniel david denis dennis detlef detlev dieter dietmar dietrich dirk " +
+        "dominik eberhard edgar eduard edwin egon elias emil engelbert enrico eric erich erik ernst ewald fabian " +
+        "fabio felix ferdinand finn florian frank franz fritz gabriel georg gerald gerd gereon gerhard gerrit gero " +
+        "gottfried gregor guenter gunnar gunter gustav hagen hans hansjoerg harald hartmut hartwig hauke heiko " +
+        "heinrich heinz helmut hendrik henning henri henrik henry herbert hermann hinrich holger horst hubert " +
+        "hubertus ingo jacob jakob jan jens joachim jochen joel joerg johann johannes jonas jonathan josef joseph " +
+        "juergen julian julius justus kai karl karsten kevin kilian klaus konrad konstantin kurt lars laurenz " +
+        "leander leo leon leonard leonhard levin linus lorenz ludwig luis lukas lutz maik malte manfred marc " +
+        "marcel marco marcus marek marian mario marius mark markus marlon marten martin mathias matteo matthias " +
+        "max maximilian meinhard michael michel mike mirko moritz nathan nico niklas nikolai nikolas nils noah " +
+        "norbert norman olaf ole oliver oskar otto pascal patrick paul pawel peter philip philipp phillip pierre " +
+        "quirin raimund rainer ralf ralph raphael reiner reinhard reinhold remo rene ricardo richard rico robert " +
+        "rocco roger roland rolf romeo ronald ronny ruben rudi rudolf ruediger rupert samuel sandro sascha " +
+        "sebastian sepp siegfried siegmund sigmar silvio simon soenke stefan steffen stephan sven sylvester theo " +
+        "theodor thies thilo thomas thorben thorsten till tilman tim timm timo timon titus tobias tom torben " +
+        "torsten udo ulf ulrich urs uwe valentin veit victor viktor vincent volker waldemar walter werner wilfried " +
+        "wilhelm willi william wolf wolfgang wolfram xaver yannick yannik yves").split(" "));
+    // Geschlechtsneutral gebrauchte Vornamen: hier wird BEWUSST nicht geraten,
+    // sondern der volle Name verwendet ("Guten Tag Kim Berger,"). Eine falsche
+    // Anrede ist deutlich unangenehmer als eine neutrale.
+    const VORNAMEN_UNISEX = new Set(("alex alexis andy ashley bo charlie chris dominique eike elia ilja jamie " +
+        "jean jo kay kim leslie lou luca luka maxi mel mika nicola nikita noa pat robin sam sasha sidney sky " +
+        "toni tony uli ulli yannis").split(" "));
 
     // Ersten Empfaenger aus dem An-Feld des Mail-Fensters lesen. Die
     // Empfaenger-Chips tragen den Text "Name <mail@domain>"; gesucht wird
@@ -221,6 +254,16 @@
     // "Jasmin Schneiss" -> "Frau Schneiss"; unbekannter Vorname -> voller Name.
     // Klammer-Zusaetze wie "(WB)" oder "(WB ASP)" werden entfernt - sonst
     // wuerde "(WB)" als Nachname enden ("Frau (WB)").
+    // Umlaute vereinheitlichen - die Listen stehen in ae/oe/ue-Schreibweise,
+    // damit "Jörg" und "Joerg" gleich erkannt werden.
+    function normalizeVorname(s) {
+        return String(s).toLowerCase()
+            .replace(/ä/g, "ae")
+            .replace(/ö/g, "oe")
+            .replace(/ü/g, "ue")
+            .replace(/ß/g, "ss");
+    }
+
     function buildAnrede(editor) {
         const raw = extractRecipient(editor);
         if (!raw) {
@@ -234,13 +277,23 @@
         if (tokens.length < 2) {
             return name;
         }
-        const vorname = tokens[0].toLowerCase();
+        const vorname = normalizeVorname(tokens[0]);
+        // Doppelnamen richten sich nach dem ersten Bestandteil:
+        // "Karl-Heinz" -> karl, "Anna-Lena" -> anna
+        const kandidaten = vorname.indexOf("-") > 0
+            ? [vorname, vorname.split("-")[0]]
+            : [vorname];
         const nachname = tokens[tokens.length - 1];
-        if (VORNAMEN_W.has(vorname)) {
-            return "Frau " + nachname;
+        if (kandidaten.some((k) => VORNAMEN_UNISEX.has(k))) {
+            return name;
         }
-        if (VORNAMEN_M.has(vorname)) {
-            return "Herr " + nachname;
+        for (const k of kandidaten) {
+            if (VORNAMEN_W.has(k)) {
+                return "Frau " + nachname;
+            }
+            if (VORNAMEN_M.has(k)) {
+                return "Herr " + nachname;
+            }
         }
         return name;
     }
