@@ -1,5 +1,5 @@
 // Version
-// version = "1.6.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.7.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-17"
 // autor   = "FK"
 //
@@ -531,6 +531,21 @@
         }
     }
 
+    // Pill-Optik der Wartezeit-Anzeigen. Bewusst INLINE statt nur ueber
+    // content.css: greift das injizierte Stylesheet auf der Seite nicht,
+    // blieb sonst nur die Hintergrundfarbe uebrig - ein nacktes <span> in
+    // einem Flex-Spalten-Container wurde dann zum vollbreiten Farbbalken.
+    const BADGE_STYLE_BASE =
+        "position:absolute;left:12px;top:10px;z-index:5;display:inline-flex;" +
+        "align-items:center;gap:4px;padding:3px 10px;border-radius:12px;color:#fff;" +
+        "font:700 12px/1.4 system-ui,sans-serif;white-space:nowrap;vertical-align:middle;" +
+        "box-shadow:0 1px 3px rgba(0,0,0,.25);";
+
+    // Gleiche Optik in der Ticketliste, nur kompakter (schmale Spalte)
+    const LIST_BADGE_STYLE_BASE =
+        "display:inline-block;margin-right:5px;padding:1px 6px;border-radius:9px;color:#fff;" +
+        "font:700 10px/1.5 system-ui,sans-serif;white-space:nowrap;vertical-align:middle;";
+
     function renderWaitBadge() {
         if (settings.ftWaitBadge === false) {
             const off = document.querySelector(".__tt_wait_badge");
@@ -579,7 +594,7 @@
         }
         if (badge.dataset.c !== color) {
             badge.dataset.c = color;
-            badge.style.background = color;
+            badge.style.cssText = BADGE_STYLE_BASE + "background:" + color + ";";
         }
         if (badge.dataset.i !== title) {
             badge.dataset.i = title;
@@ -667,7 +682,7 @@
                 }
                 if (age.dataset.c !== color) {
                     age.dataset.c = color;
-                    age.style.color = color;
+                    age.style.cssText = LIST_BADGE_STYLE_BASE + "background:" + color + ";";
                 }
                 if (age.dataset.t !== title) {
                     age.dataset.t = title;
@@ -1504,9 +1519,40 @@
         };
         anfCheck.addEventListener("change", syncAnfEnabled);
         syncAnfEnabled();
+        // Route in Google Maps oeffnen - Startpunkt richtet sich nach der
+        // Auswahl daneben. Hinweis: die Google-Maps-URL-API kennt KEINEN
+        // Parameter fuer eine geplante Abfahrtszeit (nur origin/destination/
+        // travelmode/waypoints/avoid), die Fahrzeit gilt also fuer "jetzt".
+        const routeBtn = document.createElement("button");
+        routeBtn.type = "button";
+        routeBtn.className = "tt-secondary";
+        routeBtn.textContent = "🚗 Route";
+        routeBtn.title = "Route in Google Maps öffnen (Fahrzeit gilt für die aktuelle Verkehrslage - eine geplante Uhrzeit lässt sich per Maps-Link nicht übergeben)";
+        routeBtn.addEventListener("click", () => {
+            const dest = document.getElementById("tt_addr").value.trim();
+            if (!dest) {
+                alert("Bitte zuerst eine Adresse eintragen.");
+                return;
+            }
+            let origin = "";
+            if (anfVon.value === "firma") {
+                origin = (settings.firmenAdresse || "").trim();
+                if (!origin) {
+                    alert("Keine Firmenadresse hinterlegt - bitte in den Optionen (Ticket-Termin) eintragen oder Einstellungen importieren.");
+                    return;
+                }
+            }
+            let url = "https://www.google.com/maps/dir/?api=1&travelmode=driving" +
+                "&destination=" + encodeURIComponent(dest);
+            if (origin) {
+                url += "&origin=" + encodeURIComponent(origin);
+            }
+            window.open(url, "_blank");
+        });
         anfWrap.appendChild(anfCheck);
         anfWrap.appendChild(anfDur);
         anfWrap.appendChild(anfVon);
+        anfWrap.appendChild(routeBtn);
         anfRow.appendChild(anfLabel);
         anfRow.appendChild(anfWrap);
         panel.appendChild(anfRow);
