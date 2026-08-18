@@ -9,27 +9,53 @@ klToolbox
 
 ## Kurzbeschreibung (≤132 Zeichen)
 
-Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Artikel-Clipper, Ticket-Helfer, KI-Chat, Schnellzugriffe und Konto-Aufräumer.
+Kommt aus `chromium/manifest.json` (`description`) — Änderungen daran
+brauchen ein neues Paket. Aktueller Stand, nicht beanstandet:
+
+Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.
 
 ## Beschreibung (lang)
 
-klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams in einer Erweiterung:
+> ⚠️ **Nicht wieder Marken- oder Formatlisten einbauen** — siehe Abschnitt
+> „Keyword-Spam" weiter unten (Ablehnung „Yellow Argon", 08/2026).
 
-**KI-Textbearbeitung** — Markierten Text per Rechtsklick umformulieren, formeller oder lockerer fassen, kürzen, Rechtschreibung korrigieren oder übersetzen; eigene Aktionen mit eigenem Prompt definierbar. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld. Funktioniert mit dem eigenen API-Schlüssel bei Anthropic (Claude), OpenAI, InnoGPT oder Azure OpenAI (Ressource im eigenen Microsoft-Tenant). Ohne Schlüssel und ohne ausdrückliche Zustimmung in den Optionen findet keine Übertragung statt.
+klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams in einer Erweiterung.
 
-**KI-Chat** — Chat-Seite mit dem konfigurierten Anbieter, Unterhaltungs-Verlauf der letzten 30 Tage (nur lokal gespeichert). Token-Statistik mit Kosten-Richtwerten in den Optionen.
+**KI-Textbearbeitung** — Markierten Text per Rechtsklick überarbeiten lassen: umformulieren, förmlicher oder lockerer fassen, kürzen, Rechtschreibung korrigieren oder übersetzen. Eigene Aktionen mit eigenem Prompt lassen sich ergänzen. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld. Die Anfrage geht mit dem eigenen API-Schlüssel an den selbst gewählten Anbieter; unterstützt werden Anthropic, OpenAI, InnoGPT und Azure OpenAI. Ohne hinterlegten Schlüssel und ohne ausdrückliche Zustimmung in den Optionen wird nichts übertragen.
 
-**Artikel-Clipper** — Liest Artikel werbefrei und sauber formatiert aus (ohne Videos und Social-Media-Einbettungen). Export: formatiert in die Zwischenablage (OneNote/Word/Outlook), Markdown, HTML-Datei, Drucken/PDF, per E-Mail teilen; auf Wunsch per KI zusammenfassen oder übersetzen. Clip-Verlauf 30 Tage, lokal.
+**KI-Chat** — Eine eigene Chat-Seite mit dem eingerichteten Anbieter. Der Gesprächsverlauf der letzten 30 Tage bleibt ausschließlich lokal gespeichert; eine Übersicht zeigt den angefallenen Verbrauch samt Kostenschätzung.
 
-**Suche** — Ein Suchfeld im Popup: erkennt Ticket- und Kundennummern (sobald ein Ticketsystem konfiguriert ist) und sucht sonst im Web, in der DATEV Wissensplattform oder per KI. Markierten Text per Rechtsklick nachschlagen.
+**Artikel aufbereiten** — Bereitet den Artikel einer Webseite ohne Werbung und ohne eingebettete Fremdinhalte lesbar auf. Das Ergebnis lässt sich mit Formatierung in die Zwischenablage übernehmen, als Datei sichern, drucken oder per E-Mail weitergeben; auf Wunsch fasst die KI ihn zusammen oder übersetzt ihn. Die zuletzt aufbereiteten Seiten bleiben 30 Tage lokal abrufbar.
 
-**Ticket-Helfer (optional)** — Für das firmeneigene, vom Nutzer konfigurierte Ticketsystem: E-Mail- und Eintrags-Vorlagen mit automatischer Anrede und Tagesgruß, Outlook-Termin aus dem Ticket (ICS oder Outlook Web, inkl. Anfahrts-Termin und „Mit Vorbehalt"), Wartezeit-Ampeln in Ticket und Liste, Aktions-Makros, Fehlercode-Verlinkung, Routenplanung. Das Ticketsystem wird erst eingebunden, nachdem der Nutzer die URL eingetragen und den Zugriff auf genau diese Website ausdrücklich erlaubt hat (optionale Berechtigung).
+**Suche** — Ein Eingabefeld im Popup erkennt Ticket- und Kundennummern, sobald ein Ticketsystem eingerichtet ist, und sucht andernfalls im Web oder in einer hinterlegten Wissensdatenbank. Markierten Text kann man per Rechtsklick nachschlagen.
 
-**MS Account Cleaner** — Entfernt auf der Microsoft-Kontoauswahl gemerkte Konten über das seiteneigene „Vergessen"-Menü — nur per sichtbarem Button und nach Bestätigung. Konten „Mit Windows verbunden" und Whitelist-Einträge bleiben erhalten.
+**Ticket-Helfer (optional)** — Ergänzt das selbst eingerichtete Ticketsystem um Textvorlagen für Antworten und Einträge mit passender Anrede, um Termine samt Anfahrt direkt aus dem Ticket heraus, um eine farbige Wartezeitanzeige, um Aktionsfolgen auf Knopfdruck und um eine Routenplanung. Eingebunden wird das System erst, nachdem seine Adresse eingetragen und der Zugriff darauf ausdrücklich erlaubt wurde.
 
-**Sonstiges** — Optionale Seitenleiste, frei konfigurierbare Popup-Bereiche (Schnellzugriffe), Links in privaten Fenstern, automatische lokale Sicherung der Einstellungen (30 Tage) mit Wiederherstellung, ausführliche eingebaute Hilfe.
+**Konten aufräumen** — Auf der Anmeldeseite von Microsoft entfernt ein sichtbarer Knopf nach Rückfrage die dort gemerkten Konten über das seiteneigene Menü. Mit Windows verbundene und selbst geschützte Konten bleiben erhalten.
 
-Die Erweiterung wird neutral ausgeliefert und erhebt keine Daten; Einstellungen kommen per Import oder Unternehmensrichtlinie (Managed Storage). Datenschutzerklärung: https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+**Weiteres** — Optionale Seitenleiste, frei bestückbare Schnellzugriffe, Links in privaten Fenstern, tägliche lokale Sicherung der Einstellungen mit Wiederherstellung sowie eine ausführliche eingebaute Hilfe.
+
+Die Erweiterung wird ohne Voreinstellungen ausgeliefert und erhebt keine Daten. Einstellungen kommen per Import oder über eine Unternehmensrichtlinie. Datenschutzerklärung: https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+
+## Beschreibung (englische Fassung, falls ein EN-Listing gepflegt wird)
+
+klToolbox bundles everyday tools for IT service teams in a single extension.
+
+**AI text editing** — Have selected text reworked from the right-click menu: rephrase it, make it more formal or more casual, shorten it, correct spelling, or translate it. Custom actions with your own prompt can be added. The result replaces the selection directly in the input field. The request is sent with your own API key to the provider you choose; Anthropic, OpenAI, InnoGPT and Azure OpenAI are supported. Nothing is transmitted without a stored key and your explicit consent in the options.
+
+**AI chat** — A dedicated chat page using the provider you set up. The conversation history of the past 30 days is stored locally only, and an overview shows the usage incurred along with an estimated cost.
+
+**Article reader** — Prepares the article on a web page for reading, without advertising and without embedded third-party content. The result can be taken into the clipboard with its formatting, saved as a file, printed, or passed on by e-mail; on request the AI summarises or translates it. Recently prepared pages remain available locally for 30 days.
+
+**Search** — A single input field in the popup recognises ticket and customer numbers once a ticket system has been set up, and otherwise searches the web or a knowledge base you configure. Selected text can be looked up from the right-click menu.
+
+**Ticket helper (optional)** — Adds text templates for replies and entries with a matching salutation to the ticket system you set up, along with appointments including the journey there, a colour-coded waiting-time indicator, action sequences at the press of a button, and route planning. The system is only integrated once its address has been entered and access to it explicitly granted.
+
+**Tidying up accounts** — On the Microsoft sign-in page, a visible button removes the accounts remembered there via the page's own menu, after confirmation. Accounts connected to Windows and those you protect yourself are kept.
+
+**More** — An optional sidebar, freely arranged quick links, links in private windows, a daily local backup of your settings with restore, and comprehensive built-in help.
+
+The extension ships without preset configuration and collects no data. Settings arrive by import or through an enterprise policy. Privacy policy: https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
 
 ## Datenschutz (WICHTIG — Ablehnungsgrund „Purple Nickel" 08/2026)
 
@@ -54,6 +80,30 @@ extension-spezifische Erklärung, auf die der Link DIREKT führt.
 sichtbare Offenlegung mit Zustimmungs-Checkbox; ohne Zustimmung blockiert die
 Erweiterung jede Übertragung (Fehlermeldung verweist auf die Optionen). Damit
 sind Offenlegung + Einwilligung VOR der ersten Übertragung erfüllt.
+
+## Keyword-Spam (WICHTIG — Ablehnungsgrund „Yellow Argon" 08/2026)
+
+Die Beschreibung wurde abgelehnt wegen „überflüssiger und/oder irrelevanter
+Keywords". Beanstandet war wörtlich diese Stelle aus dem Clipper-Absatz:
+
+> OneNote/Word/Outlook), Markdown, HTML file, print/PDF,
+
+**Regel für alle künftigen Texte:** keine Aufzählungen von Fremdprodukt-Namen
+und keine Listen von Datei-/Exportformaten. Statt „formatiert in die
+Zwischenablage (OneNote/Word/Outlook), Markdown, HTML-Datei, Drucken/PDF"
+also „mit Formatierung in die Zwischenablage übernehmen, als Datei sichern,
+drucken oder per E-Mail weitergeben".
+
+Fremdnamen nur, wo sie technisch unvermeidbar sind, und höchstens einmal:
+- KI-Anbieter (Anthropic/OpenAI/InnoGPT/Azure OpenAI) — sind die tatsächlich
+  angesprochenen Endpunkte, daher relevant; in einem Satz, nicht als Liste.
+- Microsoft/Windows — die Anmeldeseite, auf der der Konten-Aufräumer arbeitet.
+- Entfernt wurden: OneNote, Word, Outlook, ICS, Markdown, HTML, PDF, DATEV
+  Wissensplattform, „Social-Media".
+
+Kein Einspruch — die Beanstandung ist inhaltlich zutreffend; Widersprüche
+riskieren den Publisher-Status. Es genügt, den Listing-Text zu korrigieren
+und erneut einzureichen; das Paket selbst ist unverändert gültig.
 
 ## Devconsole-Schnellausfüllung (Datenschutz-Tab)
 
