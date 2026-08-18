@@ -75,6 +75,7 @@ const FT_DEFAULTS = {
     ftWaitBadge: true,
     ftWaitList: true,
     ftVorlagenMail: true,
+    ftAnrede: true,
     ftKiAntwort: true,
     ftVorlagenEintrag: true,
     ftFehlercodes: true

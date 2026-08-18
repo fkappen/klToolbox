@@ -1,6 +1,6 @@
 // Version
-// version = "1.6.0"
-// datum   = "2026-08-14"
+// version = "1.7.0"
+// datum   = "2026-08-18"
 // autor   = "FK"
 //
 // Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
@@ -599,7 +599,8 @@
 
         for (const t of toolbars) {
             const mailBtn = Array.from(t.bar.querySelectorAll(".__vorlagen_tbtn"))
-                .find((b) => !b.classList.contains("__ki_draft_tbtn"));
+                .find((b) => !b.classList.contains("__ki_draft_tbtn") &&
+                    !b.classList.contains("__anrede_tbtn"));
             if (ft.ftVorlagenMail !== false && !mailBtn) {
                 const btn = document.createElement("button");
                 btn.type = "button";
@@ -613,6 +614,25 @@
             } else if (ft.ftVorlagenMail === false && mailBtn) {
                 mailBtn.remove();
             }
+            // "Anrede": nur die Grussformel ("Guten Morgen Frau Muster,")
+            const anrBtn = t.bar.querySelector(".__anrede_tbtn");
+            if (ft.ftAnrede !== false && !anrBtn) {
+                const aBtn = document.createElement("button");
+                aBtn.type = "button";
+                aBtn.className = "__vorlagen_tbtn __anrede_tbtn";
+                aBtn.title = "Nur die Anrede einfügen – Tageszeit und Empfänger werden automatisch eingesetzt";
+                aBtn.textContent = "👋 Anrede";
+                aBtn.__editor = t.editor || null;
+                aBtn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
+                aBtn.addEventListener("click", () => {
+                    panelEditor = aBtn.__editor || panelEditor;
+                    insertTemplate("{gruss} {anrede},\n\n");
+                });
+                t.bar.appendChild(aBtn);
+            } else if (ft.ftAnrede === false && anrBtn) {
+                anrBtn.remove();
+            }
+
             const kiBtn = t.bar.querySelector(".__ki_draft_tbtn");
             if (ft.ftKiAntwort !== false && !kiBtn) {
                 const kBtn = document.createElement("button");
@@ -986,7 +1006,7 @@
 
     // Einzel-Schalter fuer die Inline-Funktionen (Optionen -> Ticketsystem-
     // Funktionen einzeln) - falls eine Erweiterung Probleme macht.
-    let ft = { ftVorlagenMail: true, ftKiAntwort: true, ftVorlagenEintrag: true };
+    let ft = { ftVorlagenMail: true, ftKiAntwort: true, ftVorlagenEintrag: true, ftAnrede: true };
     chrome.storage.local.get(ft, (items) => { ft = items; });
     chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== "local") {
