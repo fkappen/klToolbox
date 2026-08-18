@@ -1,5 +1,5 @@
 // Version
-// version = "1.7.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.8.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-17"
 // autor   = "FK"
 //
@@ -221,10 +221,52 @@
         return "";
     }
 
+    // Die Kontakt-E-Mail steht im Ticketsystem NUR als Text im Kontaktmenue
+    // neben dem Ansprechpartner ("E-Mail an \"name@firma.de\"") - es gibt
+    // weder ein Label-Feld noch einen mailto-Link. Das Menue ist nur im DOM,
+    // solange es geoeffnet ist, deshalb merken wir uns die Adresse, sobald
+    // sie einmal aufgetaucht ist (der MutationObserver laeuft ohnehin).
+    // Pro Ticket getrennt, damit keine Adresse aus einem anderen Ticket
+    // uebernommen wird.
+    const MENU_MAIL_RE = /E-Mail an\s*["„«'‘]?\s*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/;
+    let seenContactMail = "";
+    let seenContactMailTicket = "";
+
+    function captureContactMail() {
+        const ticket = extractTicketNr();
+        if (ticket && ticket !== seenContactMailTicket) {
+            seenContactMail = "";
+            seenContactMailTicket = ticket;
+        }
+        if (seenContactMail) {
+            return seenContactMail;
+        }
+        // Nur Menue-Eintraege pruefen (kurze <a>-Texte mit @) - kein Scan
+        // ueber den kompletten Seitentext.
+        for (const a of document.querySelectorAll("a")) {
+            const t = (a.textContent || "").trim();
+            if (t.length > 150 || t.indexOf("@") === -1) {
+                continue;
+            }
+            const m = MENU_MAIL_RE.exec(t);
+            if (m) {
+                seenContactMail = m[1];
+                seenContactMailTicket = ticket;
+                return seenContactMail;
+            }
+        }
+        return "";
+    }
+
     function extractEmail() {
         const viaLabel = labelValue(["E-Mail:", "Email:", "Mail:", "E-Mail-Adresse:"]);
         if (viaLabel) {
             return viaLabel;
+        }
+        // Kontaktmenue (siehe captureContactMail) - deckt den Normalfall ab
+        const viaMenu = captureContactMail();
+        if (viaMenu) {
+            return viaMenu;
         }
         // Fallback: erster mailto-Link auf der Seite - Adressen der eigenen
         // Domain (Einstellung ownEmailDomain, z. B. Support-Postfach) ignorieren.
@@ -701,6 +743,9 @@
         ensureWaitBadge();
         ensureListDots();
         linkifyFehlercodes();
+        // Kontakt-E-Mail mitschneiden, falls das Kontaktmenue gerade offen
+        // ist - sie ist sonst nirgends im DOM zu finden.
+        captureContactMail();
     }
 
     function scheduleWaitBadge() {
@@ -1411,6 +1456,14 @@
             w.className = "tt-warn";
             w.textContent = "Nicht gefunden: " + warn.join(", ") + " - bitte manuell ergänzen.";
             panel.appendChild(w);
+        }
+        // Die E-Mail steht nur im Kontaktmenue - war es in diesem Ticket noch
+        // nicht offen, kann die Erweiterung sie nicht kennen.
+        if (!data.email) {
+            const wm = document.createElement("div");
+            wm.className = "tt-warn";
+            wm.textContent = "E-Mail nicht gefunden - einmal das Menü neben dem Ansprechpartner öffnen, dann „Termin“ erneut aufrufen.";
+            panel.appendChild(wm);
         }
 
         panel.appendChild(fieldRow("Kunde", "tt_kunde", data.kunde));
