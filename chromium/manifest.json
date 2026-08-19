@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "klToolbox",
-    "version": "3.16.1",
+    "version": "3.17.0",
     "description": "Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.",
     "author": "FK",
     "storage": {
@@ -41,6 +41,17 @@
             "32": "icon32.png",
             "48": "icon48.png",
             "128": "icon128.png"
+        }
+    },
+    "omnibox": {
+        "keyword": "kl"
+    },
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Alt+Shift+K"
+            },
+            "description": "klToolbox oeffnen"
         }
     },
     "background": {

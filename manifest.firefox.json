@@ -46,6 +46,17 @@
             "128": "icon128.png"
         }
     },
+    "omnibox": {
+        "keyword": "kl"
+    },
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Alt+Shift+K"
+            },
+            "description": "klToolbox oeffnen"
+        }
+    },
     "background": {
         "scripts": ["background.js"]
     },

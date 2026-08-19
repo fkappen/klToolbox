@@ -1,5 +1,5 @@
 // Version
-// version = "1.1.1"
+// version = "1.2.0"
 // datum   = "2026-08-17"
 // autor   = "FK"
 //
@@ -1155,4 +1155,140 @@ function replaceSelectionInPage(newText) {
     box.appendChild(content);
     box.appendChild(bar);
     document.documentElement.appendChild(box);
+}
+
+// ---------------------------------------------------------------- Omnibox
+//
+// Adressleiste als "immer sichtbares" Suchfeld: Stichwort "kl", Leertaste,
+// dann Nummer oder Suchbegriff. Ein echtes Eingabefeld in der Browserleiste
+// duerfen Erweiterungen nicht anlegen - die Omnibox ist der naechstliegende
+// Ersatz und braucht KEINE zusaetzliche Berechtigung (nur den Manifest-
+// Schluessel "omnibox"). Die Erkennung entspricht dem Suchfeld im Popup
+// (siehe classifyQuery in popup.js): 6-10 Ziffern = Ticket, 4-5 = Kunde,
+// sonst Freitext - Nummern nur, wenn die jeweilige Link-Vorlage existiert.
+
+const OMNI_DEFAULTS = {
+    linkTemplate: "",
+    kundenLinkTemplate: "",
+    datevSearchTemplate: DATEV_SEARCH_DEFAULT,
+    defaultSearch: "datev"
+};
+
+const OMNI_TARGET_LABEL = {
+    datev: "Wissensdatenbank",
+    google: "Google",
+    innogpt: "KI-Chat"
+};
+
+if (chrome.omnibox) {
+    // Einstellungen gepuffert halten: onInputChanged muss synchron
+    // antworten, ein Storage-Read pro Tastendruck waere zu langsam.
+    let omni = Object.assign({}, OMNI_DEFAULTS);
+    chrome.storage.local.get(OMNI_DEFAULTS, (items) => { omni = items; });
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== "local") {
+            return;
+        }
+        for (const k of Object.keys(OMNI_DEFAULTS)) {
+            if (changes[k]) {
+                omni[k] = changes[k].newValue;
+            }
+        }
+    });
+
+    // Chrome interpretiert die Beschreibung als XML-Fragment
+    const omniEscape = (s) => String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    const omniClassify = (t) => {
+        if (/^\d{6,10}$/.test(t) && omni.linkTemplate) {
+            return "ticket";
+        }
+        if (/^\d{4,5}$/.test(t) && omni.kundenLinkTemplate) {
+            return "kunde";
+        }
+        return "web";
+    };
+
+    chrome.omnibox.setDefaultSuggestion({
+        description: "klToolbox – Nummer oder Suchbegriff eingeben"
+    });
+
+    chrome.omnibox.onInputChanged.addListener((text, suggest) => {
+        const t = (text || "").trim();
+        if (!t) {
+            chrome.omnibox.setDefaultSuggestion({
+                description: "klToolbox – Nummer oder Suchbegriff eingeben"
+            });
+            suggest([]);
+            return;
+        }
+        const esc = omniEscape(t);
+        const mode = omniClassify(t);
+        if (mode === "ticket") {
+            chrome.omnibox.setDefaultSuggestion({ description: "Ticket " + esc + " öffnen" });
+            suggest([]);
+            return;
+        }
+        if (mode === "kunde") {
+            chrome.omnibox.setDefaultSuggestion({ description: "Kunde " + esc + " öffnen" });
+            suggest([]);
+            return;
+        }
+        const std = OMNI_TARGET_LABEL[omni.defaultSearch] || OMNI_TARGET_LABEL.datev;
+        chrome.omnibox.setDefaultSuggestion({ description: std + ": " + esc });
+        // Die uebrigen Ziele als waehlbare Vorschlaege darunter
+        const alt = [];
+        for (const key of ["datev", "google", "innogpt"]) {
+            if (key === omni.defaultSearch) {
+                continue;
+            }
+            alt.push({
+                content: key + " " + t,
+                description: OMNI_TARGET_LABEL[key] + ": " + esc
+            });
+        }
+        suggest(alt);
+    });
+
+    chrome.omnibox.onInputEntered.addListener((text) => {
+        const raw = (text || "").trim();
+        if (!raw) {
+            return;
+        }
+        // Vorschlaege liefern "<ziel> <begriff>" zurueck
+        const m = /^(datev|google|innogpt)\s+(.+)$/.exec(raw);
+        if (m) {
+            omniOpen(m[1], m[2].trim());
+            return;
+        }
+        const mode = omniClassify(raw);
+        if (mode === "ticket") {
+            chrome.tabs.create({ url: omni.linkTemplate.replace(/%TICKETNR%/g, raw) });
+            return;
+        }
+        if (mode === "kunde") {
+            chrome.tabs.create({ url: omni.kundenLinkTemplate.replace(/%KDNR%/g, raw) });
+            return;
+        }
+        omniOpen(omni.defaultSearch, raw);
+    });
+
+    function omniOpen(target, term) {
+        if (target === "google") {
+            chrome.tabs.create({ url: "https://www.google.com/search?q=" + encodeURIComponent(term) });
+            return;
+        }
+        if (target === "innogpt") {
+            chrome.tabs.create({
+                url: chrome.runtime.getURL("chat.html") + "?q=" + encodeURIComponent(term)
+            });
+            return;
+        }
+        const tpl = omni.datevSearchTemplate || DATEV_SEARCH_DEFAULT;
+        chrome.tabs.create({ url: tpl.replace(/%SUCHE%/g, encodeURIComponent(term)) });
+    }
 }
