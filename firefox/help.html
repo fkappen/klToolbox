@@ -27,7 +27,69 @@
     die Ticketsystem-Erweiterungen zusätzlich auch <b>einzeln</b> („Ticketsystem-Funktionen einzeln“),
     falls eine davon Probleme macht.</p>
 
-    <h2>Erste Einrichtung</h2>
+    <h2 id="uebersicht">Funktionsübersicht</h2>
+    <p>Was die Erweiterung kann — die Spalte rechts führt zum ausführlichen Abschnitt.</p>
+    <table>
+        <tr><th style="width:210px">Funktion</th><th>Kurz gesagt</th><th style="width:110px">Mehr dazu</th></tr>
+        <tr>
+            <td><b>✍ Text mit KI bearbeiten</b></td>
+            <td>Markierten Text per Rechtsklick umformulieren, förmlicher oder lockerer fassen, kürzen, Rechtschreibung korrigieren oder übersetzen — direkt im Eingabefeld ersetzt. Eigene Aktionen mit eigenem Prompt möglich.</td>
+            <td><a href="#ki">KI-Funktionen</a></td>
+        </tr>
+        <tr>
+            <td><b>🤖 KI-Chat</b></td>
+            <td>Eigene Chat-Seite mit dem eingerichteten Anbieter, Verlauf der letzten 30 Tage. Dazu eine Verbrauchsübersicht mit geschätzten Kosten.</td>
+            <td><a href="#ki">KI-Funktionen</a></td>
+        </tr>
+        <tr>
+            <td><b>📋 Textvorlagen</b></td>
+            <td>Bausteine für Mails und Ticket-Einträge, getrennte Listen. Anrede und Tagesgruß werden automatisch eingesetzt; „👋 Anrede“ fügt nur die Grußformel ein.</td>
+            <td><a href="#ticket">Ticketsystem</a></td>
+        </tr>
+        <tr>
+            <td><b>📅 Termin aus dem Ticket</b></td>
+            <td>Kunde, Nummer, Ansprechpartner und Kontaktdaten werden übernommen. Ausgabe als Kalenderdatei oder im Web-Kalender, wahlweise mit Anfahrts-Termin, Routenaufruf und „Mit Vorbehalt“.</td>
+            <td><a href="#ticket">Ticketsystem</a></td>
+        </tr>
+        <tr>
+            <td><b>⏱ Wartezeit-Ampeln</b></td>
+            <td>Farbige Anzeige, wie lange ein Ticket schon liegt — im Ticket selbst und vor jeder Nummer in der Liste. Schwellwerte sind einstellbar.</td>
+            <td><a href="#ticket">Ticketsystem</a></td>
+        </tr>
+        <tr>
+            <td><b>⚡ Ticket-Werkzeuge</b></td>
+            <td>„Nicht erreicht“ als fertiger Eintrag, Abonnieren, Anfahrt planen, Aktions-Makros (Eintrag + Status in einem Schritt) und anklickbare DATEV-Fehlercodes.</td>
+            <td><a href="#ticket">Ticketsystem</a></td>
+        </tr>
+        <tr>
+            <td><b>🔎 Suche</b></td>
+            <td>Ein Feld für alles: Ticket- und Kundennummern werden an der Ziffernzahl erkannt, sonst wird im Web, in der Wissensdatenbank oder per KI gesucht — im Popup oder direkt aus der Adressleiste.</td>
+            <td><a href="#adressleiste">Adressleiste</a></td>
+        </tr>
+        <tr>
+            <td><b>🔗 Schnellzugriffe</b></td>
+            <td>Frei zusammenstellbare Link-Kacheln in eigenen Bereichen, einzeln oder alle auf einmal zu öffnen — auf Wunsch im privaten Fenster.</td>
+            <td><a href="#popup">Popup</a></td>
+        </tr>
+        <tr>
+            <td><b>✂ Artikel aufbereiten</b></td>
+            <td>Webseiten werbefrei und lesbar aufbereiten, dann formatiert kopieren, sichern, drucken oder per Mail teilen; auf Wunsch von der KI zusammenfassen oder übersetzen lassen.</td>
+            <td><a href="#clipper">Clipper</a></td>
+        </tr>
+        <tr>
+            <td><b>🧹 Aufräumen</b></td>
+            <td>Gemerkte Konten auf der Microsoft-Anmeldeseite entfernen, Browserdaten-Dialog öffnen, private Sitzung zurücksetzen.</td>
+            <td><a href="#cleaner">Konten</a></td>
+        </tr>
+        <tr>
+            <td><b>💾 Sicherung</b></td>
+            <td>Tägliche automatische Sicherung der Einstellungen mit Wiederherstellung, dazu Export/Import und zentrale Verteilung per Unternehmensrichtlinie.</td>
+            <td><a href="#sicherung">Sicherung</a></td>
+        </tr>
+    </table>
+    <div class="tip">Alles ist abschaltbar: ganze Bereiche unter Optionen → Module, die Ticket-Erweiterungen zusätzlich einzeln unter „Ticketsystem-Funktionen einzeln“.</div>
+
+    <h2 id="einrichtung">Erste Einrichtung</h2>
     <ul>
         <li><b>Konfiguration importieren:</b> Optionen → Sicherung → „Importieren (aktualisieren)“ mit der intern verteilten Konfigurationsdatei (bringt Links, Vorlagen, Branding und die Ticketsystem-URL mit).</li>
         <li><b>Ticketsystem freigeben:</b> Nach dem Import erscheint der Button „Zugriff auf … erlauben“ — einmal klicken und die Browser-Abfrage bestätigen. Erst dann sind die Ticket-Module aktiv (offene Ticket-Tabs einmal neu laden).</li>
@@ -35,7 +97,7 @@
         <li><b>Private Fenster erlauben:</b> In der Erweiterungsverwaltung „Im Inkognito-Modus zulassen“ (Chromium) bzw. „In privaten Fenstern ausführen“ (Firefox) aktivieren — nötig für die Links, die im privaten Fenster öffnen, und den Inkognito-Reset.</li>
     </ul>
 
-    <h2>KI-Funktionen</h2>
+    <h2 id="ki">KI-Funktionen</h2>
     <p>Der KI-Anbieter und das Modell werden in den Optionen gewählt — verfügbar sind Claude (Anthropic), ChatGPT (OpenAI), InnoGPT (mit großem Modellkatalog inkl. Preisen je 1 Mio. Tokens) und <b>Azure OpenAI</b> als „Copilot for Business“-Weg (eigene Azure-Ressource des Microsoft-Tenants: Endpoint, Deployment, Key). „Eigenes Modell…“ erlaubt beliebige Modell-IDs. Darunter zeigt die <b>Token-Verbrauchsstatistik</b> die genutzten Tokens der letzten 24 Stunden, 7/30 Tage und des letzten Jahres (nur lokal erfasst).</p>
     <h3>KI-Anbieter einrichten</h3>
     <p>Für alle Anbieter gilt: Key in den Optionen eintragen, die <b>Zustimmung zur Datenübertragung</b> anhaken, speichern — der Status-Bereich oben zeigt, ob alles grün ist. Es genügt, <b>einen</b> Anbieter einzurichten.</p>
@@ -80,7 +142,7 @@
     <h3>Suchen (Rechtsklick oder Popup)</h3>
     <p>Markierten Text (z. B. eine Fehlermeldung) in der DATEV Wissensplattform, bei Google oder per KI nachschlagen. Im Popup gibt es dafür das Suchfeld mit drei Buttons (Enter = DATEV).</p>
 
-    <h2>Ticketsystem</h2>
+    <h2 id="ticket">Ticketsystem</h2>
     <h3>Vorlagen</h3>
     <p>Button <b>„📋 Vorlagen“</b> im „Email senden“-Fenster <i>und</i> am Eintrags-Editor (neben „Speichern“) — mit <b>getrennten Listen</b>: Mail-Vorlagen und Eintrags-Vorlagen werden in den Optionen jeweils separat gepflegt. Eingefügt wird vor der Signatur bzw. an der Cursor-Position.</p>
     <p>Daneben liegt <b>„👋 Anrede“</b>: fügt <i>nur</i> die Grußformel ein, also z. B. „Guten Morgen Frau Marquardt,“ — Tageszeit und Empfänger werden wie bei den Platzhaltern unten automatisch eingesetzt. Praktisch, wenn der Text frei geschrieben wird und man sich nur die Anrede sparen möchte. Abschaltbar unter „Ticketsystem-Funktionen einzeln“.</p>
@@ -110,7 +172,7 @@
     <h3>DATEV-Fehlercode-Links</h3>
     <p>Meldungs-IDs wie <code>DB60012</code>, <code>ZK01052</code> oder <code>INI07257</code> werden in den Ticket-Einträgen automatisch erkannt und verlinkt — ein Klick öffnet die Suche in der DATEV Wissensplattform. Abschaltbar über die Feinschalter.</p>
 
-    <h2>Popup (Klick aufs Toolbar-Icon)</h2>
+    <h2 id="popup">Popup (Klick aufs Toolbar-Icon)</h2>
     <ul>
         <li><b>Start-Leiste:</b> öffnet alle als „Start“ markierten Links auf einmal (bereichsübergreifend).</li>
         <li><b>Bereiche:</b> frei definierbare Link-Gruppen (Optionen → Popup-Bereiche): eigener Name, beliebig viele Kacheln, Reihenfolge per ↑/↓; gestrichelte Kacheln öffnen im privaten Fenster.</li>
@@ -121,12 +183,12 @@
         <li><b>Seitenleiste:</b> Optional öffnet der Icon-Klick statt des Popups eine dauerhafte Seitenleiste (Optionen → Darstellung; Chrome/Edge/Brave). In Firefox über Menü → Ansicht → Sidebar.</li>
     </ul>
 
-    <h2>Suche aus der Adressleiste</h2>
+    <h2 id="adressleiste">Suche aus der Adressleiste</h2>
     <p>Ein echtes Suchfeld dürfen Erweiterungen nicht in die Browserleiste setzen — die Adressleiste lässt sich aber mitbenutzen: <b><code>kl</code> tippen, Leertaste</b>, dann die Nummer oder den Suchbegriff. Die Erkennung ist dieselbe wie im Popup: 6–10 Ziffern öffnen das Ticket, 4–5 Ziffern den Kunden, alles andere geht an das Standard-Suchziel. Während des Tippens zeigt der Browser an, was passieren wird („Ticket 156307 öffnen“); die übrigen Suchziele stehen als Vorschläge darunter und lassen sich mit den Pfeiltasten wählen.</p>
     <p>Ticket- und Kundennummern werden nur erkannt, wenn die passenden Link-Vorlagen eingerichtet sind — sonst ist jede Eingabe eine normale Suche.</p>
     <p><b>Tastenkürzel:</b> <code>Alt+Umschalt+K</code> öffnet das Popup direkt. Ändern lässt sich das unter <code>chrome://extensions/shortcuts</code> (Chrome/Edge/Brave), <code>brave://extensions/shortcuts</code> bzw. in Firefox über Add-ons → Zahnrad → „Verknüpfungen verwalten“.</p>
 
-    <h2>Artikel-Clipper</h2>
+    <h2 id="clipper">Artikel-Clipper</h2>
     <p>Über das Popup („✂ Clipper“) oder Rechtsklick auf eine Seite → „Seite als Artikel exportieren“: Die Seite wird mit Mozilla-Readability bereinigt (keine Werbung, keine Navigation, nur der Artikel mit seinen Bildern) und in einer Vorschau geöffnet. Von dort:</p>
     <ul>
         <li><b>📋 Formatiert kopieren</b> — mit Formatierung und Bildern in die Zwischenablage, direkt per Strg+V in OneNote, Word oder Outlook einfügbar (Ersatz für den OneNote-Clipper)</li>
@@ -135,10 +197,10 @@
     </ul>
     <p>Videos, Audio und Social-Media-Einbettungen werden automatisch entfernt — der Clip enthält nur Text und echte Inhaltsbilder. Über <b>🕘 Verlauf</b> sind die geclippten Artikel der letzten 30 Tage als Linkliste erreichbar. Die Aufbereitung läuft vollständig lokal; nur die KI-Funktionen senden den Artikeltext auf Klick an den konfigurierten Anbieter (Zustimmung im KI-Bereich erforderlich).</p>
 
-    <h2>MS Account Cleaner</h2>
+    <h2 id="cleaner">MS Account Cleaner</h2>
     <p>Auf der Microsoft-Kontoauswahl (login.microsoftonline.com u. a.) erscheint unten rechts „Alle Konten entfernen“: entfernt gemerkte Konten über das seiteneigene „Abmelden und vergessen“-Menü. Geschützt sind Konten „Mit Windows verbunden“ sowie alle Einträge der <b>Whitelist</b> (Optionen → MS Account Cleaner; exakte Adresse oder Domain-Teilstring wie <code>@firma.de</code>).</p>
 
-    <h2>Sicherung &amp; Verwaltung</h2>
+    <h2 id="sicherung">Sicherung &amp; Verwaltung</h2>
     <ul>
         <li><b>Export:</b> alle Einstellungen (inkl. API-Keys) als JSON-Datei — als Backup oder zur Team-Verteilung.</li>
         <li><b>Importieren (aktualisieren):</b> führt zusammen — nur Schlüssel aus der Datei werden ersetzt, API-Keys bleiben erhalten.</li>
@@ -149,7 +211,7 @@
     </ul>
     <div class="tip">Zentrale Verteilung: Installation und Vorgaben können per Gruppenrichtlinie ausgerollt werden (Managed Storage). Details im <code>gpo/</code>-Ordner des Repos.</div>
 
-    <h2>Häufige Fragen</h2>
+    <h2 id="faq">Häufige Fragen</h2>
     <table>
         <tr><th>Problem</th><th>Lösung</th></tr>
         <tr><td>Ticket-Buttons/Wartezeit fehlen</td><td>Optionen → Status prüfen: Ticketsystem konfiguriert und Zugriff erteilt? Danach Ticket-Tab neu laden (F5).</td></tr>

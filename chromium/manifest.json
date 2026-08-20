@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "klToolbox",
-    "version": "3.17.0",
+    "version": "3.17.1",
     "description": "Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.",
     "author": "FK",
     "storage": {
