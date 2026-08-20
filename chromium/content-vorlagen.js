@@ -1,5 +1,5 @@
 // Version
-// version = "1.8.0"
+// version = "1.8.1"
 // datum   = "2026-08-18"
 // autor   = "FK"
 //
@@ -172,7 +172,7 @@
     // konservativ: Ist der Vorname nicht eindeutig zuzuordnen, wird NICHT
     // geraten, sondern neutral der volle Name verwendet
     // ("Guten Tag Jasmin Schneiss,").
-    const VORNAMEN_W = new Set(("agnes alexandra alina aline alma amalie amelie anastasia andrea anette angela " +
+    const VORNAMEN_W = new Set(("agnes alexa alexandra alexandria alina aline alma amalie amelie anastasia andrea anette angela " +
         "angelika anika anita anja anke anna annalena anne annegret annemarie annett annette annika antje antonia " +
         "ariane astrid baerbel barbara beate bettina bianca birgit birte brigitte britta carina carmen carola " +
         "carolin caroline cathrin celina charlotte chiara christa christel christiane christin christina christine " +
@@ -269,9 +269,16 @@
         if (!raw) {
             return "";
         }
-        const name = raw.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+        let name = raw.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
         if (!name) {
             return "";
+        }
+        // Manche Empfaenger stehen als "Nachname, Vorname" im An-Feld
+        // ("Lagemann, Alexa"). Ohne Umdrehen waere "Lagemann," der Vorname -
+        // es griffe keine Liste und die neutrale Anrede stuende verkehrt herum.
+        const komma = /^([^,]+),\s*(.+)$/.exec(name);
+        if (komma) {
+            name = komma[2].trim() + " " + komma[1].trim();
         }
         const tokens = name.split(/\s+/).filter((t) => !/^(dr|prof|dipl|mag|med)\.?$/i.test(t));
         if (tokens.length < 2) {
