@@ -145,11 +145,13 @@
     <h2 id="ticket">Ticketsystem</h2>
     <h3>Vorlagen</h3>
     <p>Button <b>„📋 Vorlagen“</b> im „Email senden“-Fenster <i>und</i> am Eintrags-Editor (neben „Speichern“) — mit <b>getrennten Listen</b>: Mail-Vorlagen und Eintrags-Vorlagen werden in den Optionen jeweils separat gepflegt. Eingefügt wird vor der Signatur bzw. an der Cursor-Position.</p>
+    <div class="tip"><b>Anrede-Erkennung:</b> Hinterlegt sind rund 1.500 Vornamen aus dem deutschen, türkischen, polnischen, russischen, südosteuropäischen, italienischen, arabischen, niederländischen, skandinavischen, griechischen, rumänischen und spanischen Raum. Namen, deren Geschlecht je nach Sprache wechselt (Kim, Luca, Toni, Nikola, Deniz …), führen absichtlich zur neutralen Anrede — falsch wäre schlimmer als neutral. Fehlt ein Name oder wird er falsch zugeordnet, lässt er sich unter Optionen → Ticket-Vorlagen → „Anrede-Erkennung“ selbst nachtragen; <b>eigene Einträge haben Vorrang</b> vor den eingebauten Listen.</div>
+
     <p>Daneben liegt <b>„👋 Anrede“</b>: fügt <i>nur</i> die Grußformel ein, also z. B. „Guten Morgen Frau Marquardt,“ — Tageszeit und Empfänger werden wie bei den Platzhaltern unten automatisch eingesetzt. Praktisch, wenn der Text frei geschrieben wird und man sich nur die Anrede sparen möchte. Abschaltbar unter „Ticketsystem-Funktionen einzeln“.</p>
     <table>
         <tr><th>Platzhalter</th><th>Wird ersetzt durch</th></tr>
         <tr><td><code>{gruss}</code></td><td>„Guten Morgen“ (bis 11 Uhr), „Guten Tag“ (bis 18 Uhr), „Guten Abend“</td></tr>
-        <tr><td><code>{anrede}</code></td><td>„Frau/Herr Nachname“ aus dem An-Feld. Doppelnamen richten sich nach dem ersten Teil („Karl-Heinz“ → Herr), Umlaute spielen keine Rolle. Bei unbekannten und bei geschlechtsneutralen Vornamen (Kim, Luca, Toni …) wird bewusst <b>nicht geraten</b>, sondern der volle Name gesetzt; kein Empfänger → entfällt</td></tr>
+        <tr><td><code>{anrede}</code></td><td>„Frau/Herr Nachname“ aus dem An-Feld. Erkannt werden rund 1.500 Vornamen; auch „Nachname, Vorname“ und Doppelnamen („Karl-Heinz“ → Herr), Umlaute und Titel spielen keine Rolle. Bei unbekannten und bei geschlechtsneutralen Vornamen wird bewusst <b>nicht geraten</b>, sondern der volle Name gesetzt; kein Empfänger → entfällt</td></tr>
         <tr><td><code>{datum}</code></td><td>heutiges Datum</td></tr>
         <tr><td><code>{zeit}</code></td><td>aktuelle Uhrzeit</td></tr>
     </table>

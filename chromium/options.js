@@ -148,6 +148,32 @@ function saveAmpel() {
     });
 }
 
+// Eigene Vornamen fuer die Anrede-Erkennung (haben Vorrang vor den
+// eingebauten Listen in content-vorlagen.js)
+const NAMEN_DEFAULTS = {
+    eigeneVornamenW: "",
+    eigeneVornamenM: "",
+    eigeneVornamenNeutral: ""
+};
+
+function saveNamen() {
+    const out = {};
+    for (const key of Object.keys(NAMEN_DEFAULTS)) {
+        // Einheitlich als Komma-Liste ablegen, egal wie eingegeben
+        out[key] = document.getElementById(key).value
+            .split(/[\s,;]+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
+            .join(", ");
+    }
+    chrome.storage.local.set(out, () => {
+        for (const key of Object.keys(NAMEN_DEFAULTS)) {
+            document.getElementById(key).value = out[key];
+        }
+        flashStatus("statusNamen");
+    });
+}
+
 function resetAmpel() {
     fillAmpel(AMPEL_DEFAULTS);
     chrome.storage.local.set(AMPEL_DEFAULTS, () => flashStatus("statusAmpel"));
@@ -277,7 +303,7 @@ let entryTemplates = [];
 // ---------------------------------------------------------------- Laden
 
 function loadAll() {
-    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, {
+    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, NAMEN_DEFAULTS, {
         sidebarMode: false,
         defaultSearch: "datev",
         templates: [],
@@ -289,6 +315,9 @@ function loadAll() {
     }), (items) => {
         applyBrand(items);
         fillAmpel(items);
+        for (const key of Object.keys(NAMEN_DEFAULTS)) {
+            document.getElementById(key).value = items[key] || "";
+        }
         kiActions = Array.isArray(items.customKiActions) ? items.customKiActions : [];
         renderKiActions();
         makros = Array.isArray(items.makros) ? items.makros : [];
@@ -1205,6 +1234,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wireModelSelect("innogpt");
     document.getElementById("saveTermin").addEventListener("click", saveTermin);
     document.getElementById("saveAmpel").addEventListener("click", saveAmpel);
+    document.getElementById("saveNamen").addEventListener("click", saveNamen);
     document.getElementById("resetAmpel").addEventListener("click", resetAmpel);
     for (const [key] of AMPEL_STUFEN) {
         document.getElementById(key).addEventListener("input", renderAmpelPreview);

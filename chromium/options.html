@@ -360,6 +360,25 @@
     <h2>Ticket-Vorlagen (E-Mail-Textbausteine)</h2>
     <p class="hint">Platzhalter: <code>{gruss}</code> = „Guten Morgen/Tag/Abend“ je nach Uhrzeit, <code>{datum}</code> = heutiges Datum, <code>{zeit}</code> = aktuelle Uhrzeit, <code>{anrede}</code> = Anrede aus dem An-Feld („Frau/Herr Nachname“; bei unbekanntem Vornamen der volle Name, ohne Empfänger entfällt der Platzhalter).</p>
 
+    <fieldset>
+        <legend>Anrede-Erkennung</legend>
+        <p class="hint">Für <code>{anrede}</code> und den „👋 Anrede“-Knopf sind rund 1.500 Vornamen hinterlegt (deutsch, türkisch, polnisch, russisch, südosteuropäisch, italienisch, arabisch, niederländisch, skandinavisch, griechisch, rumänisch, spanisch). Wird ein Vorname nicht erkannt oder falsch zugeordnet, kann er hier ergänzt werden — <b>eigene Einträge haben Vorrang</b>. Mehrere Namen mit Komma, Leerzeichen oder Zeilenumbruch trennen; Groß-/Kleinschreibung und Umlaute sind egal.</p>
+
+        <label for="eigeneVornamenW">Eigene weibliche Vornamen</label>
+        <textarea id="eigeneVornamenW" style="min-height:60px" placeholder="z. B. Alexa, Marleen"></textarea>
+
+        <label for="eigeneVornamenM">Eigene männliche Vornamen</label>
+        <textarea id="eigeneVornamenM" style="min-height:60px" placeholder="z. B. Thorge, Aljoscha"></textarea>
+
+        <label for="eigeneVornamenNeutral">Ohne Anrede (geschlechtsneutral)</label>
+        <textarea id="eigeneVornamenNeutral" style="min-height:60px" placeholder="z. B. Andrea, Simone"></textarea>
+        <div class="hint">Namen hier führen bewusst zu „Guten Tag Vorname Nachname,“ statt zu Frau/Herr — sinnvoll bei allem, was je nach Sprachraum kippt.</div>
+
+        <div class="toolbar">
+            <button id="saveNamen" class="primary">Namen speichern</button><span id="statusNamen" class="status"></span>
+        </div>
+    </fieldset>
+
     <div id="tplList"></div>
 
     <div class="toolbar">

@@ -1,6 +1,6 @@
 // Version
-// version = "1.8.1"
-// datum   = "2026-08-18"
+// version = "1.10.0"
+// datum   = "2026-08-21"
 // autor   = "FK"
 //
 // Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
@@ -88,6 +88,42 @@
         { name: "Warte auf Rückmeldung", text: "Warte auf Rückmeldung des Kunden (angefragt am {datum})." }
     ];
 
+    // Eigene Vornamen (Optionen -> Anrede-Erkennung): ergaenzen die
+    // eingebauten Listen und haben VORRANG - so lassen sich Fehltreffer
+    // sofort korrigieren, ohne auf eine neue Version zu warten.
+    let eigenW = new Set();
+    let eigenM = new Set();
+    let eigenN = new Set();
+
+    const EIGENE_NAMEN_KEYS = {
+        eigeneVornamenW: "",
+        eigeneVornamenM: "",
+        eigeneVornamenNeutral: ""
+    };
+
+    function parseVornamenListe(text) {
+        return new Set(String(text || "")
+            .split(/[\s,;]+/)
+            .map((s) => normalizeVorname(s.trim()))
+            .filter((s) => s.length > 0));
+    }
+
+    function applyEigeneVornamen(items) {
+        eigenW = parseVornamenListe(items.eigeneVornamenW);
+        eigenM = parseVornamenListe(items.eigeneVornamenM);
+        eigenN = parseVornamenListe(items.eigeneVornamenNeutral);
+    }
+
+    chrome.storage.local.get(EIGENE_NAMEN_KEYS, applyEigeneVornamen);
+    chrome.storage.onChanged.addListener((ch, area) => {
+        if (area !== "local") {
+            return;
+        }
+        if (ch.eigeneVornamenW || ch.eigeneVornamenM || ch.eigeneVornamenNeutral) {
+            chrome.storage.local.get(EIGENE_NAMEN_KEYS, applyEigeneVornamen);
+        }
+    });
+
     // Nur im Frame mit sichtbaren Eingabefeldern oder im Top-Frame Button anzeigen -
     // der Panel-Code laeuft aber in jedem Frame, damit das Einfuegen dort klappt,
     // wo der Editor tatsaechlich liegt.
@@ -172,53 +208,119 @@
     // konservativ: Ist der Vorname nicht eindeutig zuzuordnen, wird NICHT
     // geraten, sondern neutral der volle Name verwendet
     // ("Guten Tag Jasmin Schneiss,").
-    const VORNAMEN_W = new Set(("agnes alexa alexandra alexandria alina aline alma amalie amelie anastasia andrea anette angela " +
-        "angelika anika anita anja anke anna annalena anne annegret annemarie annett annette annika antje antonia " +
-        "ariane astrid baerbel barbara beate bettina bianca birgit birte brigitte britta carina carmen carola " +
-        "carolin caroline cathrin celina charlotte chiara christa christel christiane christin christina christine " +
-        "clara claudia constanze cornelia dagmar dana daniela denise diana doreen doris dorothea dorothee edith " +
-        "elena elfriede elisa elisabeth elke ella ellen elly emilia emily emma erika erna esther eva evelin evelyn " +
-        "fabienne felicitas fiona franziska frauke frieda friederike gabi gabriele gerda gertrud gisela greta " +
-        "gudrun hanna hannah hedwig heidi heidrun heike helen helena helene helga henriette hilde hildegard ida " +
-        "ilka ilona ina ines inga inge ingeborg ingrid inka irene irina irmgard iris isabel isabell isabella " +
-        "isabelle jacqueline jana jane janina jasmin jeanette jennifer jenny jessica joana johanna josefine " +
-        "josephine judith julia juliane julie jutta karin karla karola karolin karoline katharina kathleen kathrin " +
-        "katja katrin kerstin kirsten klara konstanze kristin kristina lara larissa laura lea lena leonie lidia " +
-        "lilli lilly linda lisa liselotte livia lotte louisa louise lucia luisa luise lydia magdalena maike maja " +
-        "malin mandy manuela mareike maren margarete margit margret maria marianne marie marika marina marion " +
-        "marlene marta martha martina mathilde maya meike melanie melina merle mia michaela miriam mirjam monika " +
-        "monique nadine nadja natalia natalie nathalie nele nicole nina nora olga paula pauline petra philippa pia " +
-        "ramona rebecca rebekka regina regine renate rita romy rosa rosemarie roswitha ruth sabine sabrina sandra " +
-        "sara sarah saskia selina sigrid silke silvia simone sina sofia sofie sonja sophia sophie stefanie steffi " +
-        "stephanie susann susanna susanne svenja sybille sylvia tabea tamara tanja tatjana thea theresa therese " +
-        "tina ulla ulrike ursel ursula ute valentina valeria vanessa vera verena veronika veronique victoria " +
-        "viktoria vivien vivienne waltraud wiebke wilma yasmin yvonne zoe").split(" "));
-    const VORNAMEN_M = new Set(("achim adam adrian albert albrecht alexander alfred alois andre andreas andrej " +
-        "anton armin arne arnd arnold arthur artur august axel benedikt benjamin benno bernd bernhard bernward " +
-        "bert berthold bjoern bodo boris bruno burkhard carl carlo carsten christian christoph claus clemens " +
-        "conrad constantin cornelius damian daniel david denis dennis detlef detlev dieter dietmar dietrich dirk " +
-        "dominik eberhard edgar eduard edwin egon elias emil engelbert enrico eric erich erik ernst ewald fabian " +
-        "fabio felix ferdinand finn florian frank franz fritz gabriel georg gerald gerd gereon gerhard gerrit gero " +
-        "gottfried gregor guenter gunnar gunter gustav hagen hans hansjoerg harald hartmut hartwig hauke heiko " +
-        "heinrich heinz helmut hendrik henning henri henrik henry herbert hermann hinrich holger horst hubert " +
-        "hubertus ingo jacob jakob jan jens joachim jochen joel joerg johann johannes jonas jonathan josef joseph " +
-        "juergen julian julius justus kai karl karsten kevin kilian klaus konrad konstantin kurt lars laurenz " +
-        "leander leo leon leonard leonhard levin linus lorenz ludwig luis lukas lutz maik malte manfred marc " +
-        "marcel marco marcus marek marian mario marius mark markus marlon marten martin mathias matteo matthias " +
-        "max maximilian meinhard michael michel mike mirko moritz nathan nico niklas nikolai nikolas nils noah " +
-        "norbert norman olaf ole oliver oskar otto pascal patrick paul pawel peter philip philipp phillip pierre " +
-        "quirin raimund rainer ralf ralph raphael reiner reinhard reinhold remo rene ricardo richard rico robert " +
-        "rocco roger roland rolf romeo ronald ronny ruben rudi rudolf ruediger rupert samuel sandro sascha " +
-        "sebastian sepp siegfried siegmund sigmar silvio simon soenke stefan steffen stephan sven sylvester theo " +
-        "theodor thies thilo thomas thorben thorsten till tilman tim timm timo timon titus tobias tom torben " +
-        "torsten udo ulf ulrich urs uwe valentin veit victor viktor vincent volker waldemar walter werner wilfried " +
-        "wilhelm willi william wolf wolfgang wolfram xaver yannick yannik yves").split(" "));
+    const VORNAMEN_W = new Set((
+        "adelheid adriana agata agnes agnieszka aisha alena alessandra alessia alexa alexandra alexandria alicja " +
+        "alina aline alla alma amal amalie amanda amelie amina ana anastasia andjela andrea andreea aneta anette " +
+        "angela angelika aniela anika anita anja anke anna annalena anne annegret annelies anneliese annemarie " +
+        "annett annette annika anouk antje antonella antonia antonie anzhela ariane arianna asma astrid athina " +
+        "ayla aynur ayse aysel aysun baerbel banu barbara beate beatrice beatriz belgin benedetta berna bettina " +
+        "betuel bianca biljana bircan birgit birgitta birte bodil bogumila bojana bozena branka brigitte britta " +
+        "brunhilde burcu camelia camilla canan carina carla carmen carola carolin carolina caroline caterina " +
+        "cathrin cecilia celina ceren charlotte chiara christa christel christiane christin christina christine " +
+        "cigdem clara claudia constanze corina cornelia cristina dagmar dalia dana daniela danijela danuta daria " +
+        "darja denise despina diana dietlinde dilan dilek dimitra dina doreen doris dorota dorothea dorothee " +
+        "dragana dunja duygu ebba ebru ece eda edith editha edyta ekaterina eleftheria elena eleni eleonora elfi " +
+        "elfriede elif elin elisa elisabeth elke ella ellen elly els elsa elvira elzbieta emilia emily emine emma " +
+        "emmi erika erna esperanza esra esther eva evangelia evelin evelyn ewa ewelina fabienne fadime fatima " +
+        "fatma federica felicitas femke feride filiz fiona fleur florentina francesca franziska frauke frida " +
+        "frieda friederike funda gabi gabriela gabriele gaia galina gamze georgia gerda gerlinde gertraud gertrud " +
+        "giada gianna giorgia giovanna gisela giulia giuseppina gizem gonca gordana grazyna greta gudrun guel " +
+        "guelay guelcan guelden guelsen guelten gundula gunilla halina hana hanna hannah hanne hannelore hatice " +
+        "hedda hedwig heidi heidrun heike helen helena helene helga helle helma henriette herta hertha hilde " +
+        "hildegard hiltrud huda huelya ida ilaria ilka ilona ilse iman ina ines inga inge ingeborg ingelore inger " +
+        "ingrid inka inna ioana ioanna ipek irem irene irina iris irmgard irmtraud isabel isabell isabella " +
+        "isabelle ivana iwona izabela jacqueline jadwiga jamila jana jane janina jannie jasmin jasmina jeanette " +
+        "jelena jennifer jenny jessica joana joanna johanna johanne jolanta jolien josefine josephine jovana " +
+        "judith julia juliane julie justyna jutta kaethe kamila karima karin karla karola karolin karolina " +
+        "karoline katarina katarzyna katerina katharina kathleen kathrin katja katrin kerstin kevser kinga " +
+        "kirsten klara klaudia konstantina konstanze kristin kristina krystyna kseniya laila lara larisa larissa " +
+        "laura lavinia layla lea leila lena leonie letizia leyla lidia lieke liliana lilli lilly lina linda " +
+        "linnea lisa liselotte liv livia ljiljana lore loredana lotte louisa louise lucia lucyna ludmila luisa " +
+        "luise luminita luzia lydia lyudmila maaike madalina magda magdalena maha maike maja malak malgorzata " +
+        "malin mandy manuela marcella mareike maren margarete margarethe margherita margit margret maria mariam " +
+        "marianne marie marija marika marina mariola marion marit marleen marlena marlene marlies marta martha " +
+        "martina martyna marzena mathilde maya mechthild meike melanie melina meltem meral mercedes merle merve " +
+        "mette mia michaela michela mieke mihaela mine minna mirela miriam mirjam mona monica monika monique " +
+        "muege nada nadezhda nadia nadine nadja najwa nalan nanna natalia natalie nataliya natalja natasa " +
+        "nathalie nazan nazli necla nele nergis nesrin nevena nicole nicoleta nienke nilguen niluefer nina noemi " +
+        "noor nora nour nur nuray nurcan oana oezge oezlem oksana olesya olga olivera ottilie paloma paola " +
+        "patricia patrizia paula paulina pauline pelin pernille petra philippa pia pilar pinar polina rabia " +
+        "radmila raffaella raisa ramona rana rania raquel rebecca rebekka reem regina regine reinhild renate rita " +
+        "roberta rocio romy rosa rosemarie roswitha roxana ruth sabine sabrina sahar saliha salma samira sandra " +
+        "sanja sanne sara sarah saskia sebnem seda sedef selda selin selina sema semra senay serap serena sevda " +
+        "sevgi sevil sevim sibel sieglinde siegrid signe sigrid silke silvia simona simone sina siri sladjana " +
+        "snezana sofia sofie solveig songuel sonia sonja sophia sophie stavroula stefania stefanie steffi steluta " +
+        "stephanie suele sultan susann susanna susanne svenja svetlana sybille sylvia sylwia tabea tamara tanja " +
+        "tatiana tatjana teresa thea theresa therese tijana tina tineke tove traude traute tuba tuelay tuerkan " +
+        "tugba tuva uelkue ulla ulrike ursel ursula urszula ute valentina valeria valeriya vanessa vasiliki vera " +
+        "verena veronica veronika veronique vesna victoria vigdis viktoria viktoriya viola viorica virginia " +
+        "vivien vivienne waltraud waltraut weronika wiebke wilhelmine willemijn wilma wioletta yana yasemin " +
+        "yasmin yeliz yildiz yulia yvonne zahra zehra zeinab zeynep zinaida zoe zofia zorica zuzanna").split(" "));
+    const VORNAMEN_M = new Set((
+        "abdul abdullah achim adam adem adrian ahmad ahmed ahmet albert alberto albrecht alejandro aleksa " +
+        "aleksandar aleksandr aleksej alessandro alessio alexander alexandros alexandru alexej alfons alfred ali " +
+        "alois alper alvaro amir anas anatoli anatolij anders andre andreas andrei andrej andrzej angel angelo " +
+        "anselm anton antonio arda arkadiusz armin arnd arne arnold artem arthur artjom artur asger athanasios " +
+        "august aurel axel aydin ayhan aykut balthasar baptist baris bart bartek bartosz bas bastian batuhan " +
+        "bayram benedikt benjamin benno berat berk berkay bernd bernhard bernward bert berthold bertram bilal " +
+        "bjarne bjoern bjorn boban bodo bogdan bogumil bojan boris borislav branko bruno buelent burak burghard " +
+        "burhan burkhard carl carlo carlos carsten catalin cees cem cemal cengiz cesar cesare cetin cezary " +
+        "christian christoffer christoph christos ciprian claudio claus clemens conrad constantin cornelius " +
+        "corrado coskun cosmin cristian czeslaw damian daniel dario dariusz darko david davide davut dawid dejan " +
+        "denis dennis detlef detlev diego dietbert dieter dietmar dietrich dimitrios dimitris dirk dmitri dmitrij " +
+        "dmitry domenico dominik dragan dumitru dusan eberhard eckart eckhard edgar edmund edoardo eduard eduardo " +
+        "edwin egbert egon einar ekkehard elias emanuele emil emmerich emrah emre enes engelbert engin enrico " +
+        "enrique erdal erdem erdogan eren ergin erhan eric erich erik erkan ernst erol ertan ertugrul erwin espen " +
+        "eugen evert evgenij evgeny ewald fabian fabio fabrizio fadi farid fatih federico felix ferdinand ferhat " +
+        "fernando fikret filippo finn fjodor florian florin floris francesco francisco franco frank franz freek " +
+        "friedhelm friedrich fritz frode furkan gabriel gaetano gebhard gennadij georg georgij georgios gerald " +
+        "gerd gereon gerhard gernot gero gerold gerrit gerwin gheorghe gianluca gianni giannis gijs gilbert " +
+        "giorgio giovanni giuseppe godehard goekhan gonzalo goran gottfried gottlieb gottlob graziano gregor " +
+        "grigorij grzegorz guenter guenther guerkan guido gunnar gunter gunther gustav hadi hagen hakan halil " +
+        "halit halvor hamid hamza hans hansjoerg hansjuergen harald hardy hartmut hartwig hartwin harun hasan " +
+        "hassan hauke hayri heiko heinrich heinz hellmut helmar helmut hendrik henk henning henri henrik henry " +
+        "henryk herbert hermann herwig hikmet hilmar hinrich holger horst hubert hubertus hueseyin hussein " +
+        "ibrahim ignacio igor ilhan ilie ilja ilker ingmar ingo ioannis ion ionel ionut ireneusz isidor ismail " +
+        "iulian ivan ivano ivica jacek jacob jakob jamal jan janusz jaroslaw javier jelle jens jeroen jerzy " +
+        "jesper jesus joachim joakim joaquin jochem jochen joel joerg johann johannes jonas jonathan joost jorge " +
+        "jose josef joseph josip jovan jozef juan juergen julian julius justin justus kacper kadir kai kamil " +
+        "karim karl karlheinz karol karsten kazimierz kees kemal kenan kerem kevin khaled kilian kjell klaus " +
+        "klemens knut konrad konstantin konstantinos koray korbinian kostas krzysztof kuno kurt lambert lars " +
+        "lasse laurenz leander leif lennart leo leon leonard leonhard leonid leopold leszek levent levin linus " +
+        "lorenz lorenzo lothar luciano ludger ludwig luigi luis lukas lukasz lutz maarten maciej mads magnus " +
+        "mahmoud mahmut maik maksim malik malte manfred manuel marc marcel marcello marcin marco marcos marcus " +
+        "marek marian mario marius mark marko markus markward marlon marten martin massimo mateusz mathias matteo " +
+        "matthaeus matthias maurizio mauro max maxim maximilian mehmet meinhard meinolf melih mert mesut metin " +
+        "michael michail michal michel mieczyslaw miguel mihai mihail mikael mike mikhail mikkel milan milos " +
+        "miodrag mirko miroslaw mohamed mohammad mohammed moritz morten muhammed murat musa mustafa nabil nader " +
+        "nathan nemanja nenad nico nicolae niels nihat niklas nikolai nikolaj nikolaos nikolas nikos nils noah " +
+        "norbert norman norwin nuri octavian odd oemer oguz okan oktay olaf ole oleg oliver omar onur orhan " +
+        "ortwin oskar osman oswald otmar ottmar otto ovidiu ozan pablo panagiotis paolo pascal pasquale patrick " +
+        "paul pavel pawel pedro per peter petr petre petter philip philipp phillip pierre pieter pietro piotr " +
+        "predrag przemyslaw quirin radoslaw radovan radu rafael rafal raffaele ragnar raimund rainer ralf ralph " +
+        "ramazan rami ramon raphael rashid rasmus raul razvan recep reimund reiner reinhard reinhold rembert remo " +
+        "renato rene ricardo riccardo richard rico rifat rik rob robert roberto rocco rodrigo roger roland rolf " +
+        "roman romeo ronald ronny ruben rudi rudolf ruediger rune rupert ruslan ruud ryszard said salih salim " +
+        "salvatore samir samuel sander sandro santiago sascha savas sebastian selim semjon sepp serdar sergej " +
+        "sergey sergio serhat siegbert siegfried siegmar siegmund sigmar sigurd silvio simon sinan sinisa sjoerd " +
+        "slavko slawomir slobodan soenke soren sorin spiros srdjan stanislav stanislaw stavros stefan stefano " +
+        "steffen sten stepan stephan stevan stig suat sueleyman svein sven sylvester szymon tadeusz taner taras " +
+        "tarek tarik tayfun teun thanasis theo theobald theodor theodoros thies thijs thilo thomas thorben " +
+        "thorsten till tilman tilo tim timm timo timon titus tobias tolga tom tomas tomasz tomislav tommaso " +
+        "torben torbjorn tore torsten traugott trygve tuncay turgut udo ufuk ugur ulf ulrich umberto urban urs " +
+        "uwe valentin valerij valerio vasile vasilij vasilis vassilios vedran veit veli veljko vicente victor " +
+        "vidar viktor vincent vincenzo viorel vitalij vito vittorio vlad vladan vladimir vladislav vlado volkan " +
+        "volker waldemar walid walter wassili wenzel werner wieland wieslaw wigbert wilfried wilhelm willem willi " +
+        "william willibald wim winfried wojciech wolf wolfgang wolfhard wolfram wouter xaver yannick yannik " +
+        "yannis yasar yassin yavuz yigit yilmaz youssef yunus yuri yurij yusuf yves zafer zaid zbigniew zdravko " +
+        "zdzislaw zeki zeljko zlatko zoran zvonimir zygmunt").split(" "));
     // Geschlechtsneutral gebrauchte Vornamen: hier wird BEWUSST nicht geraten,
     // sondern der volle Name verwendet ("Guten Tag Kim Berger,"). Eine falsche
     // Anrede ist deutlich unangenehmer als eine neutrale.
-    const VORNAMEN_UNISEX = new Set(("alex alexis andy ashley bo charlie chris dominique eike elia ilja jamie " +
-        "jean jo kay kim leslie lou luca luka maxi mel mika nicola nikita noa pat robin sam sasha sidney sky " +
-        "toni tony uli ulli yannis").split(" "));
+    const VORNAMEN_UNISEX = new Set((
+        "alex alexis andy ashley bo charlie chris deniz derya dominique eike elia evrim jamie jean jo kader kay " +
+        "kim leslie lou luca luka maxi mel michele mika nicola nikita nikola noa olcay pat robin sam sasa sasha " +
+        "sidney sky toni tony uli ulli umut vanja").split(" "));
 
     // Ersten Empfaenger aus dem An-Feld des Mail-Fensters lesen. Die
     // Empfaenger-Chips tragen den Text "Name <mail@domain>"; gesucht wird
@@ -291,6 +393,18 @@
             ? [vorname, vorname.split("-")[0]]
             : [vorname];
         const nachname = tokens[tokens.length - 1];
+        // Eigene Einträge zuerst - sie sollen die eingebauten Listen schlagen
+        if (kandidaten.some((k) => eigenN.has(k))) {
+            return name;
+        }
+        for (const k of kandidaten) {
+            if (eigenW.has(k)) {
+                return "Frau " + nachname;
+            }
+            if (eigenM.has(k)) {
+                return "Herr " + nachname;
+            }
+        }
         if (kandidaten.some((k) => VORNAMEN_UNISEX.has(k))) {
             return name;
         }
