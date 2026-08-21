@@ -47,6 +47,12 @@
         .mk-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
         .mk-row label { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 6px; }
         .mk-row input[type=checkbox] { width: auto; }
+        .ampel-grid { display: grid; grid-template-columns: auto 110px auto; gap: 8px 12px; align-items: center; }
+        .ampel-grid label { margin: 0; font-weight: 600; }
+        .ampel-grid input[type=color] { width: 110px; height: 32px; padding: 2px; }
+        .ampel-unit { color: #777; font-size: 12px; }
+        #ampelPreview span { display: inline-block; color: #fff; font: 700 11px/1.5 system-ui, sans-serif;
+            padding: 2px 8px; border-radius: 10px; margin-right: 6px; }
     </style>
 </head>
 <body>
@@ -300,6 +306,54 @@
 
     <div class="toolbar">
         <button id="saveTermin" class="primary">Termin-Einstellungen speichern</button><span id="statusTermin" class="status"></span>
+    </div>
+
+    <!-- ================================================== Wartezeit-Ampel -->
+    <h2>Wartezeit-Ampel</h2>
+    <p class="hint">Farbe der Wartezeit-Anzeige im Ticket und in der Ticketliste. Vier Stufen: bis zum ersten Wert grün, dann gelb, dann rot, darüber lila. Tickets mit Priorität <b>„hoch“</b> werden in <b>Minuten</b> gemessen, alle übrigen in <b>Tagen</b>.</p>
+
+    <fieldset>
+        <legend>Priorität „hoch“ (Minuten)</legend>
+        <div class="ampel-grid">
+            <label for="ampelHochGruenMin">grün bis</label>
+            <input type="number" id="ampelHochGruenMin" min="1" step="1"><span class="ampel-unit">Min.</span>
+            <label for="ampelHochGelbMin">gelb bis</label>
+            <input type="number" id="ampelHochGelbMin" min="1" step="1"><span class="ampel-unit">Min.</span>
+            <label for="ampelHochRotMin">rot bis</label>
+            <input type="number" id="ampelHochRotMin" min="1" step="1"><span class="ampel-unit">Min.</span>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Übrige Prioritäten (Tage)</legend>
+        <div class="ampel-grid">
+            <label for="ampelNormalGruenTage">grün bis</label>
+            <input type="number" id="ampelNormalGruenTage" min="0.1" step="0.5"><span class="ampel-unit">Tage</span>
+            <label for="ampelNormalGelbTage">gelb bis</label>
+            <input type="number" id="ampelNormalGelbTage" min="0.1" step="0.5"><span class="ampel-unit">Tage</span>
+            <label for="ampelNormalRotTage">rot bis</label>
+            <input type="number" id="ampelNormalRotTage" min="0.1" step="0.5"><span class="ampel-unit">Tage</span>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Farben</legend>
+        <div class="ampel-grid">
+            <label for="ampelFarbeGruen">Stufe 1</label>
+            <input type="color" id="ampelFarbeGruen"><span class="ampel-unit">frisch</span>
+            <label for="ampelFarbeGelb">Stufe 2</label>
+            <input type="color" id="ampelFarbeGelb"><span class="ampel-unit">wird älter</span>
+            <label for="ampelFarbeRot">Stufe 3</label>
+            <input type="color" id="ampelFarbeRot"><span class="ampel-unit">überfällig</span>
+            <label for="ampelFarbeLila">Stufe 4</label>
+            <input type="color" id="ampelFarbeLila"><span class="ampel-unit">liegt lange</span>
+        </div>
+        <div class="hint">Vorschau: <span id="ampelPreview"></span></div>
+    </fieldset>
+
+    <div class="toolbar">
+        <button id="saveAmpel" class="primary">Ampel speichern</button>
+        <button id="resetAmpel" class="secondary">Standardwerte</button><span id="statusAmpel" class="status"></span>
     </div>
 
     <!-- ================================================== Ticket-Vorlagen -->

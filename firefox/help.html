@@ -53,7 +53,7 @@
         </tr>
         <tr>
             <td><b>⏱ Wartezeit-Ampeln</b></td>
-            <td>Farbige Anzeige, wie lange ein Ticket schon liegt — im Ticket selbst und vor jeder Nummer in der Liste. Schwellwerte sind einstellbar.</td>
+            <td>Farbige Anzeige in vier Stufen, wie lange ein Ticket schon liegt — im Ticket selbst und vor jeder Nummer in der Liste. Zeiträume und Farben sind frei einstellbar.</td>
             <td><a href="#ticket">Ticketsystem</a></td>
         </tr>
         <tr>
@@ -168,7 +168,16 @@
     <h3>Aktions-Makros</h3>
     <p>In den Optionen unter „Aktions-Makros“ definierst du Ketten aus: Eintragstext anlegen und/oder Status setzen (beides wird als <b>ein</b> Ticket-Eintrag gespeichert), Ticket abonnieren und/oder das Ticket-Fenster danach schließen. Der Statusname muss exakt dem Text im Status-Dropdown entsprechen. Beispiel: „Nicht erreicht + Wiedervorlage“ = Eintrag „Kunde nicht erreicht ({datum} {zeit})“ + Status „Wiedervorlage“ + Fenster schließen.</p>
     <h3>Wartezeit-Ampeln</h3>
-    <p>Im geöffneten Ticket oben links als Badge (Basis: ältester sichtbarer Eintrag) und in der <b>Ticketliste</b> als farbige Kurzangabe vor der Ticketnummer (Basis: Spalte „Erstellt am“ — die Spalte muss eingeblendet sein). Standard-Schwellen bei normaler Priorität: grün &lt; 1 Tag, gelb &lt; 3 Tage, rot ab 3 Tagen; bei Priorität „Hoch“: grün &lt; 15 Min, gelb &lt; 1 Std, rot ab 1 Std. Die Schwellen sind über die Konfigurationsdatei anpassbar.</p>
+    <p>Im geöffneten Ticket oben links als Badge (Basis: ältester sichtbarer Eintrag) und in der <b>Ticketliste</b> als farbige Kurzangabe vor der Ticketnummer (Basis: Spalte „Erstellt am“ — die Spalte muss eingeblendet sein).</p>
+    <p>Es gibt <b>vier Stufen</b>. Tickets mit Priorität „Hoch“ werden in Minuten gemessen, alle übrigen in Tagen:</p>
+    <table>
+        <tr><th>Stufe</th><th>Priorität „Hoch“</th><th>Übrige</th></tr>
+        <tr><td>grün</td><td>bis 15 Minuten</td><td>bis 1 Tag</td></tr>
+        <tr><td>gelb</td><td>bis 1 Stunde</td><td>bis 3 Tage</td></tr>
+        <tr><td>rot</td><td>bis 4 Stunden</td><td>bis 10 Tage</td></tr>
+        <tr><td>lila</td><td>darüber</td><td>ab 10 Tagen</td></tr>
+    </table>
+    <p><b>Zeiträume und Farben lassen sich frei einstellen</b> — Optionen → Wartezeit-Ampel. Dort gibt es auch eine Vorschau und einen Knopf für die Standardwerte. Die Werte müssen aufsteigend sein (grün &lt; gelb &lt; rot), sonst bliebe eine Stufe ungenutzt; darauf weist die Seite beim Speichern hin.</p>
     <h3>DATEV-Fehlercode-Links</h3>
     <p>Meldungs-IDs wie <code>DB60012</code>, <code>ZK01052</code> oder <code>INI07257</code> werden in den Ticket-Einträgen automatisch erkannt und verlinkt — ein Klick öffnet die Suche in der DATEV Wissensplattform. Abschaltbar über die Feinschalter.</p>
 

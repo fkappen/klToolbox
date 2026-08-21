@@ -81,6 +81,78 @@ const FT_DEFAULTS = {
     ftFehlercodes: true
 };
 
+// Wartezeit-Ampel: vier Stufen (gruen -> gelb -> rot -> lila). Schwellwerte
+// UND Farben sind einstellbar; "hoch" priorisierte Tickets zaehlen Minuten,
+// alle anderen Tage. Die Werte liest content-termin.js direkt aus dem Storage.
+const AMPEL_DEFAULTS = {
+    ampelHochGruenMin: 15,
+    ampelHochGelbMin: 60,
+    ampelHochRotMin: 240,
+    ampelNormalGruenTage: 1,
+    ampelNormalGelbTage: 3,
+    ampelNormalRotTage: 10,
+    ampelFarbeGruen: "#1a7f37",
+    ampelFarbeGelb: "#b58900",
+    ampelFarbeRot: "#b3261e",
+    ampelFarbeLila: "#7b2fbf"
+};
+
+const AMPEL_STUFEN = [
+    ["ampelFarbeGruen", "frisch"],
+    ["ampelFarbeGelb", "wird älter"],
+    ["ampelFarbeRot", "überfällig"],
+    ["ampelFarbeLila", "liegt lange"]
+];
+
+function renderAmpelPreview() {
+    const box = document.getElementById("ampelPreview");
+    box.textContent = "";
+    for (const [key, label] of AMPEL_STUFEN) {
+        const chip = document.createElement("span");
+        chip.textContent = label;
+        chip.style.background = document.getElementById(key).value;
+        box.appendChild(chip);
+    }
+}
+
+function fillAmpel(items) {
+    for (const key of Object.keys(AMPEL_DEFAULTS)) {
+        const el = document.getElementById(key);
+        const val = items[key];
+        el.value = (val === undefined || val === null || val === "") ? AMPEL_DEFAULTS[key] : val;
+    }
+    renderAmpelPreview();
+}
+
+function saveAmpel() {
+    const out = {};
+    for (const key of Object.keys(AMPEL_DEFAULTS)) {
+        const raw = document.getElementById(key).value;
+        if (key.indexOf("ampelFarbe") === 0) {
+            out[key] = raw || AMPEL_DEFAULTS[key];
+        } else {
+            // Zahlenfelder: 0 oder Unsinn faellt auf den Standard zurueck
+            const n = Number(raw);
+            out[key] = (isFinite(n) && n > 0) ? n : AMPEL_DEFAULTS[key];
+        }
+    }
+    // Reihenfolge erzwingen: gruen < gelb < rot, sonst waere eine Stufe tot
+    if (out.ampelHochGelbMin <= out.ampelHochGruenMin || out.ampelHochRotMin <= out.ampelHochGelbMin ||
+        out.ampelNormalGelbTage <= out.ampelNormalGruenTage || out.ampelNormalRotTage <= out.ampelNormalGelbTage) {
+        alert("Die Werte müssen aufsteigend sein: grün < gelb < rot.\nBitte korrigieren.");
+        return;
+    }
+    chrome.storage.local.set(out, () => {
+        fillAmpel(out);
+        flashStatus("statusAmpel");
+    });
+}
+
+function resetAmpel() {
+    fillAmpel(AMPEL_DEFAULTS);
+    chrome.storage.local.set(AMPEL_DEFAULTS, () => flashStatus("statusAmpel"));
+}
+
 // Branding (Name + zwei Farben) kommt per Settings-Import; ohne Import
 // bleibt der neutrale Look. Dunkle Variante wird automatisch abgeleitet.
 const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "" };
@@ -205,7 +277,7 @@ let entryTemplates = [];
 // ---------------------------------------------------------------- Laden
 
 function loadAll() {
-    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, {
+    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, {
         sidebarMode: false,
         defaultSearch: "datev",
         templates: [],
@@ -216,6 +288,7 @@ function loadAll() {
         makros: []
     }), (items) => {
         applyBrand(items);
+        fillAmpel(items);
         kiActions = Array.isArray(items.customKiActions) ? items.customKiActions : [];
         renderKiActions();
         makros = Array.isArray(items.makros) ? items.makros : [];
@@ -1131,6 +1204,11 @@ document.addEventListener("DOMContentLoaded", () => {
     wireModelSelect("openai");
     wireModelSelect("innogpt");
     document.getElementById("saveTermin").addEventListener("click", saveTermin);
+    document.getElementById("saveAmpel").addEventListener("click", saveAmpel);
+    document.getElementById("resetAmpel").addEventListener("click", resetAmpel);
+    for (const [key] of AMPEL_STUFEN) {
+        document.getElementById(key).addEventListener("input", renderAmpelPreview);
+    }
     document.getElementById("tplAdd").addEventListener("click", () => {
         templates.push({ name: "", text: "" });
         renderTemplates();

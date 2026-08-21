@@ -1,6 +1,6 @@
 // Version
-// version = "1.8.0"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-08-17"
+// version = "1.9.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-08-20"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
@@ -46,11 +46,19 @@
         ftFehlercodes: true,
         // Suchvorlage der DATEV Wissensplattform (fuer Fehlercode-Links)
         datevSearchTemplate: "",
-        // Ampel-Schwellwerte (per Config anpassbar)
+        // Ampel-Schwellwerte (Optionen -> Wartezeit-Ampel). Vier Stufen:
+        // gruen -> gelb -> rot -> lila. Bei Prioritaet "hoch" zaehlen
+        // Minuten, sonst Tage.
         ampelHochGruenMin: 15,
         ampelHochGelbMin: 60,
+        ampelHochRotMin: 240,
         ampelNormalGruenTage: 1,
-        ampelNormalGelbTage: 3
+        ampelNormalGelbTage: 3,
+        ampelNormalRotTage: 10,
+        ampelFarbeGruen: "#1a7f37",
+        ampelFarbeGelb: "#b58900",
+        ampelFarbeRot: "#b3261e",
+        ampelFarbeLila: "#7b2fbf"
     };
 
     const TERMINARTEN = [
@@ -475,17 +483,25 @@
         return (h / 24).toFixed(1).replace(".", ",") + " Tage";
     }
 
+    // Vier Ampelstufen; Schwellwerte UND Farben kommen aus den Optionen.
+    // Bei Prioritaet "hoch" zaehlen Minuten, sonst Tage.
     function badgeColor(ms, prio) {
+        const gruen = settings.ampelFarbeGruen || DEFAULTS.ampelFarbeGruen;
+        const gelb = settings.ampelFarbeGelb || DEFAULTS.ampelFarbeGelb;
+        const rot = settings.ampelFarbeRot || DEFAULTS.ampelFarbeRot;
+        const lila = settings.ampelFarbeLila || DEFAULTS.ampelFarbeLila;
         const min = ms / 60000;
         if (/hoch|high/i.test(prio)) {
-            if (min < (Number(settings.ampelHochGruenMin) || 15)) { return "#1a7f37"; }
-            if (min < (Number(settings.ampelHochGelbMin) || 60)) { return "#b58900"; }
-            return "#b3261e";
+            if (min < (Number(settings.ampelHochGruenMin) || DEFAULTS.ampelHochGruenMin)) { return gruen; }
+            if (min < (Number(settings.ampelHochGelbMin) || DEFAULTS.ampelHochGelbMin)) { return gelb; }
+            if (min < (Number(settings.ampelHochRotMin) || DEFAULTS.ampelHochRotMin)) { return rot; }
+            return lila;
         }
         const tage = min / 1440;
-        if (tage < (Number(settings.ampelNormalGruenTage) || 1)) { return "#1a7f37"; }
-        if (tage < (Number(settings.ampelNormalGelbTage) || 3)) { return "#b58900"; }
-        return "#b3261e";
+        if (tage < (Number(settings.ampelNormalGruenTage) || DEFAULTS.ampelNormalGruenTage)) { return gruen; }
+        if (tage < (Number(settings.ampelNormalGelbTage) || DEFAULTS.ampelNormalGelbTage)) { return gelb; }
+        if (tage < (Number(settings.ampelNormalRotTage) || DEFAULTS.ampelNormalRotTage)) { return rot; }
+        return lila;
     }
 
     // ------------------------------------------- DATEV-Fehlercode-Links
