@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -531,6 +531,12 @@
             });
             return;
         }
+        // Autorennamen, die eine frühere Version faelschlich verlinkt hat,
+        // wieder in reinen Text zurueckwandeln (kein DOM-Schreibzugriff,
+        // wenn nichts zu tun ist - sonst Observer-Schleife)
+        document.querySelectorAll("ap-chat-starter a.__tt_code_link").forEach((a) => {
+            a.replaceWith(document.createTextNode(a.textContent));
+        });
         const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*\d{1,2}\.\d{1,2}\.\d{4}$/;
         for (const s of document.querySelectorAll("strong")) {
             if (!dateRe.test((s.textContent || "").trim())) {
@@ -561,7 +567,10 @@
         let node = walker.nextNode();
         while (node) {
             const p = node.parentElement;
-            if (p && !p.closest("a, button, input, textarea, select, script, style") &&
+            // Autoren-Widget im Eintragskopf ausnehmen: Namen wie "API HAL9000"
+            // passen sonst auf das Fehlercode-Muster (3 Buchstaben + 4 Ziffern)
+            // und wurden faelschlich zum Wissensplattform-Link.
+            if (p && !p.closest("a, button, input, textarea, select, script, style, ap-chat-starter") &&
                 !p.isContentEditable && CODE_RE.test(node.nodeValue || "")) {
                 targets.push(node);
             }
@@ -881,25 +890,58 @@
         "background:#fff;color:#46626F;font:600 11px/1.6 system-ui,sans-serif;cursor:pointer;" +
         "vertical-align:middle;";
 
-    // Koepfe der KI-Eintraege finden: Zeile enthaelt "aktualisiert am" UND den
-    // konfigurierten Autor. Es wird das INNERSTE passende Element genommen,
-    // sonst landet der Knopf im umschliessenden Eintrags-Container.
-    function findKiEntryHeaders() {
-        const autor = (settings.kiBewertungAutor || "").trim();
-        if (!autor) {
-            return [];
+    // Autor aus einem Eintragskopf lesen. Der Kopf lautet immer
+    // "von <Autor> aktualisiert am <Datum> um <Zeit>" - die Verankerung am
+    // Zeilenanfang trifft damit genau den Kopf und keine Eltern-Container.
+    function headerAuthor(el) {
+        const t = (el.textContent || "").replace(/\s+/g, " ").trim();
+        const m = /^von\s+(.+?)\s+aktualisiert am\b/i.exec(t);
+        return m ? m[1].trim() : "";
+    }
+
+    let bewDiagDone = false;
+
+    function warnKiAutor(autor, gesehen) {
+        if (bewDiagDone || gesehen.length === 0) {
+            return;
         }
+        bewDiagDone = true;
+        if (!autor) {
+            console.info("klToolbox: Bewerten-Knopf inaktiv - es ist kein KI-Autor hinterlegt " +
+                "(Optionen -> KI-Bewertung von Ticket-Einträgen). Autoren in diesem Ticket: " +
+                JSON.stringify(gesehen));
+        } else {
+            console.warn("klToolbox: Kein Eintrag mit dem Autor " + JSON.stringify(autor) +
+                " gefunden. Autoren in diesem Ticket: " + JSON.stringify(gesehen));
+        }
+    }
+
+    function findKiEntryHeaders() {
+        const autor = (settings.kiBewertungAutor || "").replace(/\s+/g, " ").trim().toLowerCase();
         const cands = [];
+        const gesehen = [];
         for (const el of document.querySelectorAll("div, span, p, td")) {
             const t = el.textContent || "";
-            if (t.length > 400 || !t.includes("aktualisiert am") || !t.includes(autor)) {
+            if (t.length > 400 || t.indexOf("aktualisiert am") === -1 || !isVisible(el)) {
                 continue;
             }
-            if (isVisible(el)) {
+            const a = headerAuthor(el);
+            if (!a) {
+                continue;
+            }
+            if (gesehen.indexOf(a) === -1) {
+                gesehen.push(a);
+            }
+            if (autor && a.toLowerCase() === autor) {
                 cands.push(el);
             }
         }
-        return cands.filter((el) => !cands.some((o) => o !== el && el.contains(o)));
+        // Innerstes Element gewinnt, falls doch mehrere Ebenen passen
+        const heads = cands.filter((el) => !cands.some((o) => o !== el && el.contains(o)));
+        if (heads.length === 0) {
+            warnKiAutor(autor, gesehen);
+        }
+        return heads;
     }
 
     function ensureBewertenButtons() {
@@ -922,7 +964,15 @@
                 e.stopPropagation();
                 openBewertenPanel(btn);
             });
-            head.appendChild(btn);
+            // Links neben die vorhandenen Symbole setzen (die liegen in einem
+            // eigenen Container am Zeilenende)
+            const iconBox = Array.from(head.children).reverse()
+                .find((c) => c.tagName === "DIV" && c.querySelector("button"));
+            if (iconBox) {
+                head.insertBefore(btn, iconBox);
+            } else {
+                head.appendChild(btn);
+            }
         }
     }
 
