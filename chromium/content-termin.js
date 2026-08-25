@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.2"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -1065,11 +1065,17 @@
         ta.focus();
     }
 
-    // Note als Tag im Eintragsformular setzen. Das Tag-Feld ist ein ap-select
-    // wie der Status, sein Auswahlfeld enthaelt aber eine CHECKBOX-Liste -
-    // deshalb eine eigene Routine statt selectStatusInForm.
+    // Note als Tag im Eintragsformular setzen. Das Tag-Feld ist ein ap-select,
+    // sein Auswahlfeld ist aber ein Baum aus ".ap-tree-select-item"-Zeilen mit
+    // je einer Checkbox - deshalb eine eigene Routine statt selectStatusInForm.
+    // Aufbau einer Zeile (verifiziert):
+    //   <div class="ap-tree-select-item">
+    //     <div ... style="margin-left:16px">   <- Einrueckung = Ebene
+    //     <div ...><input type="checkbox"></div>
+    //     <div class="inline"><span> 1 </span></div>
     async function setTagInForm(form, tagText) {
         const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+
         const label = Array.from(form.container.querySelectorAll("div, label, span")).find((d) =>
             d.childElementCount === 0 && /^tags:?$/i.test((d.textContent || "").trim()) && isVisible(d)
         );
@@ -1089,75 +1095,87 @@
             return false;
         }
 
+        // Auswahlfeld oeffnen und auf die Baumzeilen warten
         realClick(select);
-        await sleep(450);
-
-        // Das geoeffnete Auswahlfeld ueber sein Suchfeld finden und von dort
-        // so weit hochlaufen, bis der Container die Checkbox-Liste enthaelt.
-        const such = Array.from(document.querySelectorAll("input")).filter(isVisible)
-            .find((i) => /suchen/i.test(i.getAttribute("placeholder") || ""));
-        let popup = such ? such.parentElement : null;
-        for (let i = 0; i < 6 && popup; i++) {
-            if (popup.querySelector("input[type='checkbox']")) {
+        let rows = [];
+        for (let i = 0; i < 12; i++) {
+            await sleep(150);
+            rows = Array.from(document.querySelectorAll(".ap-tree-select-item")).filter(isVisible);
+            if (rows.length > 0) {
                 break;
             }
-            popup = popup.parentElement;
         }
-        if (!popup) {
-            console.warn("klToolbox: Tag-Auswahlfeld nicht gefunden (kein Suchfeld/keine Checkboxen sichtbar).");
-            realClick(select);
+        if (rows.length === 0) {
+            console.warn("klToolbox: Tag-Auswahlfeld liess sich nicht oeffnen (keine .ap-tree-select-item sichtbar).");
             return false;
         }
 
-        // Optional auf die konfigurierte Gruppe eingrenzen
-        let scope = popup;
-        const gruppe = (settings.kiBewertungTagGruppe || "").trim();
-        if (gruppe) {
-            const g = Array.from(popup.querySelectorAll("div, span, li, label")).filter(isVisible)
-                .find((e) => norm(e.textContent) === norm(gruppe));
-            let node = g ? g.parentElement : null;
-            for (let i = 0; i < 5 && node && node !== popup; i++) {
-                if (node.querySelectorAll("input[type='checkbox']").length > 1) {
-                    scope = node;
-                    break;
+        const rowLabel = (r) => {
+            const box = r.querySelector("input[type='checkbox']");
+            if (box) {
+                // Nur den Beschriftungsteil lesen, nicht die Checkbox-Spalte
+                const texte = Array.from(r.querySelectorAll("span"))
+                    .map((s) => norm(s.textContent))
+                    .filter((t) => t.length > 0);
+                if (texte.length > 0) {
+                    return texte[texte.length - 1];
                 }
-                node = node.parentElement;
+            }
+            return norm(r.textContent);
+        };
+
+        // Bei konfigurierter Gruppe erst deren Zeile suchen und ab da weiter -
+        // die Kind-Eintraege folgen im Dokument direkt darauf.
+        const gruppe = norm(settings.kiBewertungTagGruppe || "");
+        let start = 0;
+        if (gruppe) {
+            const gi = rows.findIndex((r) => rowLabel(r) === gruppe);
+            if (gi >= 0) {
+                start = gi + 1;
+            } else {
+                console.warn("klToolbox: Tag-Gruppe " + JSON.stringify(gruppe) + " nicht gefunden - suche im gesamten Baum.");
             }
         }
 
-        const treffer = Array.from(scope.querySelectorAll("label, li, div, span")).filter(isVisible)
-            .filter((e) => norm(e.textContent) === norm(tagText));
-        const zeile = treffer.filter((e) => !treffer.some((o) => o !== e && e.contains(o)))[0];
-        if (!zeile) {
-            console.warn("klToolbox: Tag '" + tagText + "' nicht gefunden. Sichtbare Einträge im Auswahlfeld: " +
-                JSON.stringify(Array.from(scope.querySelectorAll("label, li, span")).filter(isVisible)
-                    .map((e) => norm(e.textContent)).filter((t) => t && t.length < 40).slice(0, 40)));
+        const wanted = norm(tagText);
+        let ziel = null;
+        for (let i = start; i < rows.length; i++) {
+            if (rowLabel(rows[i]) === wanted) {
+                ziel = rows[i];
+                break;
+            }
+        }
+        if (!ziel && start > 0) {
+            ziel = rows.find((r) => rowLabel(r) === wanted) || null;
+        }
+        if (!ziel) {
+            console.warn("klToolbox: Tag " + JSON.stringify(tagText) + " nicht gefunden. Sichtbare Eintraege: " +
+                JSON.stringify(rows.map(rowLabel).slice(0, 40)));
             realClick(select);
             return false;
         }
 
-        let box = zeile.querySelector("input[type='checkbox']");
-        let node = zeile;
-        for (let i = 0; i < 4 && !box && node; i++) {
-            node = node.parentElement;
-            if (node && node !== scope) {
-                box = node.querySelector("input[type='checkbox']");
-            }
+        const box = ziel.querySelector("input[type='checkbox']");
+        if (!box) {
+            console.warn("klToolbox: Zur Zeile " + JSON.stringify(tagText) + " gehoert keine Checkbox.");
+            realClick(select);
+            return false;
         }
-        // Erst die Zeile klicken (die App haengt den Handler meist dort),
-        // nur wenn das nichts bewirkt, direkt die Checkbox.
-        realClick(zeile);
-        await sleep(250);
-        if (box && !box.checked) {
+        if (!box.checked) {
             realClick(box);
             await sleep(250);
         }
-        const gesetzt = box ? box.checked === true : true;
+        if (!box.checked) {
+            // Manche Baeume haengen den Handler an die Zeile statt an die Box
+            realClick(ziel);
+            await sleep(250);
+        }
+        const gesetzt = box.checked === true;
         if (!gesetzt) {
-            console.warn("klToolbox: Tag '" + tagText + "' konnte nicht aktiviert werden.");
+            console.warn("klToolbox: Tag " + JSON.stringify(tagText) + " liess sich nicht aktivieren.");
         }
         realClick(select);   // Auswahlfeld wieder schliessen
-        await sleep(200);
+        await sleep(250);
         return gesetzt;
     }
 
