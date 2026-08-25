@@ -1,5 +1,5 @@
 // Version
-// version = "1.9.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.9.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -680,6 +680,20 @@
         return (d < 10 ? d.toFixed(1).replace(".", ",") : String(Math.round(d))) + "T";
     }
 
+    // Diagnose: nicht lesbare "Erstellt am"-Werte EINMAL pro Variante in die
+    // Konsole schreiben. Ohne das bleibt eine fehlende Wartezeit in der Liste
+    // unsichtbar - der Scan laeuft im Sekundentakt, deshalb der Dedup-Filter.
+    const unparsedDates = new Set();
+
+    function warnUnparsedDate(text) {
+        const t = (text || "").trim();
+        if (!t || unparsedDates.has(t) || unparsedDates.size > 20) {
+            return;
+        }
+        unparsedDates.add(t);
+        console.warn("klToolbox: Datum in der Spalte 'Erstellt am' nicht lesbar: " + JSON.stringify(t));
+    }
+
     function ensureListDots() {
         if (settings.ftWaitList === false) {
             document.querySelectorAll(".__tt_list_dot, .__tt_list_badge, .__tt_list_age").forEach((d) => d.remove());
@@ -707,13 +721,25 @@
                 if (tds.length <= Math.max(colCreated, colId) || tds[0].tagName !== "TD") {
                     continue;
                 }
-                const m = /(\d{1,2})\.(\d{1,2})\.(\d{4}),?\s*(\d{1,2}):(\d{2})/
-                    .exec(tds[colCreated].textContent || "");
+                // Uhrzeit ist OPTIONAL: aeltere Eintraege zeigen in der Liste
+                // teils nur das Datum - mit Pflicht-Uhrzeit schlug das Parsen
+                // fehl und die Wartezeit fiel ganz weg. Zweistellige Jahre
+                // werden ebenfalls akzeptiert.
+                const zellText = tds[colCreated].textContent || "";
+                const m = /(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?:,?\s*(\d{1,2}):(\d{2}))?/
+                    .exec(zellText);
                 if (!m) {
+                    warnUnparsedDate(zellText);
                     continue;
                 }
-                const created = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], 0);
+                let jahr = Number(m[3]);
+                if (jahr < 100) {
+                    jahr += 2000;
+                }
+                const created = new Date(jahr, +m[2] - 1, +m[1],
+                    m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, 0);
                 if (isNaN(created.getTime())) {
+                    warnUnparsedDate(zellText);
                     continue;
                 }
                 const ms = Date.now() - created.getTime();
