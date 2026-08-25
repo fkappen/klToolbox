@@ -101,6 +101,7 @@
             <label><input type="checkbox" id="ftKiAntwort"> ✨ KI-Antwort (Mail-Fenster)</label>
             <label><input type="checkbox" id="ftVorlagenEintrag"> 📋 Vorlagen (Eintrags-Editor)</label>
             <label><input type="checkbox" id="ftFehlercodes"> 🔗 DATEV-Fehlercode-Links</label>
+            <label><input type="checkbox" id="ftKiBewertung"> ⭐ KI-Bewertung (Eintragskopf)</label>
         </div>
         <span id="statusFt" class="status"></span>
     </fieldset>
@@ -354,6 +355,22 @@
     <div class="toolbar">
         <button id="saveAmpel" class="primary">Ampel speichern</button>
         <button id="resetAmpel" class="secondary">Standardwerte</button><span id="statusAmpel" class="status"></span>
+    </div>
+
+    <!-- ================================================== KI-Bewertung -->
+    <h2>KI-Bewertung von Ticket-Einträgen</h2>
+    <p class="hint">Erstellt eine KI automatische Zusammenfassungen als Ticket-Einträge, blendet die Erweiterung in deren Kopfzeile den Knopf „⭐ Bewerten“ ein. Die Note (1 = sehr gut, 3 = sehr schlecht) wird als Tag gesetzt und zusammen mit der Begründung als interner Eintrag gespeichert — in einem Schritt. <b>Ohne Autorenname bleibt die Funktion aus.</b></p>
+
+    <label for="kiBewertungAutor">Autor der KI-Einträge</label>
+    <input type="text" id="kiBewertungAutor" placeholder="z. B. API HAL9000">
+    <div class="hint">Genau so, wie der Name in der Kopfzeile des Eintrags steht („von <b>…</b> aktualisiert am …“). Kommt normalerweise per Settings-Import.</div>
+
+    <label for="kiBewertungTagGruppe">Tag-Gruppe der Noten (optional)</label>
+    <input type="text" id="kiBewertungTagGruppe" placeholder="z. B. KI Bewertung">
+    <div class="hint">Ordner in der Tag-Auswahl, in dem die Noten 1–3 liegen. Leer lassen, wenn die Tags nicht in einem Ordner stecken.</div>
+
+    <div class="toolbar">
+        <button id="saveKiBew" class="primary">KI-Bewertung speichern</button><span id="statusKiBew" class="status"></span>
     </div>
 
     <!-- ================================================== Ticket-Vorlagen -->

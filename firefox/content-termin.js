@@ -1,5 +1,5 @@
 // Version
-// version = "1.9.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -44,6 +44,12 @@
         ftWaitBadge: true,
         ftWaitList: true,
         ftFehlercodes: true,
+        ftKiBewertung: true,
+        // Autor der KI-Eintraege (z. B. "API HAL9000") - NUR wenn gesetzt,
+        // erscheint der Bewerten-Knopf. Kommt per Settings-Import.
+        kiBewertungAutor: "",
+        // Optionale Tag-Gruppe, in der die Noten 1-3 liegen (z. B. "KI Bewertung")
+        kiBewertungTagGruppe: "",
         // Suchvorlage der DATEV Wissensplattform (fuer Fehlercode-Links)
         datevSearchTemplate: "",
         // Ampel-Schwellwerte (Optionen -> Wartezeit-Ampel). Vier Stufen:
@@ -788,6 +794,7 @@
         // Kontakt-E-Mail mitschneiden, falls das Kontaktmenue gerade offen
         // ist - sie ist sonst nirgends im DOM zu finden.
         captureContactMail();
+        ensureBewertenButtons();
     }
 
     function scheduleWaitBadge() {
@@ -855,6 +862,283 @@
             }
         }
         return oldest;
+    }
+
+    // ---------------------------------------------------------- KI-Bewertung
+    // Eintraege der Ticket-KI (Autor aus den Optionen, z. B. "API HAL9000")
+    // bekommen im Kopf einen Knopf "Bewerten". Ergebnis: Note als Tag PLUS
+    // interner Eintrag mit Note und Kommentar - beides in EINEM Speichern-
+    // Vorgang, wie bei den Aktions-Makros.
+
+    const BEWERTUNG_NOTEN = [
+        { note: "1", text: "sehr gut" },
+        { note: "2", text: "in Ordnung" },
+        { note: "3", text: "sehr schlecht" }
+    ];
+
+    const BEW_BTN_STYLE =
+        "margin-left:10px;padding:1px 8px;border:1px solid #c3ced5;border-radius:10px;" +
+        "background:#fff;color:#46626F;font:600 11px/1.6 system-ui,sans-serif;cursor:pointer;" +
+        "vertical-align:middle;";
+
+    // Koepfe der KI-Eintraege finden: Zeile enthaelt "aktualisiert am" UND den
+    // konfigurierten Autor. Es wird das INNERSTE passende Element genommen,
+    // sonst landet der Knopf im umschliessenden Eintrags-Container.
+    function findKiEntryHeaders() {
+        const autor = (settings.kiBewertungAutor || "").trim();
+        if (!autor) {
+            return [];
+        }
+        const cands = [];
+        for (const el of document.querySelectorAll("div, span, p, td")) {
+            const t = el.textContent || "";
+            if (t.length > 400 || !t.includes("aktualisiert am") || !t.includes(autor)) {
+                continue;
+            }
+            if (isVisible(el)) {
+                cands.push(el);
+            }
+        }
+        return cands.filter((el) => !cands.some((o) => o !== el && el.contains(o)));
+    }
+
+    function ensureBewertenButtons() {
+        if (settings.ftKiBewertung === false || !(settings.kiBewertungAutor || "").trim()) {
+            document.querySelectorAll(".__tt_bew_btn").forEach((b) => b.remove());
+            return;
+        }
+        for (const head of findKiEntryHeaders()) {
+            if (head.querySelector(".__tt_bew_btn")) {
+                continue;
+            }
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "__tt_bew_btn";
+            btn.textContent = "⭐ Bewerten";
+            btn.title = "Diese KI-Zusammenfassung bewerten (Note als Tag + interner Eintrag)";
+            btn.style.cssText = BEW_BTN_STYLE;
+            btn.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openBewertenPanel(btn);
+            });
+            head.appendChild(btn);
+        }
+    }
+
+    function closeBewertenPanel() {
+        const p = document.getElementById("__tt_bew_panel");
+        if (p) {
+            p.remove();
+        }
+    }
+
+    function openBewertenPanel(anchor) {
+        closeBewertenPanel();
+        const panel = document.createElement("div");
+        panel.id = "__tt_bew_panel";
+        panel.style.cssText =
+            "position:fixed;z-index:2147483647;width:300px;background:#fff;color:#26323a;" +
+            "border:1px solid #d5dde2;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);" +
+            "padding:12px;font:13px/1.4 system-ui,sans-serif;";
+
+        const head = document.createElement("div");
+        head.textContent = "KI-Zusammenfassung bewerten";
+        head.style.cssText = "font-weight:700;margin-bottom:8px;color:#35505C;";
+        panel.appendChild(head);
+
+        let gewaehlt = "1";
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;gap:6px;margin-bottom:10px;";
+        const noteBtns = [];
+        for (const n of BEWERTUNG_NOTEN) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = n.note;
+            b.title = n.text;
+            b.dataset.note = n.note;
+            b.style.cssText = "flex:1;padding:7px 0;border-radius:8px;cursor:pointer;font:700 14px/1 system-ui,sans-serif;";
+            b.addEventListener("click", () => {
+                gewaehlt = n.note;
+                markiere();
+            });
+            noteBtns.push(b);
+            row.appendChild(b);
+        }
+        const markiere = () => {
+            for (const b of noteBtns) {
+                const aktiv = b.dataset.note === gewaehlt;
+                b.style.border = aktiv ? "2px solid #46626F" : "1px solid #c3ced5";
+                b.style.background = aktiv ? "#46626F" : "#fff";
+                b.style.color = aktiv ? "#fff" : "#56646d";
+            }
+        };
+        markiere();
+        panel.appendChild(row);
+
+        const lbl = document.createElement("div");
+        lbl.textContent = "Begründung (optional)";
+        lbl.style.cssText = "font-size:12px;color:#7a8791;margin-bottom:4px;";
+        panel.appendChild(lbl);
+
+        const ta = document.createElement("textarea");
+        ta.style.cssText =
+            "width:100%;box-sizing:border-box;min-height:70px;padding:7px 9px;border:1px solid #d5dde2;" +
+            "border-radius:8px;font:inherit;resize:vertical;";
+        ta.placeholder = "Was war gut bzw. was hat gefehlt?";
+        panel.appendChild(ta);
+
+        const bar = document.createElement("div");
+        bar.style.cssText = "display:flex;gap:8px;margin-top:10px;";
+        const ok = document.createElement("button");
+        ok.type = "button";
+        ok.textContent = "Speichern";
+        ok.style.cssText = "flex:1;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font:600 13px/1 system-ui,sans-serif;background:#46626F;color:#fff;";
+        ok.addEventListener("click", () => {
+            ok.disabled = true;
+            ok.textContent = "Speichere…";
+            runBewertung(gewaehlt, ta.value.trim(), ok);
+        });
+        const abbr = document.createElement("button");
+        abbr.type = "button";
+        abbr.textContent = "Abbrechen";
+        abbr.style.cssText = "border:1px solid #c3ced5;background:transparent;border-radius:8px;padding:8px 12px;cursor:pointer;font:600 13px/1 system-ui,sans-serif;color:#56646d;";
+        abbr.addEventListener("click", closeBewertenPanel);
+        bar.appendChild(ok);
+        bar.appendChild(abbr);
+        panel.appendChild(bar);
+
+        document.documentElement.appendChild(panel);
+        const r = anchor.getBoundingClientRect();
+        panel.style.top = Math.min(r.bottom + 6, window.innerHeight - 250) + "px";
+        panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 312)) + "px";
+        ta.focus();
+    }
+
+    // Note als Tag im Eintragsformular setzen. Das Tag-Feld ist ein ap-select
+    // wie der Status, sein Auswahlfeld enthaelt aber eine CHECKBOX-Liste -
+    // deshalb eine eigene Routine statt selectStatusInForm.
+    async function setTagInForm(form, tagText) {
+        const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const label = Array.from(form.container.querySelectorAll("div, label, span")).find((d) =>
+            d.childElementCount === 0 && /^tags:?$/i.test((d.textContent || "").trim()) && isVisible(d)
+        );
+        let select = null;
+        if (label) {
+            if (label.nextElementSibling) {
+                select = label.nextElementSibling.classList.contains("ap-select")
+                    ? label.nextElementSibling
+                    : label.nextElementSibling.querySelector(".ap-select");
+            }
+            if (!select && label.parentElement) {
+                select = label.parentElement.querySelector(".ap-select");
+            }
+        }
+        if (!select || !isVisible(select)) {
+            console.warn("klToolbox: Tags-Feld im Eintragsformular nicht gefunden - Note wurde nicht als Tag gesetzt.");
+            return false;
+        }
+
+        realClick(select);
+        await sleep(450);
+
+        // Das geoeffnete Auswahlfeld ueber sein Suchfeld finden und von dort
+        // so weit hochlaufen, bis der Container die Checkbox-Liste enthaelt.
+        const such = Array.from(document.querySelectorAll("input")).filter(isVisible)
+            .find((i) => /suchen/i.test(i.getAttribute("placeholder") || ""));
+        let popup = such ? such.parentElement : null;
+        for (let i = 0; i < 6 && popup; i++) {
+            if (popup.querySelector("input[type='checkbox']")) {
+                break;
+            }
+            popup = popup.parentElement;
+        }
+        if (!popup) {
+            console.warn("klToolbox: Tag-Auswahlfeld nicht gefunden (kein Suchfeld/keine Checkboxen sichtbar).");
+            realClick(select);
+            return false;
+        }
+
+        // Optional auf die konfigurierte Gruppe eingrenzen
+        let scope = popup;
+        const gruppe = (settings.kiBewertungTagGruppe || "").trim();
+        if (gruppe) {
+            const g = Array.from(popup.querySelectorAll("div, span, li, label")).filter(isVisible)
+                .find((e) => norm(e.textContent) === norm(gruppe));
+            let node = g ? g.parentElement : null;
+            for (let i = 0; i < 5 && node && node !== popup; i++) {
+                if (node.querySelectorAll("input[type='checkbox']").length > 1) {
+                    scope = node;
+                    break;
+                }
+                node = node.parentElement;
+            }
+        }
+
+        const treffer = Array.from(scope.querySelectorAll("label, li, div, span")).filter(isVisible)
+            .filter((e) => norm(e.textContent) === norm(tagText));
+        const zeile = treffer.filter((e) => !treffer.some((o) => o !== e && e.contains(o)))[0];
+        if (!zeile) {
+            console.warn("klToolbox: Tag '" + tagText + "' nicht gefunden. Sichtbare Einträge im Auswahlfeld: " +
+                JSON.stringify(Array.from(scope.querySelectorAll("label, li, span")).filter(isVisible)
+                    .map((e) => norm(e.textContent)).filter((t) => t && t.length < 40).slice(0, 40)));
+            realClick(select);
+            return false;
+        }
+
+        let box = zeile.querySelector("input[type='checkbox']");
+        let node = zeile;
+        for (let i = 0; i < 4 && !box && node; i++) {
+            node = node.parentElement;
+            if (node && node !== scope) {
+                box = node.querySelector("input[type='checkbox']");
+            }
+        }
+        // Erst die Zeile klicken (die App haengt den Handler meist dort),
+        // nur wenn das nichts bewirkt, direkt die Checkbox.
+        realClick(zeile);
+        await sleep(250);
+        if (box && !box.checked) {
+            realClick(box);
+            await sleep(250);
+        }
+        const gesetzt = box ? box.checked === true : true;
+        if (!gesetzt) {
+            console.warn("klToolbox: Tag '" + tagText + "' konnte nicht aktiviert werden.");
+        }
+        realClick(select);   // Auswahlfeld wieder schliessen
+        await sleep(200);
+        return gesetzt;
+    }
+
+    async function runBewertung(note, kommentar, statusBtn) {
+        try {
+            const form = findEntryForm();
+            if (!form) {
+                alert("Das Eintragsformular unten wurde nicht gefunden - bitte einmal in das Textfeld klicken und erneut versuchen.");
+                closeBewertenPanel();
+                return;
+            }
+            const noteObj = BEWERTUNG_NOTEN.find((n) => n.note === note) || BEWERTUNG_NOTEN[0];
+            let text = "KI-Bewertung: Note " + noteObj.note + " (" + noteObj.text + ")";
+            if (kommentar) {
+                text += "\n" + kommentar;
+            }
+            await pasteIntoEntryForm(form, text);
+            const tagOk = await setTagInForm(form, note);
+            realClick(form.saveBtn);
+            closeBewertenPanel();
+            if (!tagOk) {
+                console.warn("klToolbox: Eintrag gespeichert, der Tag musste aber manuell gesetzt werden.");
+            }
+        } catch (err) {
+            console.error("klToolbox: Bewertung fehlgeschlagen:", err);
+            if (statusBtn) {
+                statusBtn.disabled = false;
+                statusBtn.textContent = "Speichern";
+            }
+            alert("Die Bewertung konnte nicht gespeichert werden - Details stehen in der Konsole (F12).");
+        }
     }
 
     // ---------------------------------------------------------- Anfahrt planen
@@ -1823,8 +2107,8 @@
     let moduleEnabled = true;
 
     function removeTerminUi() {
-        document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge, .__tt_list_dot, .__tt_list_badge, .__tt_list_age").forEach((el) => el.remove());
-        ["__tt_btn", "__tt_panel", "__tt_route_panel", "__tt_makro_panel"].forEach((id) => {
+        document.querySelectorAll(".__tt_tbtn, .__tt_wait_badge, .__tt_list_dot, .__tt_list_badge, .__tt_list_age, .__tt_bew_btn").forEach((el) => el.remove());
+        ["__tt_btn", "__tt_panel", "__tt_route_panel", "__tt_makro_panel", "__tt_bew_panel"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) {
                 el.remove();

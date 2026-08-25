@@ -78,7 +78,8 @@ const FT_DEFAULTS = {
     ftAnrede: true,
     ftKiAntwort: true,
     ftVorlagenEintrag: true,
-    ftFehlercodes: true
+    ftFehlercodes: true,
+    ftKiBewertung: true
 };
 
 // Wartezeit-Ampel: vier Stufen (gruen -> gelb -> rot -> lila). Schwellwerte
@@ -155,6 +156,13 @@ const NAMEN_DEFAULTS = {
     eigeneVornamenM: "",
     eigeneVornamenNeutral: ""
 };
+
+function saveKiBewertung() {
+    chrome.storage.local.set({
+        kiBewertungAutor: document.getElementById("kiBewertungAutor").value.trim(),
+        kiBewertungTagGruppe: document.getElementById("kiBewertungTagGruppe").value.trim()
+    }, () => flashStatus("statusKiBew"));
+}
 
 function saveNamen() {
     const out = {};
@@ -265,7 +273,9 @@ const TERMIN_DEFAULTS = {
     autoStatus: true,
     nichtErreichtText: "Nicht erreicht.",
     firmenAdresse: "",
-    defaultTerminart: "telefon"
+    defaultTerminart: "telefon",
+    kiBewertungAutor: "",
+    kiBewertungTagGruppe: ""
 };
 
 // Module (abschaltbare Funktionsbereiche) - Checkboxen speichern sofort
@@ -369,6 +379,8 @@ function loadAll() {
         document.getElementById("nichtErreichtText").value = items.nichtErreichtText;
         document.getElementById("firmenAdresse").value = items.firmenAdresse;
         document.getElementById("defaultTerminart").value = items.defaultTerminart;
+        document.getElementById("kiBewertungAutor").value = items.kiBewertungAutor || "";
+        document.getElementById("kiBewertungTagGruppe").value = items.kiBewertungTagGruppe || "";
         // Vorlagen
         templates = Array.isArray(items.templates) ? items.templates : [];
         renderTemplates();
@@ -846,7 +858,9 @@ function saveTermin() {
         autoStatus: document.getElementById("autoStatus").checked,
         nichtErreichtText: document.getElementById("nichtErreichtText").value.trim() || TERMIN_DEFAULTS.nichtErreichtText,
         firmenAdresse: document.getElementById("firmenAdresse").value.trim(),
-        defaultTerminart: document.getElementById("defaultTerminart").value
+        defaultTerminart: document.getElementById("defaultTerminart").value,
+        kiBewertungAutor: document.getElementById("kiBewertungAutor").value.trim(),
+        kiBewertungTagGruppe: document.getElementById("kiBewertungTagGruppe").value.trim()
     }, () => flashStatus("statusTermin"));
 }
 
@@ -1235,6 +1249,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("saveTermin").addEventListener("click", saveTermin);
     document.getElementById("saveAmpel").addEventListener("click", saveAmpel);
     document.getElementById("saveNamen").addEventListener("click", saveNamen);
+    document.getElementById("saveKiBew").addEventListener("click", saveKiBewertung);
     document.getElementById("resetAmpel").addEventListener("click", resetAmpel);
     for (const [key] of AMPEL_STUFEN) {
         document.getElementById(key).addEventListener("input", renderAmpelPreview);
