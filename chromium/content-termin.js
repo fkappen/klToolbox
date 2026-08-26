@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.2"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.3"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -1026,6 +1026,22 @@
         markiere();
         panel.appendChild(row);
 
+        // Skala: macht ohne Hovern klar, in welche Richtung die Noten laufen
+        const skala = document.createElement("div");
+        skala.style.cssText = "height:4px;border-radius:2px;margin:0 2px 3px;" +
+            "background:linear-gradient(90deg,#1a7f37 0%,#b58900 50%,#b3261e 100%);";
+        panel.appendChild(skala);
+        const skalaTxt = document.createElement("div");
+        skalaTxt.style.cssText = "display:flex;justify-content:space-between;margin:0 2px 10px;" +
+            "font-size:11px;color:#7a8791;";
+        const links = document.createElement("span");
+        links.textContent = "sehr gut";
+        const rechts = document.createElement("span");
+        rechts.textContent = "sehr schlecht";
+        skalaTxt.appendChild(links);
+        skalaTxt.appendChild(rechts);
+        panel.appendChild(skalaTxt);
+
         const lbl = document.createElement("div");
         lbl.textContent = "Begründung (optional)";
         lbl.style.cssText = "font-size:12px;color:#7a8791;margin-bottom:4px;";
@@ -1090,8 +1106,16 @@
                 select = label.parentElement.querySelector(".ap-select");
             }
         }
+        // Fallback: ap-select, dessen type-Attribut nach Tags aussieht
         if (!select || !isVisible(select)) {
-            console.warn("klToolbox: Tags-Feld im Eintragsformular nicht gefunden - Note wurde nicht als Tag gesetzt.");
+            select = Array.from(form.container.querySelectorAll(".ap-select")).filter(isVisible)
+                .find((s) => /tag/i.test(s.getAttribute("type") || "")) || null;
+        }
+        if (!select || !isVisible(select)) {
+            console.warn("klToolbox: Tags-Feld im Eintragsformular nicht gefunden - Note wurde nicht als Tag gesetzt. " +
+                "ap-select-Typen im Formular: " + JSON.stringify(
+                    Array.from(form.container.querySelectorAll(".ap-select")).map((e) => e.getAttribute("type"))
+                ));
             return false;
         }
 
@@ -1161,19 +1185,37 @@
             realClick(select);
             return false;
         }
-        if (!box.checked) {
+        // Erfolg zaehlt auch, wenn das Feld selbst die Note anzeigt - manche
+        // Baeume spiegeln den Zustand nicht in input.checked wider.
+        const zeigtTag = () => {
+            const anzeige = norm(select.textContent);
+            return anzeige.split(/[\s,;]+/).indexOf(wanted) !== -1;
+        };
+        if (!box.checked && !zeigtTag()) {
             realClick(box);
-            await sleep(250);
+            await sleep(300);
         }
-        if (!box.checked) {
+        if (!box.checked && !zeigtTag()) {
             // Manche Baeume haengen den Handler an die Zeile statt an die Box
             realClick(ziel);
-            await sleep(250);
+            await sleep(300);
         }
-        const gesetzt = box.checked === true;
+        if (!box.checked && !zeigtTag()) {
+            // Letzter Versuch: Zustand direkt setzen und die App benachrichtigen
+            box.checked = true;
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            box.dispatchEvent(new Event("change", { bubbles: true }));
+            await sleep(300);
+        }
+        const gesetzt = box.checked === true || zeigtTag();
         if (!gesetzt) {
-            console.warn("klToolbox: Tag " + JSON.stringify(tagText) + " liess sich nicht aktivieren.");
+            console.warn("klToolbox: Tag " + JSON.stringify(tagText) + " liess sich nicht aktivieren. " +
+                "Feldanzeige: " + JSON.stringify((select.textContent || "").trim().slice(0, 120)));
         }
+        // Kurzprotokoll: zeigt in einer Zeile, wo es haengt
+        console.info("klToolbox: Tag-Setzen — Feld=" + JSON.stringify(select.getAttribute("type") || "?") +
+            ", Zeilen=" + rows.length + ", Gruppe=" + JSON.stringify(gruppe || "-") +
+            ", Ziel gefunden=ja, Checkbox=" + box.checked + ", Ergebnis=" + gesetzt);
         realClick(select);   // Auswahlfeld wieder schliessen
         await sleep(250);
         return gesetzt;
@@ -1192,8 +1234,10 @@
             if (kommentar) {
                 text += "\n" + kommentar;
             }
-            await pasteIntoEntryForm(form, text);
+            // Reihenfolge: erst der Tag, dann der Text. Andersherum haelt der
+            // Editor den Fokus und der Klick auf das Auswahlfeld geht ins Leere.
             const tagOk = await setTagInForm(form, note);
+            await pasteIntoEntryForm(form, text);
             realClick(form.saveBtn);
             closeBewertenPanel();
             if (!tagOk) {
