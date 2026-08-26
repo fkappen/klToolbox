@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.3"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.4"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -1092,30 +1092,43 @@
     async function setTagInForm(form, tagText) {
         const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
 
+        // WICHTIG: Das Tags-Feld ist KEIN ap-select. Im Formular liegen nur
+        // apTicketPriority, apTicketStatus, apTicketType, apEmployee und
+        // apDepartment - Tags ist ein Baum-Auswahlfeld (passend zu den
+        // ".ap-tree-select-item"-Zeilen im geoeffneten Zustand).
+        const istFeld = (e) => !!e && isVisible(e) && !e.classList.contains("ap-tree-select-item");
+        const FELD_SEL = "[class*='tree-select'], [class*='treeSelect'], .ap-select";
+
         const label = Array.from(form.container.querySelectorAll("div, label, span")).find((d) =>
             d.childElementCount === 0 && /^tags:?$/i.test((d.textContent || "").trim()) && isVisible(d)
         );
         let select = null;
         if (label) {
+            const kandidaten = [];
             if (label.nextElementSibling) {
-                select = label.nextElementSibling.classList.contains("ap-select")
-                    ? label.nextElementSibling
-                    : label.nextElementSibling.querySelector(".ap-select");
+                kandidaten.push(label.nextElementSibling.querySelector(FELD_SEL));
+                kandidaten.push(label.nextElementSibling);
             }
-            if (!select && label.parentElement) {
-                select = label.parentElement.querySelector(".ap-select");
+            if (label.parentElement) {
+                kandidaten.push(label.parentElement.querySelector(FELD_SEL));
             }
+            select = kandidaten.find(istFeld) || null;
         }
-        // Fallback: ap-select, dessen type-Attribut nach Tags aussieht
-        if (!select || !isVisible(select)) {
-            select = Array.from(form.container.querySelectorAll(".ap-select")).filter(isVisible)
-                .find((s) => /tag/i.test(s.getAttribute("type") || "")) || null;
+        // Fallback: einziges Baum-Auswahlfeld im Formular
+        if (!select) {
+            select = Array.from(form.container.querySelectorAll("[class*='tree-select'], [class*='treeSelect']"))
+                .filter(istFeld)[0] || null;
         }
-        if (!select || !isVisible(select)) {
-            console.warn("klToolbox: Tags-Feld im Eintragsformular nicht gefunden - Note wurde nicht als Tag gesetzt. " +
-                "ap-select-Typen im Formular: " + JSON.stringify(
-                    Array.from(form.container.querySelectorAll(".ap-select")).map((e) => e.getAttribute("type"))
-                ));
+        if (!select) {
+            console.warn("klToolbox: Tags-Feld im Eintragsformular nicht gefunden - Note wurde nicht als Tag gesetzt." +
+                "\n  Beschriftung 'Tags:' gefunden: " + (label ? "ja" : "nein") +
+                "\n  Nachbar der Beschriftung: " + JSON.stringify(
+                    label && label.nextElementSibling ? (label.nextElementSibling.className || label.nextElementSibling.tagName) : "-") +
+                "\n  tree-select-Elemente im Formular: " + JSON.stringify(
+                    Array.from(form.container.querySelectorAll("[class*='tree-select'], [class*='treeSelect']"))
+                        .map((e) => e.className).slice(0, 10)) +
+                "\n  ap-select-Typen im Formular: " + JSON.stringify(
+                    Array.from(form.container.querySelectorAll(".ap-select")).map((e) => e.getAttribute("type"))));
             return false;
         }
 
@@ -1213,7 +1226,8 @@
                 "Feldanzeige: " + JSON.stringify((select.textContent || "").trim().slice(0, 120)));
         }
         // Kurzprotokoll: zeigt in einer Zeile, wo es haengt
-        console.info("klToolbox: Tag-Setzen — Feld=" + JSON.stringify(select.getAttribute("type") || "?") +
+        console.info("klToolbox: Tag-Setzen — Feld=" +
+            JSON.stringify(select.getAttribute("type") || select.className || "?") +
             ", Zeilen=" + rows.length + ", Gruppe=" + JSON.stringify(gruppe || "-") +
             ", Ziel gefunden=ja, Checkbox=" + box.checked + ", Ergebnis=" + gesetzt);
         realClick(select);   // Auswahlfeld wieder schliessen
