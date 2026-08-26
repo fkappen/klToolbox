@@ -1,5 +1,5 @@
 // Version
-// version = "2.0.0"  (Modul Popup, klToolbox)
+// version = "2.1.0"  (Modul Popup, klToolbox)
 // datum   = "2026-08-13"
 // autor   = "FK"
 //
@@ -161,6 +161,8 @@ function render() {
 let defaultSearch = "datev";
 let hasTicketUrl = false;
 let hasKundenUrl = false;
+let hasDatevDoc = true;
+const DATEV_DOC_DEFAULT = "https://wissensplattform.apps.datev.de/help/document/%DOKNR%";
 const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "KI" };
 const PROVIDER_LABELS = { claude: "Claude", openai: "ChatGPT", innogpt: "InnoGPT", azure: "Azure KI" };
 
@@ -168,6 +170,11 @@ function classifyQuery(value) {
     // Ticket-/Kunden-Erkennung nur, wenn das jeweilige Linkziel auch
     // konfiguriert ist (neutrale Installation: alles ist Websuche)
     const t = value.trim();
+    // GENAU 7 Ziffern = Dokumentnummer der DATEV Wissensplattform. Muss VOR
+    // der Ticket-Regel stehen, die 6-10 Ziffern abdeckt.
+    if (/^\d{7}$/.test(t) && hasDatevDoc) {
+        return "datevdoc";
+    }
     if (/^\d{6,10}$/.test(t) && hasTicketUrl) {
         return "ticket";
     }
@@ -181,12 +188,20 @@ function updateSearchGo() {
     const mode = classifyQuery(document.getElementById("searchInput").value);
     const btn = document.getElementById("searchGo");
     const engines = document.querySelector(".search-btns");
-    if (mode === "ticket" || mode === "kunde") {
+    if (mode === "ticket" || mode === "kunde" || mode === "datevdoc") {
         // Nummer erkannt: farbiger Aktions-Button, Suchziele ausblenden
         btn.style.display = "block";
         engines.style.display = "none";
-        btn.className = mode === "ticket" ? "" : "kunde";
-        btn.textContent = mode === "ticket" ? "🎫 Ticket" : "👤 Kunde";
+        if (mode === "ticket") {
+            btn.className = "";
+            btn.textContent = "🎫 Ticket";
+        } else if (mode === "kunde") {
+            btn.className = "kunde";
+            btn.textContent = "👤 Kunde";
+        } else {
+            btn.className = "web";
+            btn.textContent = "📄 Dok.";
+        }
     } else {
         // Freitext/leer: nur die drei Suchziele (Enter = Standard-Ziel)
         btn.style.display = "none";
@@ -201,6 +216,14 @@ function runSearch() {
         return;
     }
     const mode = classifyQuery(value);
+    if (mode === "datevdoc") {
+        chrome.storage.local.get({ datevDocTemplate: DATEV_DOC_DEFAULT }, (items) => {
+            const tpl = items.datevDocTemplate || DATEV_DOC_DEFAULT;
+            chrome.tabs.create({ url: tpl.replace(/%DOKNR%/g, encodeURIComponent(value)) });
+            window.close();
+        });
+        return;
+    }
     if (mode === "ticket") {
         chrome.storage.local.get({ linkTemplate: "" }, (items) => {
             if (!items.linkTemplate) {
@@ -290,12 +313,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
     document.getElementById("searchGo").addEventListener("click", runSearch);
-    chrome.storage.local.get({ defaultSearch: "datev", linkTemplate: "", kundenLinkTemplate: "" }, (s) => {
+    chrome.storage.local.get({ defaultSearch: "datev", linkTemplate: "", kundenLinkTemplate: "", datevDocTemplate: DATEV_DOC_DEFAULT }, (s) => {
         if (SEARCH_LABELS[s.defaultSearch]) {
             defaultSearch = s.defaultSearch;
         }
         hasTicketUrl = !!(s.linkTemplate || "").trim();
         hasKundenUrl = !!(s.kundenLinkTemplate || "").trim();
+        hasDatevDoc = !!(s.datevDocTemplate || "").trim();
         // Standard-Ziel markieren (das nimmt auch die Enter-Taste)
         const map = { datev: "sDatev", google: "sGoogle", innogpt: "sInno" };
         for (const id of Object.values(map)) {

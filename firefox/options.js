@@ -267,6 +267,7 @@ const TERMIN_DEFAULTS = {
     linkTemplate: "",
     kundenLinkTemplate: "",
     datevSearchTemplate: "https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%",
+    datevDocTemplate: "https://wissensplattform.apps.datev.de/help/document/%DOKNR%",
     selBezeichnung: "input.css-uzb1jv",
     selAnsprechpartner: "input.css-4utdaq",
     defaultDurationMin: 60,
@@ -372,6 +373,7 @@ function loadAll() {
         document.getElementById("linkTemplate").value = items.linkTemplate;
         document.getElementById("kundenLinkTemplate").value = items.kundenLinkTemplate;
         document.getElementById("datevSearchTemplate").value = items.datevSearchTemplate;
+        document.getElementById("datevDocTemplate").value = items.datevDocTemplate;
         document.getElementById("selBezeichnung").value = items.selBezeichnung;
         document.getElementById("selAnsprechpartner").value = items.selAnsprechpartner;
         document.getElementById("defaultDurationMin").value = String(items.defaultDurationMin);
@@ -852,6 +854,7 @@ function saveTermin() {
         linkTemplate: document.getElementById("linkTemplate").value.trim(),
         kundenLinkTemplate: document.getElementById("kundenLinkTemplate").value.trim(),
         datevSearchTemplate: document.getElementById("datevSearchTemplate").value.trim() || TERMIN_DEFAULTS.datevSearchTemplate,
+        datevDocTemplate: document.getElementById("datevDocTemplate").value.trim(),
         selBezeichnung: document.getElementById("selBezeichnung").value.trim() || TERMIN_DEFAULTS.selBezeichnung,
         selAnsprechpartner: document.getElementById("selAnsprechpartner").value.trim() || TERMIN_DEFAULTS.selAnsprechpartner,
         defaultDurationMin: Number(document.getElementById("defaultDurationMin").value) || TERMIN_DEFAULTS.defaultDurationMin,

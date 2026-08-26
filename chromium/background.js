@@ -1,5 +1,5 @@
 // Version
-// version = "1.2.0"
+// version = "1.3.0"
 // datum   = "2026-08-17"
 // autor   = "FK"
 //
@@ -144,6 +144,10 @@ const INNOGPT_BASE_URL = "https://app.innogpt.de/api/ext/v1";
 // ---------------------------------------------------------------- Kontextmenü
 
 const DATEV_SEARCH_DEFAULT = "https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%";
+
+// Direkter Artikel-Aufruf der DATEV Wissensplattform ueber die 7-stellige
+// Dokumentnummer (z. B. 1051175). Oeffentliche Hersteller-URL -> Default ok.
+const DATEV_DOC_DEFAULT = "https://wissensplattform.apps.datev.de/help/document/%DOKNR%";
 
 // Migration: alten (unverifizierten) Standard aus 2.10/2.11.0 ersetzen
 chrome.storage.local.get({ datevSearchTemplate: "" }, (items) => {
@@ -1171,6 +1175,7 @@ const OMNI_DEFAULTS = {
     linkTemplate: "",
     kundenLinkTemplate: "",
     datevSearchTemplate: DATEV_SEARCH_DEFAULT,
+    datevDocTemplate: DATEV_DOC_DEFAULT,
     defaultSearch: "datev"
 };
 
@@ -1204,6 +1209,11 @@ if (chrome.omnibox) {
         .replace(/"/g, "&quot;");
 
     const omniClassify = (t) => {
+        // GENAU 7 Ziffern = Dokumentnummer der DATEV Wissensplattform
+        // (vor der Ticket-Regel, die 6-10 Ziffern abdeckt)
+        if (/^\d{7}$/.test(t) && omni.datevDocTemplate) {
+            return "datevdoc";
+        }
         if (/^\d{6,10}$/.test(t) && omni.linkTemplate) {
             return "ticket";
         }
@@ -1238,6 +1248,11 @@ if (chrome.omnibox) {
             suggest([]);
             return;
         }
+        if (mode === "datevdoc") {
+            chrome.omnibox.setDefaultSuggestion({ description: "DATEV-Dokument " + esc + " öffnen" });
+            suggest([]);
+            return;
+        }
         const std = OMNI_TARGET_LABEL[omni.defaultSearch] || OMNI_TARGET_LABEL.datev;
         chrome.omnibox.setDefaultSuggestion({ description: std + ": " + esc });
         // Die uebrigen Ziele als waehlbare Vorschlaege darunter
@@ -1266,6 +1281,12 @@ if (chrome.omnibox) {
             return;
         }
         const mode = omniClassify(raw);
+        if (mode === "datevdoc") {
+            chrome.tabs.create({
+                url: (omni.datevDocTemplate || DATEV_DOC_DEFAULT).replace(/%DOKNR%/g, encodeURIComponent(raw))
+            });
+            return;
+        }
         if (mode === "ticket") {
             chrome.tabs.create({ url: omni.linkTemplate.replace(/%TICKETNR%/g, raw) });
             return;
