@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.6"  (Modul Ticket-Termin, klToolbox)
+// version = "1.11.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -1318,6 +1318,45 @@
         return gesetzt;
     }
 
+    // Eintrag als "intern" markieren. Das ist eine Element-UI-Checkbox
+    // (<label class="el-checkbox"> mit <span class="el-checkbox__inner">);
+    // das eigentliche <input> ist versteckt, deshalb wird das sichtbare
+    // Kaestchen geklickt. Zustand steckt in der Klasse "is-checked".
+    async function setInternInForm(form) {
+        const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const boxen = Array.from(form.container.querySelectorAll(".el-checkbox")).filter(isVisible);
+        const istGesetzt = (b) =>
+            b.classList.contains("is-checked") ||
+            !!b.querySelector(".el-checkbox__input.is-checked") ||
+            !!(b.querySelector("input[type='checkbox']") || {}).checked;
+
+        let ziel = boxen.find((b) => norm(b.textContent) === "intern");
+        if (!ziel) {
+            ziel = boxen.find((b) => /\bintern\b/i.test(b.textContent || ""));
+        }
+        if (!ziel) {
+            console.warn("klToolbox: Checkbox 'intern' im Eintragsformular nicht gefunden. " +
+                "Gefundene Checkboxen: " + JSON.stringify(boxen.map((b) => norm(b.textContent)).slice(0, 20)));
+            return false;
+        }
+        if (istGesetzt(ziel)) {
+            return true;
+        }
+
+        const kaestchen = ziel.querySelector(".el-checkbox__inner") || ziel;
+        realClick(kaestchen);
+        await sleep(250);
+        if (!istGesetzt(ziel)) {
+            realClick(ziel);
+            await sleep(250);
+        }
+        const ok = istGesetzt(ziel);
+        if (!ok) {
+            console.warn("klToolbox: Checkbox 'intern' liess sich nicht setzen.");
+        }
+        return ok;
+    }
+
     async function runBewertung(note, kommentar, statusBtn) {
         try {
             const form = findEntryForm();
@@ -1334,11 +1373,15 @@
             // Reihenfolge: erst der Tag, dann der Text. Andersherum haelt der
             // Editor den Fokus und der Klick auf das Auswahlfeld geht ins Leere.
             const tagOk = await setTagInForm(form, note);
+            const internOk = await setInternInForm(form);
             await pasteIntoEntryForm(form, text);
             realClick(form.saveBtn);
             closeBewertenPanel();
             if (!tagOk) {
                 console.warn("klToolbox: Eintrag gespeichert, der Tag musste aber manuell gesetzt werden.");
+            }
+            if (!internOk) {
+                console.warn("klToolbox: Eintrag gespeichert, die Markierung 'intern' musste aber manuell gesetzt werden.");
             }
         } catch (err) {
             console.error("klToolbox: Bewertung fehlgeschlagen:", err);
