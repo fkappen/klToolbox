@@ -1168,8 +1168,8 @@ function replaceSelectionInPage(newText) {
 // duerfen Erweiterungen nicht anlegen - die Omnibox ist der naechstliegende
 // Ersatz und braucht KEINE zusaetzliche Berechtigung (nur den Manifest-
 // Schluessel "omnibox"). Die Erkennung entspricht dem Suchfeld im Popup
-// (siehe classifyQuery in popup.js): 6-10 Ziffern = Ticket, 4-5 = Kunde,
-// sonst Freitext - Nummern nur, wenn die jeweilige Link-Vorlage existiert.
+// (siehe classifyQuery in popup.js): 5 Ziffern = Kunde, 6 = Ticket,
+// 7 = DATEV-Dokument, sonst Freitext - nur bei vorhandener Link-Vorlage.
 
 const OMNI_DEFAULTS = {
     linkTemplate: "",
@@ -1210,14 +1210,14 @@ if (chrome.omnibox) {
 
     const omniClassify = (t) => {
         // GENAU 7 Ziffern = Dokumentnummer der DATEV Wissensplattform
-        // (vor der Ticket-Regel, die 6-10 Ziffern abdeckt)
+        // (Ticket = genau 6 Ziffern, Kunde = genau 5)
         if (/^\d{7}$/.test(t) && omni.datevDocTemplate) {
             return "datevdoc";
         }
-        if (/^\d{6,10}$/.test(t) && omni.linkTemplate) {
+        if (/^\d{6}$/.test(t) && omni.linkTemplate) {
             return "ticket";
         }
-        if (/^\d{4,5}$/.test(t) && omni.kundenLinkTemplate) {
+        if (/^\d{5}$/.test(t) && omni.kundenLinkTemplate) {
             return "kunde";
         }
         return "web";

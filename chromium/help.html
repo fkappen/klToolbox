@@ -191,7 +191,7 @@
     <ul>
         <li><b>Start-Leiste:</b> öffnet alle als „Start“ markierten Links auf einmal (bereichsübergreifend).</li>
         <li><b>Bereiche:</b> frei definierbare Link-Gruppen (Optionen → Popup-Bereiche): eigener Name, beliebig viele Kacheln, Reihenfolge per ↑/↓; gestrichelte Kacheln öffnen im privaten Fenster.</li>
-        <li><b>Suche (ein Feld):</b> erkennt die Eingabe automatisch — 6+ Ziffern öffnen das Ticket, 4–5 Ziffern den Kunden (Button wechselt Beschriftung und Farbe), Freitext sucht per Enter im Standard-Ziel (einstellbar unter Darstellung) oder über die drei Buttons.</li>
+        <li><b>Suche (ein Feld):</b> erkennt die Eingabe automatisch — genau 5 Ziffern öffnen den Kunden, 6 das Ticket, 7 den Artikel der DATEV Wissensplattform (Button wechselt Beschriftung und Farbe), Freitext sucht per Enter im Standard-Ziel (einstellbar unter Darstellung) oder über die drei Buttons.</li>
         <li><b>Werkzeug-Buttons:</b> KI-Chat (nur sichtbar, wenn ein API-Key hinterlegt ist), Clipper, Browserdaten, ggf. Inkognito-Reset, Optionen, Hilfe.</li>
         <li><b>🧹 Browserdaten:</b> öffnet den Browser-Dialog „Browserdaten löschen“ (Firefox: Strg+Umschalt+Entf).</li>
         <li><b>🕶 Inkognito-Reset:</b> nur in privaten Fenstern sichtbar — verwirft die private Sitzung (Cookies, Logins) und öffnet automatisch ein frisches privates Fenster.</li>
@@ -199,7 +199,7 @@
     </ul>
 
     <h2 id="adressleiste">Suche aus der Adressleiste</h2>
-    <p>Ein echtes Suchfeld dürfen Erweiterungen nicht in die Browserleiste setzen — die Adressleiste lässt sich aber mitbenutzen: <b><code>kl</code> tippen, Leertaste</b>, dann die Nummer oder den Suchbegriff. Die Erkennung ist dieselbe wie im Popup: <b>genau 7 Ziffern</b> öffnen den Artikel der DATEV Wissensplattform mit dieser Dokumentnummer, 6 bzw. 8–10 Ziffern das Ticket, 4–5 Ziffern den Kunden, alles andere geht an das Standard-Suchziel. Während des Tippens zeigt der Browser an, was passieren wird („Ticket 156307 öffnen“); die übrigen Suchziele stehen als Vorschläge darunter und lassen sich mit den Pfeiltasten wählen.</p>
+    <p>Ein echtes Suchfeld dürfen Erweiterungen nicht in die Browserleiste setzen — die Adressleiste lässt sich aber mitbenutzen: <b><code>kl</code> tippen, Leertaste</b>, dann die Nummer oder den Suchbegriff. Die Erkennung ist dieselbe wie im Popup: <b>genau 7 Ziffern</b> öffnen den Artikel der DATEV Wissensplattform mit dieser Dokumentnummer, <b>genau 6</b> das Ticket, <b>genau 5</b> den Kunden, alles andere geht an das Standard-Suchziel. Während des Tippens zeigt der Browser an, was passieren wird („Ticket 156307 öffnen“); die übrigen Suchziele stehen als Vorschläge darunter und lassen sich mit den Pfeiltasten wählen.</p>
     <p>Ticket- und Kundennummern werden nur erkannt, wenn die passenden Link-Vorlagen eingerichtet sind — sonst ist jede Eingabe eine normale Suche.</p>
     <p><b>Tastenkürzel:</b> <code>Alt+Umschalt+K</code> öffnet das Popup direkt. Ändern lässt sich das unter <code>chrome://extensions/shortcuts</code> (Chrome/Edge/Brave), <code>brave://extensions/shortcuts</code> bzw. in Firefox über Add-ons → Zahnrad → „Verknüpfungen verwalten“.</p>
 

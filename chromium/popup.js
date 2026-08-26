@@ -155,7 +155,7 @@ function render() {
 }
 
 // ---------------------------------------------------------------- Einheitliche Suche
-// EIN Feld: 6+ Ziffern = Ticket, 4-5 Ziffern = Kunde, sonst Websuche
+// EIN Feld: 5 Ziffern = Kunde, 6 = Ticket, 7 = DATEV-Dokument, sonst Websuche
 // (Enter-Ziel konfigurierbar). Der Button wechselt Beschriftung + Farbe.
 
 let defaultSearch = "datev";
@@ -170,15 +170,14 @@ function classifyQuery(value) {
     // Ticket-/Kunden-Erkennung nur, wenn das jeweilige Linkziel auch
     // konfiguriert ist (neutrale Installation: alles ist Websuche)
     const t = value.trim();
-    // GENAU 7 Ziffern = Dokumentnummer der DATEV Wissensplattform. Muss VOR
-    // der Ticket-Regel stehen, die 6-10 Ziffern abdeckt.
+    // Feste Laengen: 5 Ziffern = Kunde, 6 = Ticket, 7 = DATEV-Dokumentnummer.
     if (/^\d{7}$/.test(t) && hasDatevDoc) {
         return "datevdoc";
     }
-    if (/^\d{6,10}$/.test(t) && hasTicketUrl) {
+    if (/^\d{6}$/.test(t) && hasTicketUrl) {
         return "ticket";
     }
-    if (/^\d{4,5}$/.test(t) && hasKundenUrl) {
+    if (/^\d{5}$/.test(t) && hasKundenUrl) {
         return "kunde";
     }
     return "web";
