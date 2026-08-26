@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.4"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.5"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -1132,18 +1132,60 @@
             return false;
         }
 
-        // Auswahlfeld oeffnen und auf die Baumzeilen warten
-        realClick(select);
+        // Auswahlfeld oeffnen. Dahinter steckt eine VUE-Komponente in React
+        // (tag-select-input.tsx -> ap-tree-select-resource-input.ts), die ihre
+        // Eintraege per HTTP nachlaedt. Ein einzelner Klick auf den aeusseren
+        // Container reicht dafuer nicht zuverlaessig - deshalb mehrere
+        // Klickziele nacheinander und grosszuegiger warten.
+        const feldInfo = String(select.className || select.tagName);
+        const zeilenImDom = () => Array.from(document.querySelectorAll(".ap-tree-select-item"));
+        const warteAufZeilen = async (runden) => {
+            for (let i = 0; i < runden; i++) {
+                await sleep(180);
+                const alle = zeilenImDom();
+                const sichtbar = alle.filter(isVisible);
+                if (sichtbar.length > 0) {
+                    return sichtbar;
+                }
+                if (alle.length > 0) {
+                    // Vorhanden, aber die Sichtbarkeitspruefung greift nicht
+                    // (z. B. Popup mit eigener Groessenberechnung)
+                    return alle;
+                }
+            }
+            return [];
+        };
+
+        const ziele = [select];
+        const innenInput = select.querySelector("input");
+        if (innenInput) {
+            ziele.push(innenInput);
+        }
+        const innenLine = select.querySelector(".one-liner");
+        if (innenLine) {
+            ziele.push(innenLine);
+        }
         let rows = [];
-        for (let i = 0; i < 12; i++) {
-            await sleep(150);
-            rows = Array.from(document.querySelectorAll(".ap-tree-select-item")).filter(isVisible);
+        for (const z of ziele) {
+            try {
+                if (typeof z.focus === "function") {
+                    z.focus();
+                }
+            } catch (err) {
+                // Fokus ist optional - manche Elemente lassen ihn nicht zu
+            }
+            realClick(z);
+            rows = await warteAufZeilen(8);
             if (rows.length > 0) {
                 break;
             }
         }
         if (rows.length === 0) {
-            console.warn("klToolbox: Tag-Auswahlfeld liess sich nicht oeffnen (keine .ap-tree-select-item sichtbar).");
+            console.warn("klToolbox: Tag-Auswahlfeld liess sich nicht oeffnen." +
+                "\n  Feld: " + JSON.stringify(feldInfo) +
+                "\n  Klickziele probiert: " + ziele.length +
+                " (Feld" + (innenInput ? " + input" : "") + (innenLine ? " + one-liner" : "") + ")" +
+                "\n  .ap-tree-select-item im DOM: " + zeilenImDom().length);
             return false;
         }
 
