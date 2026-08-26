@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.5"  (Modul Ticket-Termin, klToolbox)
+// version = "1.10.6"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -1203,33 +1203,74 @@
             return norm(r.textContent);
         };
 
-        // Bei konfigurierter Gruppe erst deren Zeile suchen und ab da weiter -
-        // die Kind-Eintraege folgen im Dokument direkt darauf.
         const gruppe = norm(settings.kiBewertungTagGruppe || "");
-        let start = 0;
-        if (gruppe) {
-            const gi = rows.findIndex((r) => rowLabel(r) === gruppe);
-            if (gi >= 0) {
-                start = gi + 1;
-            } else {
-                console.warn("klToolbox: Tag-Gruppe " + JSON.stringify(gruppe) + " nicht gefunden - suche im gesamten Baum.");
-            }
-        }
-
         const wanted = norm(tagText);
-        let ziel = null;
-        for (let i = start; i < rows.length; i++) {
-            if (rowLabel(rows[i]) === wanted) {
-                ziel = rows[i];
-                break;
+
+        // Ziel suchen: bei konfigurierter Gruppe ab deren Zeile, weil die
+        // Kind-Eintraege im Dokument direkt darauf folgen.
+        const findeZiel = (liste) => {
+            let start = 0;
+            if (gruppe) {
+                const gi = liste.findIndex((r) => rowLabel(r) === gruppe);
+                if (gi >= 0) {
+                    start = gi + 1;
+                }
             }
-        }
-        if (!ziel && start > 0) {
-            ziel = rows.find((r) => rowLabel(r) === wanted) || null;
+            for (let i = start; i < liste.length; i++) {
+                if (rowLabel(liste[i]) === wanted) {
+                    return liste[i];
+                }
+            }
+            return start > 0 ? (liste.find((r) => rowLabel(r) === wanted) || null) : null;
+        };
+
+        // Erste Zelle einer Zeile = Aufklapp-Bereich. Bei Blaettern steht dort
+        // nur ein leerer Kommentar, bei Ordnern ein Pfeil-Element.
+        const aufklappZelle = (r) => {
+            const zelle = r.querySelector("div");
+            return (zelle && zelle.children.length > 0) ? zelle : null;
+        };
+
+        let ziel = findeZiel(rows);
+        if (!ziel) {
+            // Ordner sind standardmaessig ZUGEKLAPPT - die Noten existieren
+            // dann noch gar nicht im DOM. Erst den konfigurierten Ordner
+            // aufklappen, notfalls alle.
+            const ordner = [];
+            const g = gruppe ? rows.find((r) => rowLabel(r) === gruppe) : null;
+            if (g && aufklappZelle(g)) {
+                ordner.push(g);
+            }
+            for (const r of rows) {
+                if (r !== g && aufklappZelle(r)) {
+                    ordner.push(r);
+                }
+            }
+            for (const o of ordner.slice(0, 20)) {
+                const zelle = aufklappZelle(o);
+                realClick(zelle.children[0] || zelle);
+                for (let i = 0; i < 8; i++) {
+                    await sleep(150);
+                    let neu = zeilenImDom().filter(isVisible);
+                    if (neu.length === 0) {
+                        neu = zeilenImDom();
+                    }
+                    if (neu.length !== rows.length) {
+                        rows = neu;
+                        break;
+                    }
+                }
+                ziel = findeZiel(rows);
+                if (ziel) {
+                    break;
+                }
+            }
         }
         if (!ziel) {
-            console.warn("klToolbox: Tag " + JSON.stringify(tagText) + " nicht gefunden. Sichtbare Eintraege: " +
-                JSON.stringify(rows.map(rowLabel).slice(0, 40)));
+            console.warn("klToolbox: Tag " + JSON.stringify(tagText) + " nicht gefunden." +
+                "\n  Gruppe " + JSON.stringify(gruppe || "-") + " im Baum: " +
+                (gruppe && rows.some((r) => rowLabel(r) === gruppe) ? "ja" : "nein") +
+                "\n  Sichtbare Eintraege: " + JSON.stringify(rows.map(rowLabel).slice(0, 40)));
             realClick(select);
             return false;
         }
