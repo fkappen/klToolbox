@@ -286,6 +286,10 @@
     <label for="nichtErreichtText">Text für „Nicht erreicht"-Eintrag</label>
     <input type="text" id="nichtErreichtText">
 
+    <label for="terminEintragText">Text für den Ticket-Eintrag beim Statuswechsel</label>
+    <input type="text" id="terminEintragText" placeholder="Termin vereinbart: %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%)">
+    <div class="hint">Wird zusammen mit dem Statuswechsel gespeichert, damit im Ticket steht, wann der Termin ist. Platzhalter: <code>%DATUM%</code>, <code>%ZEIT%</code>, <code>%ART%</code> (Telefon/Teams/Vor Ort), <code>%DAUER%</code>. Leer lassen, um nur den Status zu setzen.</div>
+
     <label for="firmenAdresse">Firmenadresse (Startpunkt für „Anfahrt planen")</label>
     <input type="text" id="firmenAdresse" placeholder="Straße Nr, PLZ Ort">
     <div class="hint">Kommt normalerweise per Settings-Import.</div>
@@ -299,15 +303,9 @@
     </select>
     <div class="hint">Bei „Vor Ort" wird die Kundenadresse in das Ort-Feld des Termins übernommen.</div>
 
-    <label for="defaultDurationMin">Standard-Termindauer</label>
-    <select id="defaultDurationMin">
-        <option value="15">15 Minuten</option>
-        <option value="30">30 Minuten</option>
-        <option value="45">45 Minuten</option>
-        <option value="60">60 Minuten</option>
-        <option value="90">90 Minuten</option>
-        <option value="120">120 Minuten</option>
-    </select>
+    <label for="defaultDurationMin">Standard-Termindauer (Minuten)</label>
+    <input type="number" id="defaultDurationMin" min="1" step="5" style="width:140px">
+    <div class="hint">Beliebiger Wert möglich. Im Termin-Fenster stehen Vorgaben bis 8 Stunden zur Wahl, dazu „Andere…“ für eine freie Eingabe.</div>
 
     <div class="toolbar">
         <button id="saveTermin" class="primary">Termin-Einstellungen speichern</button><span id="statusTermin" class="status"></span>

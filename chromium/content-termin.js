@@ -1,5 +1,5 @@
 // Version
-// version = "1.11.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.12.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -27,6 +27,9 @@
         defaultDurationMin: 60,
         autoStatus: true,
         nichtErreichtText: "Nicht erreicht.",
+        // Eintragstext beim Statuswechsel nach der Termin-Erstellung.
+        // Platzhalter: %DATUM% %ZEIT% %ART% %DAUER%
+        terminEintragText: "Termin vereinbart: %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%)",
         firmenAdresse: "",
         defaultTerminart: "telefon",
         // Eigene Mail-Domain (ohne @): mailto-Fallback ignoriert diese
@@ -444,17 +447,46 @@
         return true;
     }
 
-    async function setStatusTerminVereinbart() {
+    // Statuswechsel nach dem Anlegen des Termins - zusaetzlich wird der
+    // vereinbarte Zeitpunkt als Eintragstext dokumentiert, damit im Ticket
+    // steht, WANN der Termin ist (Vorlage: terminEintragText).
+    async function setStatusTerminVereinbart(startDt, artLabel, durMin) {
         try {
             const form = findEntryForm();
             if (!form) {
                 console.warn("Ticket-Termin: Eintragsformular nicht gefunden - Status bleibt unverändert.");
                 return;
             }
-            if (await selectStatusInForm(form, "Termin vereinbart")) {
-                // Eintrag speichern -> Statuswechsel wird wirksam und dokumentiert
+            const statusOk = await selectStatusInForm(form, "Termin vereinbart");
+
+            let textOk = false;
+            if (startDt) {
+                const datum = startDt.toLocaleDateString("de-DE", {
+                    weekday: "short", day: "2-digit", month: "2-digit", year: "numeric"
+                });
+                const zeit = pad(startDt.getHours()) + ":" + pad(startDt.getMinutes());
+                const dauer = durMin
+                    ? (durMin % 60 === 0 ? (durMin / 60) + " Std" : durMin + " Min")
+                    : "";
+                const tpl = settings.terminEintragText || DEFAULTS.terminEintragText;
+                const text = tpl
+                    .replace(/%DATUM%/g, datum)
+                    .replace(/%ZEIT%/g, zeit)
+                    .replace(/%ART%/g, artLabel || "")
+                    .replace(/%DAUER%/g, dauer)
+                    .replace(/\s*\(\s*\)/g, "")     // leere Klammern, falls Art/Dauer fehlen
+                    .replace(/[ \t]{2,}/g, " ")
+                    .trim();
+                if (text) {
+                    await pasteIntoEntryForm(form, text);
+                    textOk = true;
+                }
+            }
+
+            if (statusOk || textOk) {
+                // EIN Speichern - Statuswechsel und Text landen gemeinsam im Ticket
                 realClick(form.saveBtn);
-                console.info("Ticket-Termin: Status 'Termin vereinbart' gesetzt und Eintrag gespeichert.");
+                console.info("Ticket-Termin: Eintrag gespeichert (Status: " + statusOk + ", Text: " + textOk + ").");
             }
         } catch (err) {
             console.warn("Ticket-Termin: Status setzen fehlgeschlagen:", err);
@@ -2065,16 +2097,47 @@
         timeInput.type = "time";
         timeInput.id = "tt_time";
         timeInput.value = pad(start.getHours()) + ":" + pad(start.getMinutes());
+        // Dauer: Vorgaben bis 8 Stunden plus freie Eingabe in Minuten.
+        // Ein eingestellter Standardwert wird ergaenzt, falls er fehlt.
         const durSelect = document.createElement("select");
         durSelect.id = "tt_dur";
-        [15, 30, 45, 60, 90, 120].forEach((min) => {
+        const durStd = Number(settings.defaultDurationMin) || 60;
+        const durWerte = [15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 480];
+        if (durWerte.indexOf(durStd) === -1) {
+            durWerte.push(durStd);
+        }
+        durWerte.sort((a, b) => a - b).forEach((min) => {
             const o = document.createElement("option");
             o.value = String(min);
-            o.textContent = min + " Min";
-            if (min === Number(settings.defaultDurationMin)) {
+            o.textContent = min < 60
+                ? min + " Min"
+                : (min % 60 === 0 ? (min / 60) + " Std" : Math.floor(min / 60) + " Std " + (min % 60) + " Min");
+            if (min === durStd) {
                 o.selected = true;
             }
             durSelect.appendChild(o);
+        });
+        const durFrei = document.createElement("option");
+        durFrei.value = "__custom";
+        durFrei.textContent = "Andere…";
+        durSelect.appendChild(durFrei);
+
+        // Freies Minutenfeld, nur bei "Andere…" sichtbar
+        const durInput = document.createElement("input");
+        durInput.type = "number";
+        durInput.id = "tt_dur_frei";
+        durInput.min = "1";
+        durInput.step = "5";
+        durInput.value = String(durStd);
+        durInput.title = "Dauer in Minuten";
+        durInput.style.cssText = "width:74px;display:none;";
+        durSelect.addEventListener("change", () => {
+            const frei = durSelect.value === "__custom";
+            durInput.style.display = frei ? "" : "none";
+            if (frei) {
+                durInput.focus();
+                durInput.select();
+            }
         });
         const timeLabel = document.createElement("label");
         timeLabel.textContent = "Beginn / Dauer";
@@ -2084,6 +2147,7 @@
         timeWrap.appendChild(dateInput);
         timeWrap.appendChild(timeInput);
         timeWrap.appendChild(durSelect);
+        timeWrap.appendChild(durInput);
         timeRow.appendChild(timeWrap);
         panel.appendChild(timeRow);
 
@@ -2266,7 +2330,14 @@
             const [y, mo, da] = dateVal.split("-").map(Number);
             const [h, mi] = timeVal.split(":").map(Number);
             const startDt = new Date(y, mo - 1, da, h, mi, 0);
-            const durMin = Number(document.getElementById("tt_dur").value) || 60;
+            const durWahl = document.getElementById("tt_dur").value;
+            const durMin = durWahl === "__custom"
+                ? (Number(document.getElementById("tt_dur_frei").value) || 60)
+                : (Number(durWahl) || 60);
+            if (durMin < 1) {
+                alert("Bitte eine Dauer in Minuten angeben.");
+                return;
+            }
             const endDt = new Date(startDt.getTime() + durMin * 60000);
 
             const subject = fillTemplate(settings.subjectTemplate || DEFAULTS.subjectTemplate, d);
@@ -2274,6 +2345,7 @@
 
             // Terminart -> Ort-Feld: Vor Ort = Kundenadresse, sonst Art als Marker
             const art = document.getElementById("tt_art").value;
+            const artText = (TERMINARTEN.find((a) => a.value === art) || {}).label || "";
             let ort = "";
             if (art === "vorort") {
                 ort = document.getElementById("tt_addr").value.trim();
@@ -2324,7 +2396,7 @@
                     // Popup-Blocker erlauben nur ein Fenster pro Klick - der
                     // Anfahrt-Termin braucht daher einen zweiten Klick
                     if (settings.autoStatus !== false) {
-                        setStatusTerminVereinbart();
+                        setStatusTerminVereinbart(startDt, artText, durMin);
                     }
                     head.textContent = "Anfahrt-Termin öffnen";
                     bar.textContent = "";
@@ -2348,7 +2420,7 @@
             }
             closePanel();
             if (settings.autoStatus !== false) {
-                setStatusTerminVereinbart();
+                setStatusTerminVereinbart(startDt, artText, durMin);
             }
         }
     }

@@ -273,6 +273,7 @@ const TERMIN_DEFAULTS = {
     defaultDurationMin: 60,
     autoStatus: true,
     nichtErreichtText: "Nicht erreicht.",
+    terminEintragText: "Termin vereinbart: %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%)",
     firmenAdresse: "",
     defaultTerminart: "telefon",
     kiBewertungAutor: "",
@@ -379,6 +380,7 @@ function loadAll() {
         document.getElementById("defaultDurationMin").value = String(items.defaultDurationMin);
         document.getElementById("autoStatus").checked = items.autoStatus !== false;
         document.getElementById("nichtErreichtText").value = items.nichtErreichtText;
+        document.getElementById("terminEintragText").value = items.terminEintragText;
         document.getElementById("firmenAdresse").value = items.firmenAdresse;
         document.getElementById("defaultTerminart").value = items.defaultTerminart;
         document.getElementById("kiBewertungAutor").value = items.kiBewertungAutor || "";
@@ -860,6 +862,7 @@ function saveTermin() {
         defaultDurationMin: Number(document.getElementById("defaultDurationMin").value) || TERMIN_DEFAULTS.defaultDurationMin,
         autoStatus: document.getElementById("autoStatus").checked,
         nichtErreichtText: document.getElementById("nichtErreichtText").value.trim() || TERMIN_DEFAULTS.nichtErreichtText,
+        terminEintragText: document.getElementById("terminEintragText").value.trim(),
         firmenAdresse: document.getElementById("firmenAdresse").value.trim(),
         defaultTerminart: document.getElementById("defaultTerminart").value,
         kiBewertungAutor: document.getElementById("kiBewertungAutor").value.trim(),
