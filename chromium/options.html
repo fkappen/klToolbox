@@ -362,6 +362,16 @@
         <label for="erledigtStatus">Status, die als erledigt gelten</label>
         <input type="text" id="erledigtStatus" placeholder="Erledigt">
         <div class="hint">Mehrere mit Komma trennen, z. B. <code>Erledigt, Abgeschlossen, Geschlossen</code>. Groß-/Kleinschreibung egal; es genügt, wenn der Status den Begriff enthält. In der Ticketliste werden dafür die Spalten „Status“ und „Geändert am“ ausgewertet — sind sie ausgeblendet, bleibt es bei der laufenden Anzeige.</div>
+
+        <label for="neutralStatus">Status ohne Ampelfarbe</label>
+        <input type="text" id="neutralStatus" placeholder="Warten auf Kunde">
+        <div class="hint">Hier läuft die Zeit weiter, wird aber neutral eingefärbt — sinnvoll überall dort, wo der Ball nicht bei euch liegt. Sonst färbt die Ampel rot und meldet einen Handlungsbedarf, den es nicht gibt. Mehrere mit Komma trennen.</div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Symbole je Status</legend>
+        <p class="hint">Ein Symbol vor der Zeitangabe macht den Zustand in der Liste auf einen Blick erkennbar. Pro Zeile eine Zuordnung <code>Status = Symbol</code>; es genügt, wenn der Status den Begriff enthält, bei mehreren Treffern gewinnt der genauere. Erledigte Tickets bekommen immer ✓. Leer lassen, um ganz auf Symbole zu verzichten.</p>
+        <textarea id="statusSymbole" style="min-height:90px" placeholder="Offen = ●&#10;In Bearbeitung = ▶&#10;Warten auf Kunde = ⏳"></textarea>
     </fieldset>
 
     <div class="toolbar">

@@ -97,8 +97,14 @@ const AMPEL_DEFAULTS = {
     ampelFarbeRot: "#b3261e",
     ampelFarbeLila: "#7b2fbf",
     ampelFarbeErledigt: "#6b7880",
-    erledigtStatus: "Erledigt"
+    erledigtStatus: "Erledigt",
+    neutralStatus: "Warten auf Kunde",
+    statusSymbole: "Offen = ●\nIn Bearbeitung = ▶\nWarten auf Kunde = ⏳"
 };
+
+// Bei diesen Feldern ist LEER eine gueltige Angabe (= Funktion aus) und darf
+// nicht durch den Standardwert ersetzt werden.
+const AMPEL_LEER_ERLAUBT = ["neutralStatus", "statusSymbole"];
 
 const AMPEL_STUFEN = [
     ["ampelFarbeGruen", "frisch"],
@@ -123,7 +129,10 @@ function fillAmpel(items) {
     for (const key of Object.keys(AMPEL_DEFAULTS)) {
         const el = document.getElementById(key);
         const val = items[key];
-        el.value = (val === undefined || val === null || val === "") ? AMPEL_DEFAULTS[key] : val;
+        const leerOk = AMPEL_LEER_ERLAUBT.indexOf(key) !== -1;
+        el.value = (val === undefined || val === null || (val === "" && !leerOk))
+            ? AMPEL_DEFAULTS[key]
+            : val;
     }
     renderAmpelPreview();
 }
@@ -138,7 +147,8 @@ function saveAmpel() {
             const n = Number(raw);
             out[key] = (isFinite(n) && n > 0) ? n : AMPEL_DEFAULTS[key];
         } else {
-            out[key] = (raw || "").trim() || AMPEL_DEFAULTS[key];
+            const v = (raw || "").trim();
+            out[key] = v || (AMPEL_LEER_ERLAUBT.indexOf(key) !== -1 ? "" : AMPEL_DEFAULTS[key]);
         }
     }
     // Reihenfolge erzwingen: gruen < gelb < rot, sonst waere eine Stufe tot

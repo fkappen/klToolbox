@@ -1,5 +1,5 @@
 // Version
-// version = "1.13.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.14.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -71,7 +71,12 @@
         // Erledigte Tickets zaehlen nicht weiter: dann wird die BEARBEITUNGS-
         // DAUER (erstellt -> geaendert) neutral eingefaerbt angezeigt.
         erledigtStatus: "Erledigt",
-        ampelFarbeErledigt: "#6b7880"
+        ampelFarbeErledigt: "#6b7880",
+        // Status, bei denen die Uhr NICHT fuer uns laeuft: zaehlt weiter,
+        // wird aber neutral eingefaerbt (kein falscher Handlungsbedarf).
+        neutralStatus: "Warten auf Kunde",
+        // Symbol je Status, eine Zuordnung pro Zeile: "Status = Symbol"
+        statusSymbole: "Offen = ●\nIn Bearbeitung = ▶\nWarten auf Kunde = ⏳"
     };
 
     const TERMINARTEN = [
@@ -539,6 +544,45 @@
             .some((x) => s === x || s.indexOf(x) !== -1);
     }
 
+    // Status, bei denen die Wartezeit zwar weiterlaeuft, aber neutral
+    // dargestellt wird - z. B. "Warten auf Kunde": der Ball liegt nicht bei uns.
+    function istNeutralerStatus(statusText) {
+        const s = (statusText || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (!s) {
+            return false;
+        }
+        return (settings.neutralStatus || "")
+            .split(",")
+            .map((x) => x.trim().toLowerCase())
+            .filter((x) => x.length > 0)
+            .some((x) => s.indexOf(x) !== -1);
+    }
+
+    // Symbol zum Status aus der Zuordnungsliste ("Status = Symbol" je Zeile).
+    // Bei mehreren Treffern gewinnt der laengste Schluessel, damit
+    // "Warten auf Kunde" vor einem allgemeineren "Warten" greift.
+    function statusSymbol(statusText) {
+        const s = (statusText || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (!s) {
+            return "";
+        }
+        let best = "";
+        let bestLen = 0;
+        for (const zeile of String(settings.statusSymbole || "").split(/\r?\n/)) {
+            const m = /^([^=]+)=(.*)$/.exec(zeile);
+            if (!m) {
+                continue;
+            }
+            const key = m[1].trim().toLowerCase();
+            const sym = m[2].trim();
+            if (key && sym && s.indexOf(key) !== -1 && key.length > bestLen) {
+                best = sym;
+                bestLen = key.length;
+            }
+        }
+        return best;
+    }
+
     // Datum aus einer Grid-Zelle lesen (Uhrzeit optional, 2- oder 4-stelliges
     // Jahr) - wird fuer "Erstellt am" und "Geändert am" gebraucht.
     function parseGridDate(text) {
@@ -718,11 +762,14 @@
         const prio = getPrioText();
         // Erledigte Tickets zaehlen nicht weiter - gemessen wird bis zum
         // juengsten Eintrag, angezeigt wird die Bearbeitungsdauer.
-        const erledigt = istErledigt(labelValue(["Status:", "Status"]));
+        const statusText = labelValue(["Status:", "Status"]);
+        const erledigt = istErledigt(statusText);
+        const neutral = !erledigt && istNeutralerStatus(statusText);
         const ende = erledigt ? findNewestEntryDate() : null;
         const ms = (ende ? ende.getTime() : Date.now()) - badgeCreatedAt.getTime();
-        const text = (erledigt ? "✓ " : "⏱ ") + formatAge(ms);
-        const color = erledigt
+        const symbol = erledigt ? "✓" : (statusSymbol(statusText) || "⏱");
+        const text = symbol + " " + formatAge(ms);
+        const color = (erledigt || neutral)
             ? (settings.ampelFarbeErledigt || DEFAULTS.ampelFarbeErledigt)
             : badgeColor(ms, prio);
         const title = erledigt
@@ -855,9 +902,11 @@
                     ? parseGridDate(tds[colChanged].textContent)
                     : null;
                 const ms = (ende ? ende.getTime() : Date.now()) - created.getTime();
-                const color = erledigt
+                const neutral = !erledigt && istNeutralerStatus(statusText);
+                const color = (erledigt || neutral)
                     ? (settings.ampelFarbeErledigt || DEFAULTS.ampelFarbeErledigt)
                     : badgeColor(ms, prio);
+                const symbol = erledigt ? "✓" : statusSymbol(statusText);
                 const title = erledigt
                     ? (ende
                         ? "Bearbeitungsdauer: " + formatAge(ms) + " (erstellt " + m[0] +
@@ -877,7 +926,7 @@
                     age.className = "__tt_list_age";
                     tds[colId].insertBefore(age, tds[colId].firstChild);
                 }
-                const text = (erledigt ? "✓ " : "") + formatAgeCompact(ms);
+                const text = (symbol ? symbol + " " : "") + formatAgeCompact(ms);
                 if (age.dataset.x !== text) {
                     age.dataset.x = text;
                     age.textContent = text;
