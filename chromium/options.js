@@ -98,8 +98,9 @@ const AMPEL_DEFAULTS = {
     ampelFarbeLila: "#7b2fbf",
     ampelFarbeErledigt: "#6b7880",
     erledigtStatus: "Erledigt",
-    neutralStatus: "Warten auf Kunde",
-    statusSymbole: "Offen = ●\nIn Bearbeitung = ▶\nWarten auf Kunde = ⏳"
+    neutralStatus: "Warten auf",
+    statusSymbole: "Automatisch Angelegt = ●\nAufgenommen = ●\nTermin vereinbart = 📅\n" +
+        "In Bearbeitung = ▶\nWarten auf = ⏳"
 };
 
 // Bei diesen Feldern ist LEER eine gueltige Angabe (= Funktion aus) und darf

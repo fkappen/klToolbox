@@ -1,5 +1,5 @@
 // Version
-// version = "1.14.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.14.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -74,9 +74,10 @@
         ampelFarbeErledigt: "#6b7880",
         // Status, bei denen die Uhr NICHT fuer uns laeuft: zaehlt weiter,
         // wird aber neutral eingefaerbt (kein falscher Handlungsbedarf).
-        neutralStatus: "Warten auf Kunde",
+        neutralStatus: "Warten auf",
         // Symbol je Status, eine Zuordnung pro Zeile: "Status = Symbol"
-        statusSymbole: "Offen = ●\nIn Bearbeitung = ▶\nWarten auf Kunde = ⏳"
+        statusSymbole: "Automatisch Angelegt = ●\nAufgenommen = ●\nTermin vereinbart = 📅\n" +
+            "In Bearbeitung = ▶\nWarten auf = ⏳"
     };
 
     const TERMINARTEN = [
