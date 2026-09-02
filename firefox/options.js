@@ -95,14 +95,17 @@ const AMPEL_DEFAULTS = {
     ampelFarbeGruen: "#1a7f37",
     ampelFarbeGelb: "#b58900",
     ampelFarbeRot: "#b3261e",
-    ampelFarbeLila: "#7b2fbf"
+    ampelFarbeLila: "#7b2fbf",
+    ampelFarbeErledigt: "#6b7880",
+    erledigtStatus: "Erledigt"
 };
 
 const AMPEL_STUFEN = [
     ["ampelFarbeGruen", "frisch"],
     ["ampelFarbeGelb", "wird älter"],
     ["ampelFarbeRot", "überfällig"],
-    ["ampelFarbeLila", "liegt lange"]
+    ["ampelFarbeLila", "liegt lange"],
+    ["ampelFarbeErledigt", "erledigt"]
 ];
 
 function renderAmpelPreview() {
@@ -129,12 +132,13 @@ function saveAmpel() {
     const out = {};
     for (const key of Object.keys(AMPEL_DEFAULTS)) {
         const raw = document.getElementById(key).value;
-        if (key.indexOf("ampelFarbe") === 0) {
-            out[key] = raw || AMPEL_DEFAULTS[key];
-        } else {
-            // Zahlenfelder: 0 oder Unsinn faellt auf den Standard zurueck
+        // Nur die Schwellwerte sind Zahlen - Farben und die Erledigt-Status
+        // sind Text und wuerden sonst zu NaN und damit zurueckgesetzt.
+        if (/(Min|Tage)$/.test(key)) {
             const n = Number(raw);
             out[key] = (isFinite(n) && n > 0) ? n : AMPEL_DEFAULTS[key];
+        } else {
+            out[key] = (raw || "").trim() || AMPEL_DEFAULTS[key];
         }
     }
     // Reihenfolge erzwingen: gruen < gelb < rot, sonst waere eine Stufe tot

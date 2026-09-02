@@ -1,5 +1,5 @@
 // Version
-// version = "1.12.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.13.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -67,7 +67,11 @@
         ampelFarbeGruen: "#1a7f37",
         ampelFarbeGelb: "#b58900",
         ampelFarbeRot: "#b3261e",
-        ampelFarbeLila: "#7b2fbf"
+        ampelFarbeLila: "#7b2fbf",
+        // Erledigte Tickets zaehlen nicht weiter: dann wird die BEARBEITUNGS-
+        // DAUER (erstellt -> geaendert) neutral eingefaerbt angezeigt.
+        erledigtStatus: "Erledigt",
+        ampelFarbeErledigt: "#6b7880"
     };
 
     const TERMINARTEN = [
@@ -521,6 +525,35 @@
         return (h / 24).toFixed(1).replace(".", ",") + " Tage";
     }
 
+    // Ist der Ticketstatus als "erledigt" konfiguriert? (Liste in den Optionen,
+    // kommagetrennt - Vergleich case-insensitiv und ohne Rand-Leerzeichen.)
+    function istErledigt(statusText) {
+        const s = (statusText || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (!s) {
+            return false;
+        }
+        return (settings.erledigtStatus || DEFAULTS.erledigtStatus)
+            .split(",")
+            .map((x) => x.trim().toLowerCase())
+            .filter((x) => x.length > 0)
+            .some((x) => s === x || s.indexOf(x) !== -1);
+    }
+
+    // Datum aus einer Grid-Zelle lesen (Uhrzeit optional, 2- oder 4-stelliges
+    // Jahr) - wird fuer "Erstellt am" und "Geändert am" gebraucht.
+    function parseGridDate(text) {
+        const m = /(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?:,?\s*(\d{1,2}):(\d{2}))?/.exec(text || "");
+        if (!m) {
+            return null;
+        }
+        let jahr = Number(m[3]);
+        if (jahr < 100) {
+            jahr += 2000;
+        }
+        const d = new Date(jahr, +m[2] - 1, +m[1], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, 0);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
     // Vier Ampelstufen; Schwellwerte UND Farben kommen aus den Optionen.
     // Bei Prioritaet "hoch" zaehlen Minuten, sonst Tage.
     function badgeColor(ms, prio) {
@@ -682,13 +715,23 @@
             }
             host.insertBefore(badge, host.firstChild);
         }
-        const ms = Date.now() - badgeCreatedAt.getTime();
         const prio = getPrioText();
-        const text = "⏱ " + formatAge(ms);
-        const color = badgeColor(ms, prio);
-        const title = "Wartezeit seit Ticketerstellung: " +
-            badgeCreatedAt.toLocaleString("de-DE") + " (Prio: " + (prio || "unbekannt") +
-            ", Basis: ältester sichtbarer Eintrag)";
+        // Erledigte Tickets zaehlen nicht weiter - gemessen wird bis zum
+        // juengsten Eintrag, angezeigt wird die Bearbeitungsdauer.
+        const erledigt = istErledigt(labelValue(["Status:", "Status"]));
+        const ende = erledigt ? findNewestEntryDate() : null;
+        const ms = (ende ? ende.getTime() : Date.now()) - badgeCreatedAt.getTime();
+        const text = (erledigt ? "✓ " : "⏱ ") + formatAge(ms);
+        const color = erledigt
+            ? (settings.ampelFarbeErledigt || DEFAULTS.ampelFarbeErledigt)
+            : badgeColor(ms, prio);
+        const title = erledigt
+            ? "Bearbeitungsdauer: " + formatAge(ms) + " (erstellt " +
+              badgeCreatedAt.toLocaleString("de-DE") +
+              (ende ? ", erledigt " + ende.toLocaleString("de-DE") : "") + ")"
+            : "Wartezeit seit Ticketerstellung: " +
+              badgeCreatedAt.toLocaleString("de-DE") + " (Prio: " + (prio || "unbekannt") +
+              ", Basis: ältester sichtbarer Eintrag)";
         // NUR bei tatsaechlicher Aenderung schreiben! Jede DOM-Aenderung feuert
         // den MutationObserver - bedingungsloses Schreiben erzeugt eine
         // Endlosschleife (Badge -> Observer -> Badge -> ...), die den Tab
@@ -755,10 +798,24 @@
             let colCreated = -1;
             let colPrio = -1;
             let colId = -1;
+            let colStatus = -1;
+            let colChanged = -1;
+            const hdrText = (td) => (td.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
             Array.from(hdrRow.children).forEach((td, i) => {
                 if (td.querySelector("[id$='_createdAt']")) { colCreated = i; }
                 if (td.querySelector("[id$='_priority']")) { colPrio = i; }
                 if (td.querySelector("[id$='_id']")) { colId = i; }
+                // Status und Aenderungsdatum: Spalten-IDs sind hier nicht
+                // bekannt, deshalb zusaetzlich ueber die sichtbare
+                // Ueberschrift erkennen (beides eindeutige Begriffe).
+                if (td.querySelector("[id$='_status']") || hdrText(td) === "status") {
+                    colStatus = i;
+                }
+                if (td.querySelector("[id$='_changedAt']") || td.querySelector("[id$='_modifiedAt']") ||
+                    td.querySelector("[id$='_updatedAt']") ||
+                    /^(geändert am|geaendert am|letzte änderung|zuletzt geändert)$/.test(hdrText(td))) {
+                    colChanged = i;
+                }
             });
             if (colCreated < 0 || colId < 0) {
                 continue; // kein Ticket-Grid (oder Spalte ausgeblendet)
@@ -789,10 +846,24 @@
                     warnUnparsedDate(zellText);
                     continue;
                 }
-                const ms = Date.now() - created.getTime();
                 const prio = colPrio >= 0 ? (tds[colPrio].textContent || "") : "";
-                const color = badgeColor(ms, prio);
-                const title = "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ", Prio: " + (prio.trim() || "unbekannt") + ")";
+                const statusText = colStatus >= 0 ? (tds[colStatus].textContent || "") : "";
+                const erledigt = istErledigt(statusText);
+                // Erledigte Tickets zaehlen NICHT weiter: gemessen wird bis
+                // zur letzten Aenderung, angezeigt wird die Bearbeitungsdauer.
+                const ende = (erledigt && colChanged >= 0)
+                    ? parseGridDate(tds[colChanged].textContent)
+                    : null;
+                const ms = (ende ? ende.getTime() : Date.now()) - created.getTime();
+                const color = erledigt
+                    ? (settings.ampelFarbeErledigt || DEFAULTS.ampelFarbeErledigt)
+                    : badgeColor(ms, prio);
+                const title = erledigt
+                    ? (ende
+                        ? "Bearbeitungsdauer: " + formatAge(ms) + " (erstellt " + m[0] +
+                          ", erledigt " + (tds[colChanged].textContent || "").trim() + ")"
+                        : "Erledigt - Laufzeit seit " + m[0] + " (Spalte „Geändert am“ nicht eingeblendet)")
+                    : "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ", Prio: " + (prio.trim() || "unbekannt") + ")";
 
                 // Kurzschreibweise ("26h") in Ampelfarbe VOR der Ticketnummer
                 let age = tds[colId].querySelector(".__tt_list_age");
@@ -806,7 +877,7 @@
                     age.className = "__tt_list_age";
                     tds[colId].insertBefore(age, tds[colId].firstChild);
                 }
-                const text = formatAgeCompact(ms);
+                const text = (erledigt ? "✓ " : "") + formatAgeCompact(ms);
                 if (age.dataset.x !== text) {
                     age.dataset.x = text;
                     age.textContent = text;
@@ -872,6 +943,39 @@
     // Jeder Eintragskopf enthaelt: aktualisiert am <strong>Fr. 14.08.2026</strong>
     // um <strong>7:53 Uhr</strong> - der aelteste sichtbare Eintrag entspricht
     // der Ticketerstellung (sofern die Historie vollstaendig geladen/gefiltert ist).
+    // Neuester sichtbarer Eintrag = letzte Aenderung am Ticket. Basis fuer
+    // die Bearbeitungsdauer erledigter Tickets.
+    function findNewestEntryDate() {
+        const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
+        const timeRe = /^(\d{1,2}):(\d{2})\s*Uhr$/;
+        let newest = null;
+        for (const s of document.querySelectorAll("strong")) {
+            const m = dateRe.exec((s.textContent || "").trim());
+            if (!m) {
+                continue;
+            }
+            const parent = s.parentElement;
+            if (!parent || !(parent.textContent || "").includes("aktualisiert am")) {
+                continue;
+            }
+            let hh = 0;
+            let mi = 0;
+            for (const t of parent.querySelectorAll("strong")) {
+                const tm = timeRe.exec((t.textContent || "").trim());
+                if (tm) {
+                    hh = parseInt(tm[1], 10);
+                    mi = parseInt(tm[2], 10);
+                    break;
+                }
+            }
+            const d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10), hh, mi, 0);
+            if (!isNaN(d.getTime()) && (newest === null || d > newest)) {
+                newest = d;
+            }
+        }
+        return newest;
+    }
+
     function findOldestEntryDate() {
         const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
         const timeRe = /^(\d{1,2}):(\d{2})\s*Uhr$/;

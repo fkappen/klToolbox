@@ -350,8 +350,18 @@
             <input type="color" id="ampelFarbeRot"><span class="ampel-unit">überfällig</span>
             <label for="ampelFarbeLila">Stufe 4</label>
             <input type="color" id="ampelFarbeLila"><span class="ampel-unit">liegt lange</span>
+            <label for="ampelFarbeErledigt">Erledigt</label>
+            <input type="color" id="ampelFarbeErledigt"><span class="ampel-unit">abgeschlossen</span>
         </div>
         <div class="hint">Vorschau: <span id="ampelPreview"></span></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Erledigte Tickets</legend>
+        <p class="hint">Ist ein Ticket erledigt, läuft die Zeit nicht weiter: Angezeigt wird dann die <b>Bearbeitungsdauer</b> von der Erstellung bis zur letzten Änderung, mit einem Haken davor und in der neutralen Farbe oben. So sieht man, wie lange das Ticket gebraucht hat, statt einer sinnlos weiterlaufenden Wartezeit.</p>
+        <label for="erledigtStatus">Status, die als erledigt gelten</label>
+        <input type="text" id="erledigtStatus" placeholder="Erledigt">
+        <div class="hint">Mehrere mit Komma trennen, z. B. <code>Erledigt, Abgeschlossen, Geschlossen</code>. Groß-/Kleinschreibung egal; es genügt, wenn der Status den Begriff enthält. In der Ticketliste werden dafür die Spalten „Status“ und „Geändert am“ ausgewertet — sind sie ausgeblendet, bleibt es bei der laufenden Anzeige.</div>
     </fieldset>
 
     <div class="toolbar">
