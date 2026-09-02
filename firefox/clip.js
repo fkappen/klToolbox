@@ -1,5 +1,5 @@
 // Version
-// version = "1.0.0"  (Modul Clipper, klToolbox)
+// version = "1.1.0"  (Modul Clipper, klToolbox)
 //
 // Vorschau-/Export-Seite des Clippers: zeigt den per Readability
 // extrahierten Artikel (bereinigt, ohne Werbung) und bietet Export als
@@ -165,10 +165,62 @@ function saveHtml() {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-function mailShare(text) {
-    const body = (text || (clip.text || "").slice(0, 1500) + " […]") + "\n\nQuelle: " + clip.url;
-    location.href = "mailto:?subject=" + encodeURIComponent(clip.title) +
-        "&body=" + encodeURIComponent(body.slice(0, 1800));
+// mailto: ist praktisch auf rund 2000 Zeichen GESAMT-URL begrenzt - Windows
+// und Outlook schneiden darueber hinaus ab. Nach der Prozentkodierung bleiben
+// von deutschem Text oft nur wenige hundert Zeichen uebrig; genau deshalb kam
+// frueher eine fast leere Mail an. Loesung: Der Inhalt geht formatiert in die
+// Zwischenablage, die Mail traegt nur Betreff und Quelle - eingefuegt wird
+// mit Strg+V (dann bleibt auch die Formatierung erhalten).
+const MAILTO_MAX = 1900;
+
+function mailtoUrl(subject, body) {
+    const bau = (b) => "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(b);
+    let text = body;
+    let url = bau(text);
+    while (url.length > MAILTO_MAX && text.length > 40) {
+        text = text.slice(0, Math.floor(text.length * 0.8));
+        url = bau(text + "\n[…]");
+    }
+    return url;
+}
+
+async function mailShare(text) {
+    const inhalt = text || el("article").innerText;
+    let kopiert = false;
+    try {
+        const rumpf = text
+            ? "<p>" + escapeHtml(text).replace(/\n/g, "<br>") + "</p>"
+            : "<h1>" + escapeHtml(clip.title) + "</h1>" + el("article").innerHTML;
+        const html = rumpf + "<p>Quelle: <a href=\"" + escapeHtml(clip.url) + "\">" +
+            escapeHtml(clip.url) + "</a></p>";
+        await navigator.clipboard.write([new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([inhalt + "\n\nQuelle: " + clip.url], { type: "text/plain" })
+        })]);
+        kopiert = true;
+    } catch (err) {
+        kopiert = false;
+    }
+    const body = kopiert
+        ? "Inhalt bitte mit Strg+V einfügen.\n\nQuelle: " + clip.url
+        : inhalt + "\n\nQuelle: " + clip.url;
+    location.href = mailtoUrl(clip.title, body);
+    setStatus(kopiert
+        ? "E-Mail geöffnet – der formatierte Inhalt liegt in der Zwischenablage, bitte mit Strg+V einfügen."
+        : "E-Mail geöffnet. Die Zwischenablage war nicht verfügbar, der Text wurde daher gekürzt.", !kopiert);
+}
+
+// PDF entsteht ueber den Druckdialog - eine eigene PDF-Erzeugung braeuchte
+// eine grosse Bibliothek und wuerde den Text nur rastern. Der Dokumenttitel
+// wird vorher gesetzt, weil Browser ihn als Dateinamen vorschlagen.
+function exportPdf() {
+    const alterTitel = document.title;
+    document.title = (clip.title || "Artikel").replace(/[\\/:*?"<>|]+/g, "_").trim().slice(0, 80);
+    setStatus("Druckdialog geöffnet – dort als Ziel „Als PDF speichern“ wählen.");
+    window.print();
+    setTimeout(() => {
+        document.title = alterTitel;
+    }, 1500);
 }
 
 // ---------------------------------------------------------------- KI
@@ -251,6 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el("copyHtml").addEventListener("click", copyFormatted);
     el("copyMd").addEventListener("click", copyMarkdown);
     el("saveHtml").addEventListener("click", saveHtml);
+    el("savePdf").addEventListener("click", exportPdf);
     el("printPage").addEventListener("click", () => window.print());
     el("mailShare").addEventListener("click", () => mailShare(null));
     el("kiSummary").addEventListener("click", () => kiTransform("summarize"));
