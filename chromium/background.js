@@ -1,5 +1,5 @@
 // Version
-// version = "1.3.0"
+// version = "1.3.1"
 // datum   = "2026-08-17"
 // autor   = "FK"
 //
@@ -153,6 +153,19 @@ const DATEV_DOC_DEFAULT = "https://wissensplattform.apps.datev.de/help/document/
 chrome.storage.local.get({ datevSearchTemplate: "" }, (items) => {
     if (items.datevSearchTemplate === "https://apps.datev.de/knowledge/professional/search?q=%SUCHE%") {
         chrome.storage.local.set({ datevSearchTemplate: DATEV_SEARCH_DEFAULT });
+    }
+});
+
+// Migration (3.27.0): Standard-Symbolliste ohne ● fuer die Normalzustaende -
+// nur wenn noch exakt eine der alten Vorgaben gespeichert ist (eigene
+// Anpassungen bleiben unberuehrt).
+chrome.storage.local.get({ statusSymbole: null }, (items) => {
+    const alteVorgaben = [
+        "Offen = ●\nIn Bearbeitung = ▶\nWarten auf Kunde = ⏳",
+        "Automatisch Angelegt = ●\nAufgenommen = ●\nTermin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳"
+    ];
+    if (typeof items.statusSymbole === "string" && alteVorgaben.indexOf(items.statusSymbole) !== -1) {
+        chrome.storage.local.set({ statusSymbole: "Termin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳" });
     }
 });
 

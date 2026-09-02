@@ -1,5 +1,5 @@
 // Version
-// version = "1.14.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.15.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-08-20"
 // autor   = "FK"
 //
@@ -76,8 +76,10 @@
         // wird aber neutral eingefaerbt (kein falscher Handlungsbedarf).
         neutralStatus: "Warten auf",
         // Symbol je Status, eine Zuordnung pro Zeile: "Status = Symbol"
-        statusSymbole: "Automatisch Angelegt = ●\nAufgenommen = ●\nTermin vereinbart = 📅\n" +
-            "In Bearbeitung = ▶\nWarten auf = ⏳"
+        // Bewusst KEIN Symbol fuer die Normalzustaende (Aufgenommen usw.):
+        // steht es in fast jeder Zeile, traegt es nichts mehr, und die
+        // Ausnahmen gehen darin unter.
+        statusSymbole: "Termin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳"
     };
 
     const TERMINARTEN = [
@@ -639,6 +641,10 @@
             document.querySelectorAll("a.__tt_code_link").forEach((a) => {
                 a.replaceWith(document.createTextNode(a.textContent));
             });
+            // Fingerabdruecke loeschen, damit ein Wiedereinschalten neu verlinkt
+            document.querySelectorAll("[data-tt-link-len]").forEach((e) => {
+                delete e.dataset.ttLinkLen;
+            });
             return;
         }
         // Autorennamen, die eine frühere Version faelschlich verlinkt hat,
@@ -660,14 +666,26 @@
             let depth = 0;
             while (container.parentElement && depth < 4) {
                 const parent = container.parentElement;
-                if ((parent.innerText || "").length > (header.innerText || "").length + 60) {
+                // textContent statt innerText: innerText erzwingt eine
+                // Layout-Berechnung - pro Eintrag, jede Sekunde.
+                if ((parent.textContent || "").length > (header.textContent || "").length + 60) {
                     container = parent;
                     break;
                 }
                 container = parent;
                 depth++;
             }
+            // Nur EINMAL pro Eintrag verlinken. Erneut nur, wenn sich der Text
+            // geaendert hat - die Laenge dient als guenstiger Fingerabdruck.
+            // Vorher lief der TreeWalker jede Sekunde ueber alle Textknoten.
+            const fingerabdruck = String((container.textContent || "").length);
+            if (container.dataset && container.dataset.ttLinkLen === fingerabdruck) {
+                continue;
+            }
             linkifyIn(container);
+            if (container.dataset) {
+                container.dataset.ttLinkLen = String((container.textContent || "").length);
+            }
         }
     }
 
@@ -949,14 +967,31 @@
     let badgeLastRun = 0;
     let badgeQueued = false;
 
+    // Selbstmessung: dauert ein Durchlauf laenger als 80 ms, steht EINMAL pro
+    // Seite in der Konsole, welcher Teil die Zeit frisst - so laesst sich
+    // eine "wird langsam"-Meldung ohne Profiler zuordnen.
+    let tickGewarnt = false;
+
     function waitTick() {
-        ensureWaitBadge();
-        ensureListDots();
-        linkifyFehlercodes();
+        const zeiten = {};
+        const t0 = performance.now();
+        const mess = (name, fn) => {
+            const s = performance.now();
+            fn();
+            zeiten[name] = Math.round(performance.now() - s);
+        };
+        mess("badge", ensureWaitBadge);
+        mess("liste", ensureListDots);
+        mess("fehlercodes", linkifyFehlercodes);
         // Kontakt-E-Mail mitschneiden, falls das Kontaktmenue gerade offen
         // ist - sie ist sonst nirgends im DOM zu finden.
-        captureContactMail();
-        ensureBewertenButtons();
+        mess("kontakt", captureContactMail);
+        mess("bewerten", ensureBewertenButtons);
+        const gesamt = performance.now() - t0;
+        if (gesamt > 80 && !tickGewarnt) {
+            tickGewarnt = true;
+            console.warn("klToolbox: Seitenscan brauchte " + Math.round(gesamt) + " ms: " + JSON.stringify(zeiten));
+        }
     }
 
     function scheduleWaitBadge() {
@@ -1102,32 +1137,39 @@
         }
     }
 
+    // PERFORMANCE: Frueher lief das ueber ALLE div/span/p/td der Seite und las
+    // von jedem den textContent - jede Sekunde. Auf grossen Tickets machte das
+    // das Ticketsystem spuerbar langsam. Jetzt wird ueber die Datums-<strong>
+    // der Eintragskoepfe gegangen (gleiches Muster wie findOldestEntryDate):
+    // Aufwand = Anzahl Eintraege statt Anzahl Elemente.
     function findKiEntryHeaders() {
         const autor = (settings.kiBewertungAutor || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*\d{1,2}\.\d{1,2}\.\d{4}$/;
         const cands = [];
         const gesehen = [];
-        for (const el of document.querySelectorAll("div, span, p, td")) {
-            const t = el.textContent || "";
-            if (t.length > 400 || t.indexOf("aktualisiert am") === -1 || !isVisible(el)) {
+        for (const s of document.querySelectorAll("strong")) {
+            if (!dateRe.test((s.textContent || "").trim())) {
                 continue;
             }
-            const a = headerAuthor(el);
+            const head = s.parentElement;
+            if (!head || cands.indexOf(head) !== -1) {
+                continue;
+            }
+            const a = headerAuthor(head);
             if (!a) {
                 continue;
             }
             if (gesehen.indexOf(a) === -1) {
                 gesehen.push(a);
             }
-            if (autor && a.toLowerCase() === autor) {
-                cands.push(el);
+            if (autor && a.toLowerCase() === autor && isVisible(head)) {
+                cands.push(head);
             }
         }
-        // Innerstes Element gewinnt, falls doch mehrere Ebenen passen
-        const heads = cands.filter((el) => !cands.some((o) => o !== el && el.contains(o)));
-        if (heads.length === 0) {
+        if (cands.length === 0) {
             warnKiAutor(autor, gesehen);
         }
-        return heads;
+        return cands;
     }
 
     function ensureBewertenButtons() {
@@ -2617,11 +2659,20 @@
             }
         });
         // SPA: Toolbar entsteht dynamisch -> Button/Badge nachruesten
+        // Toolbar-Buttons gebuendelt nachziehen statt bei JEDER DOM-Aenderung -
+        // beim Rendern des Grids kommen Hunderte Aenderungen pro Sekunde.
+        let buttonsTimer = null;
         const obs = new MutationObserver(() => {
-            if (moduleEnabled) {
-                ensureButtons();
-                scheduleWaitBadge();
+            if (!moduleEnabled) {
+                return;
             }
+            if (buttonsTimer === null) {
+                buttonsTimer = setTimeout(() => {
+                    buttonsTimer = null;
+                    ensureButtons();
+                }, 250);
+            }
+            scheduleWaitBadge();
         });
         obs.observe(document.documentElement, { childList: true, subtree: true });
         // Anzeige minuetlich auffrischen (relevant fuer Prio-Hoch-Ampel)

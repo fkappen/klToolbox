@@ -370,8 +370,8 @@
 
     <fieldset>
         <legend>Symbole je Status</legend>
-        <p class="hint">Ein Symbol vor der Zeitangabe macht den Zustand in der Liste auf einen Blick erkennbar. Pro Zeile eine Zuordnung <code>Status = Symbol</code>; es genügt, wenn der Status den Begriff enthält, bei mehreren Treffern gewinnt der genauere. Erledigte Tickets bekommen immer ✓. Leer lassen, um ganz auf Symbole zu verzichten.</p>
-        <textarea id="statusSymbole" style="min-height:110px" placeholder="Aufgenommen = ●&#10;Termin vereinbart = 📅&#10;In Bearbeitung = ▶&#10;Warten auf = ⏳"></textarea>
+        <p class="hint">Ein Symbol vor der Zeitangabe macht <b>Ausnahmezustände</b> in der Liste auf einen Blick erkennbar. Pro Zeile eine Zuordnung <code>Status = Symbol</code>; es genügt, wenn der Status den Begriff enthält, bei mehreren Treffern gewinnt der genauere. Erledigte Tickets bekommen immer ✓. Tipp: dem Normalfall („Aufgenommen“) kein Symbol geben — was in fast jeder Zeile steht, fällt nicht mehr auf.</p>
+        <textarea id="statusSymbole" style="min-height:90px" placeholder="Termin vereinbart = 📅&#10;In Bearbeitung = ▶&#10;Warten auf = ⏳"></textarea>
         <div class="hint">Ein Schlüssel wie <code>Warten auf</code> deckt alle Wartezustände auf einmal ab. Soll einer davon ein eigenes Symbol bekommen, genügt eine zusätzliche, genauere Zeile — etwa <code>Warten auf Hersteller = 🏭</code>.</div>
     </fieldset>
 
