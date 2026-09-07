@@ -1,5 +1,5 @@
 // Version
-// version = "1.7.0"
+// version = "1.7.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1556,7 +1556,8 @@ async function m365AccessToken(allowInteractive) {
     // Fehlt dem gespeicherten Token ein inzwischen benoetigter Scope (z. B.
     // Calendars.ReadWrite.Shared nach einem Update), einmal sofort erneuern -
     // der Admin-Consent im Tenant reicht, der Nutzer merkt nichts.
-    const scopeFehlt = auth.scope && !/\bCalendars\.ReadWrite\.Shared\b/.test(auth.scope) && !auth.scopeGeprueft;
+    // Auch Anmeldungen VOR 3.32 (ohne gespeichertes scope-Feld) einmal erneuern
+    const scopeFehlt = !auth.scopeGeprueft && !/\bCalendars\.ReadWrite\.Shared\b/.test(String(auth.scope || ""));
     if (auth.accessToken && Number(auth.expiresAt) > Date.now() && !scopeFehlt) {
         return auth.accessToken;
     }
@@ -1777,6 +1778,28 @@ async function m365Calendars() {
     return { shared: shared, me: me };
 }
 
+// Wer hat Rechte auf MEINEM Kalender? Im Betrieb sind Kalenderrechte meist
+// gegenseitig vergeben (Ordnerberechtigung "Autor" fuer alle Kollegen) -
+// diese Personen sind daher die Kandidaten, deren Kalender wir einzeln auf
+// Zugriff pruefen. /me/calendars kennt solche Freigaben nicht.
+async function m365CalendarPermissions() {
+    const auth = (await m365Storage({ m365Auth: null })).m365Auth || {};
+    const me = String(auth.account && auth.account.upn ? auth.account.upn : "").toLowerCase();
+    const data = await m365Graph("/me/calendar/calendarPermissions?$top=100", "GET", null, false);
+    const out = [];
+    for (const p of (Array.isArray(data.value) ? data.value : [])) {
+        const mail = String(p.emailAddress && p.emailAddress.address ? p.emailAddress.address : "").trim();
+        if (!mail || mail.toLowerCase() === me || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+            continue; // "Standard"/"Anonym" haben keine Adresse
+        }
+        if (out.some((x) => x.mail.toLowerCase() === mail.toLowerCase())) {
+            continue;
+        }
+        out.push({ mail: mail, name: String((p.emailAddress && p.emailAddress.name) || mail), role: String(p.role || "") });
+    }
+    return { personen: out };
+}
+
 // Zugriff auf den Standardkalender eines bestimmten Kollegen pruefen
 // (auch fuer Freigaben, die nur per Ordnerberechtigung gesetzt wurden).
 async function m365ProbeCalendar(q) {
@@ -1839,6 +1862,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 sendResponse(Object.assign({ ok: true }, await m365GetSchedule(msg)));
             } else if (msg.type === "m365Calendars") {
                 sendResponse(Object.assign({ ok: true }, await m365Calendars()));
+            } else if (msg.type === "m365CalendarPermissions") {
+                sendResponse(Object.assign({ ok: true }, await m365CalendarPermissions()));
             } else if (msg.type === "m365ProbeCalendar") {
                 sendResponse(Object.assign({ ok: true }, await m365ProbeCalendar(msg)));
             } else if (msg.type === "m365UpdateEvent") {

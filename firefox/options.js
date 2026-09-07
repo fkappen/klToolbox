@@ -1245,6 +1245,7 @@ function exportAllSettings() {
         // an Kollegen weitergegeben wird
         delete items.m365Auth;
         delete items.m365Termine;   // Termin-IDs je Ticket sind an den eigenen Kalender gebunden
+        delete items.m365KollegenCache;   // Zugriffsrechte sind pro Nutzer verschieden
         const payload = {
             _extension: "klToolbox",
             _exportiert: new Date().toISOString(),
@@ -1336,6 +1337,7 @@ function importAllSettings(file, mode) {
             // Fremde Anmeldetokens niemals uebernehmen
             delete settings.m365Auth;
             delete settings.m365Termine;
+            delete settings.m365KollegenCache;
             const keys = Object.keys(settings).join(", ");
             if (mode === "replace") {
                 if (!confirm("ÜBERSCHREIBEN: Sämtliche vorhandenen Einstellungen werden GELÖSCHT und durch den Dateiinhalt ersetzt.\n\nNicht in der Datei enthaltene Einstellungen (z. B. API-Keys) gehen dabei verloren!\n\nDie Datei enthält:\n" + keys + "\n\nWirklich fortfahren?")) {

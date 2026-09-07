@@ -1,5 +1,5 @@
 // Version
-// version = "1.19.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.19.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -2405,6 +2405,16 @@
         const kolSelect = document.createElement("select");
         kolSelect.className = "tt-cal-kol";
         kolSelect.title = "Wessen Kalender wird angezeigt? Bei einem Kollegen: Frei/Belegt aus dessen Kalender, der Termin kann ihm als Einladung zugestellt werden.";
+        const neuBtn = document.createElement("button");
+        neuBtn.type = "button";
+        neuBtn.textContent = "↻";
+        neuBtn.title = "Kollegenliste neu ermitteln (Freigaben und Berechtigungen erneut prüfen)";
+        neuBtn.style.display = "none";
+        neuBtn.addEventListener("click", () => {
+            neuBtn.disabled = true;
+            ladeKollegen(true);
+            setTimeout(() => { neuBtn.disabled = false; }, 3000);
+        });
         function fillKolSelect() {
             const aktuell = kolSelect.value;
             kolSelect.textContent = "";
@@ -2425,6 +2435,7 @@
             }
             kolSelect.value = kollegen.some((k) => k.mail === aktuell) ? aktuell : "";
             kolSelect.style.display = kollegen.length > 0 ? "" : "none";
+            neuBtn.style.display = "";
         }
         fillKolSelect();
 
@@ -2441,56 +2452,129 @@
         // Freigegebene Kalender abrufen und mit der Pflegeliste zusammenfuehren;
         // Listeneintraege ohne sichtbare Freigabe werden einzeln auf Zugriff
         // geprueft (Admin-Freigaben tauchen in /me/calendars nicht auf).
-        function ladeKollegen() {
-            if (kollegenGeladen) {
+        // Kandidaten: Pflegeliste + /me/calendars (in Outlook hinzugefuegte
+        // Freigaben) + Personen mit Rechten auf MEINEM Kalender (im Betrieb
+        // sind Ordnerberechtigungen meist gegenseitig vergeben; /me/calendars
+        // kennt solche Freigaben nicht). Alles ohne sichtbare Freigabe wird
+        // einzeln geprueft - das sind viele Anfragen, daher 12 h Cache.
+        function ladeKollegen(erzwingen) {
+            if (kollegenGeladen && !erzwingen) {
                 return;
             }
             kollegenGeladen = true;
-            chrome.runtime.sendMessage({ type: "m365Calendars" }, (res) => {
-                if (!chrome.runtime.lastError && res && res.ok) {
-                    for (const c of (res.shared || [])) {
-                        const vorhanden = kollegen.find((k) => k.mail.toLowerCase() === c.mail.toLowerCase());
-                        if (vorhanden) {
-                            vorhanden.canEdit = c.canEdit === true;
-                            vorhanden.readable = true;
-                            vorhanden.quelle = "freigabe";
-                        } else {
-                            kollegen.push({ name: c.name || c.mail, mail: c.mail, canEdit: c.canEdit === true, readable: true, quelle: "freigabe" });
+            const hinweis = "Kollegen werden ermittelt…";
+            if (!info.textContent) {
+                info.textContent = hinweis;
+            }
+
+            function mergeIn(items, quelle) {
+                for (const c of items) {
+                    if (!c || !c.mail) {
+                        continue;
+                    }
+                    const v = kollegen.find((k) => k.mail.toLowerCase() === String(c.mail).toLowerCase());
+                    if (v) {
+                        v.canEdit = c.canEdit === true;
+                        v.readable = c.readable === true || c.canEdit === true;
+                        v.quelle = quelle;
+                        if (c.name && v.name === v.mail) {
+                            v.name = c.name;
+                        }
+                    } else {
+                        kollegen.push({ name: c.name || c.mail, mail: c.mail, canEdit: c.canEdit === true,
+                            readable: c.readable === true || c.canEdit === true, quelle: quelle });
+                    }
+                }
+            }
+
+            function fertig() {
+                fillKolSelect();
+                if (info.textContent === hinweis) {
+                    info.textContent = "";
+                }
+                if (pendingSelect) {
+                    const m = pendingSelect;
+                    pendingSelect = "";
+                    waehleKollege(m);
+                } else if (kollege) {
+                    cb.onKollege(kollege);
+                }
+            }
+
+            const send = (msg) => new Promise((resolve) => {
+                try {
+                    chrome.runtime.sendMessage(msg, (r) => resolve(chrome.runtime.lastError ? null : r));
+                } catch (err) {
+                    resolve(null);
+                }
+            });
+
+            async function ermitteln() {
+                const shared = await send({ type: "m365Calendars" });
+                if (shared && shared.ok) {
+                    mergeIn((shared.shared || []).map((c) => ({ mail: c.mail, name: c.name, canEdit: c.canEdit, readable: true })), "freigabe");
+                } else {
+                    console.warn("Ticket-Termin: freigegebene Kalender nicht abrufbar:", shared && shared.error);
+                }
+                const kandidaten = [];
+                const perms = await send({ type: "m365CalendarPermissions" });
+                if (perms && perms.ok) {
+                    for (const pers of (perms.personen || [])) {
+                        if (!kollegen.some((k) => k.mail.toLowerCase() === pers.mail.toLowerCase())) {
+                            kandidaten.push({ name: pers.name, mail: pers.mail });
                         }
                     }
                 } else {
-                    console.warn("Ticket-Termin: freigegebene Kalender nicht abrufbar:",
-                        chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.error));
+                    console.warn("Ticket-Termin: Kalenderberechtigungen nicht abrufbar:", perms && perms.error);
+                }
+                for (const k of kollegen) {
+                    if (k.quelle === "liste") {
+                        kandidaten.push(k);
+                    }
                 }
                 fillKolSelect();
-                const offen = kollegen.filter((k) => k.quelle === "liste").slice(0, 15);
-                let rest = offen.length;
-                const fertig = () => {
-                    fillKolSelect();
-                    if (pendingSelect) {
-                        const m = pendingSelect;
-                        pendingSelect = "";
-                        waehleKollege(m);
-                    } else if (kollege) {
-                        cb.onKollege(kollege);
-                    }
-                };
-                if (rest === 0) {
+                // Zugriff je Kandidat pruefen, 4 parallel, max. 60
+                const ergebnisse = [];
+                const liste = kandidaten.slice(0, 60);
+                for (let i = 0; i < liste.length; i += 4) {
+                    await Promise.all(liste.slice(i, i + 4).map(async (k) => {
+                        const pr = await send({ type: "m365ProbeCalendar", mail: k.mail });
+                        const ok = !!(pr && pr.ok);
+                        ergebnisse.push({
+                            mail: k.mail,
+                            name: (ok && pr.name) || k.name,
+                            readable: ok && pr.readable === true,
+                            canEdit: ok && pr.canEdit === true
+                        });
+                    }));
+                }
+                // Ohne Zugriff nur aufnehmen, wer ohnehin in der Pflegeliste steht
+                mergeIn(ergebnisse.filter((e) => e.readable || e.canEdit ||
+                    kollegen.some((k) => k.mail.toLowerCase() === e.mail.toLowerCase())), "geprueft");
+                try {
+                    chrome.storage.local.set({
+                        m365KollegenCache: {
+                            ts: Date.now(),
+                            items: kollegen.map((k) => ({ mail: k.mail, name: k.name, canEdit: k.canEdit, readable: k.readable }))
+                        }
+                    });
+                } catch (err) {
+                    console.warn("Ticket-Termin: Kollegen-Cache nicht gespeichert:", err);
+                }
+                fertig();
+            }
+
+            chrome.storage.local.get({ m365KollegenCache: null }, (st) => {
+                const c = st && st.m365KollegenCache;
+                if (!erzwingen && c && Array.isArray(c.items) && (Date.now() - Number(c.ts)) < 12 * 3600000) {
+                    mergeIn(c.items, "cache");
                     fertig();
                     return;
                 }
-                for (const k of offen) {
-                    chrome.runtime.sendMessage({ type: "m365ProbeCalendar", mail: k.mail }, (pr) => {
-                        if (!chrome.runtime.lastError && pr && pr.ok) {
-                            k.readable = pr.readable === true;
-                            k.canEdit = pr.canEdit === true;
-                        }
-                        rest--;
-                        if (rest === 0) {
-                            fertig();
-                        }
-                    });
-                }
+                ermitteln().catch((err) => {
+                    console.warn("Ticket-Termin: Kollegen ermitteln fehlgeschlagen:", err);
+                    fertig();
+                });
             });
         }
         const todayBtn = document.createElement("button");
@@ -2504,6 +2588,7 @@
         head.appendChild(prev);
         head.appendChild(label);
         head.appendChild(kolSelect);
+        head.appendChild(neuBtn);
         head.appendChild(todayBtn);
         head.appendChild(next);
         container.appendChild(head);
