@@ -6,8 +6,8 @@ param(
 )
 
 #Version
-$version = "2.1.2"
-$datum = "2026-08-17"
+$version = "2.1.3"
+$datum = "2026-09-07"
 $autor = "Felix Kappen"
 
 # Gesamt-Build der klToolbox:
@@ -221,7 +221,16 @@ try {
         $entries[$Matches[1]] = $xpiBaseUrl + $_.Name
     }
     try {
-        $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$slug/releases" -UseBasicParsing
+        # Paginiert: die API liefert je Seite max. 100 Releases (Default 30) -
+        # ohne Schleife fielen ab dem 31. Release die aeltesten xpi-Versionen
+        # aus updates.json (passiert bei 3.30.0 mit 33 Releases: 3.15.1 weg).
+        $rels = @()
+        $page = 1
+        do {
+            $chunk = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$slug/releases?per_page=100&page=$page" -UseBasicParsing)
+            $rels += $chunk
+            $page++
+        } while ($chunk.Count -eq 100 -and $page -le 20)
         foreach ($r in @($rels)) {
             foreach ($a in @($r.assets)) {
                 if ($null -ne $a -and $a.name -match '^kl-toolbox-firefox-v([0-9\.]+)\.xpi$') {
