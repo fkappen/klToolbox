@@ -1,4 +1,4 @@
-/* Version 2.9.0 - 2026-09-07 - FK
+/* Version 2.9.1 - 2026-09-07 - FK
    Neutrale Farben via CSS-Variablen; Branding kommt per Settings-Import
    Panels der Module Ticket-Vorlagen und Ticket-Termin (Ticketsystem) */
 
@@ -700,4 +700,11 @@ a.__tt_code_link:hover {
     color: #1a7f37;
     border-left: 4px solid #1a7f37;
     border-radius: 0 8px 8px 0;
+}
+
+/* Checkbox-Text bleibt neben der Box: der Span darf schrumpfen, sonst
+   bricht flex-wrap die ganze Beschriftung in die naechste Zeile */
+#__tt_panel .tt-time-wrap > span {
+    flex: 1 1 0;
+    min-width: 0;
 }
