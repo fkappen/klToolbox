@@ -1,5 +1,5 @@
 // Version
-// version = "1.8.0"
+// version = "1.8.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1828,10 +1828,12 @@ async function m365Kollegen(q) {
     const st = await m365Storage({ m365Kollegen: "", m365KollegenCache: null });
     const cache = st.m365KollegenCache;
     if (!erzwingen && cache && Array.isArray(cache.items) && (Date.now() - Number(cache.ts)) < 12 * 3600000) {
-        return { items: cache.items, ts: cache.ts, cached: true };
+        return { items: cache.items, ts: cache.ts, cached: true, stats: cache.stats || null };
     }
     const kollegen = m365ParseKollegen(st.m365Kollegen)
         .map((k) => ({ name: k.name, mail: k.mail, canEdit: false, readable: false, quelle: "liste" }));
+    // Diagnose je Quelle (Optionen zeigen sie an - "warum nur 3 von 20?")
+    const stats = { liste: kollegen.length, freigaben: 0, berechtigte: 0, geprueft: 0, mitZugriff: 0, fehler: [] };
     const finde = (mail) => kollegen.find((k) => k.mail.toLowerCase() === String(mail).toLowerCase());
     const merge = (c, quelle, nurWennVorhanden) => {
         const v = finde(c.mail);
@@ -1849,20 +1851,24 @@ async function m365Kollegen(q) {
     };
     try {
         for (const c of (await m365Calendars()).shared) {
+            stats.freigaben++;
             merge({ mail: c.mail, name: c.name, canEdit: c.canEdit, readable: true }, "freigabe", false);
         }
     } catch (err) {
         console.warn("klToolbox M365: freigegebene Kalender nicht abrufbar:", err);
+        stats.fehler.push({ quelle: "freigaben", mail: "", msg: String(err && err.message) });
     }
     const kandidaten = [];
     try {
         for (const p of (await m365CalendarPermissions()).personen) {
+            stats.berechtigte++;
             if (!finde(p.mail)) {
                 kandidaten.push({ name: p.name, mail: p.mail, liste: false });
             }
         }
     } catch (err) {
         console.warn("klToolbox M365: Kalenderberechtigungen nicht abrufbar:", err);
+        stats.fehler.push({ quelle: "berechtigungen", mail: "", msg: String(err && err.message) });
     }
     for (const k of kollegen) {
         if (k.quelle === "liste") {
@@ -1877,6 +1883,13 @@ async function m365Kollegen(q) {
                 pr = await m365ProbeCalendar({ mail: k.mail });
             } catch (err) {
                 console.warn("klToolbox M365: Kalenderpruefung " + k.mail + ": " + err.message);
+                pr.fehler = String(err && err.message);
+            }
+            stats.geprueft++;
+            if (pr.readable || pr.canEdit) {
+                stats.mitZugriff++;
+            } else if (stats.fehler.length < 8) {
+                stats.fehler.push({ quelle: "pruefung", mail: k.mail, msg: String(pr.fehler || "kein Zugriff").slice(0, 160) });
             }
             // Ohne Zugriff nur behalten, wer in der Pflegeliste steht
             merge({ mail: k.mail, name: pr.name || k.name, readable: pr.readable, canEdit: pr.canEdit }, "geprueft",
@@ -1887,8 +1900,9 @@ async function m365Kollegen(q) {
         .map((k) => ({ mail: k.mail, name: k.name, canEdit: k.canEdit === true, readable: k.readable === true, quelle: k.quelle }))
         .sort((a, b) => a.name.localeCompare(b.name, "de"));
     const ts = Date.now();
-    await m365StorageSet({ m365KollegenCache: { ts: ts, items: items } });
-    return { items: items, ts: ts, cached: false };
+    console.info("klToolbox M365: Kollegen ermittelt", stats);
+    await m365StorageSet({ m365KollegenCache: { ts: ts, items: items, stats: stats } });
+    return { items: items, ts: ts, cached: false, stats: stats };
 }
 
 // Zugriff auf den Standardkalender eines bestimmten Kollegen pruefen
@@ -1901,7 +1915,7 @@ async function m365ProbeCalendar(q) {
     } catch (err) {
         const msg = String(err && err.message || "");
         if (/ErrorAccessDenied|Access is denied|403|ErrorItemNotFound|404|ErrorInvalidUser|MailboxNotEnabled/i.test(msg)) {
-            return { readable: false, canEdit: false, name: "" };
+            return { readable: false, canEdit: false, name: "", fehler: msg };
         }
         throw err;
     }

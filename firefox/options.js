@@ -1,5 +1,5 @@
 // Version
-// version = "2.3.0"
+// version = "2.3.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -258,8 +258,24 @@ function renderKolListe(erzwingen) {
                 const stand = document.createElement("div");
                 stand.style.cssText = "margin-top:6px; color:#6b7880;";
                 stand.textContent = items.length + " Kalender" + (res.ts ? " · Stand " + new Date(res.ts).toLocaleString("de-DE") : "") +
-                    (res.cached ? " (zwischengespeichert)" : "");
+                    (res.cached ? " (zwischengespeichert - „Kollegen neu ermitteln“ prüft frisch)" : "");
                 box.appendChild(stand);
+                // Diagnose: woher kamen die Kandidaten, woran scheiterte die Pruefung?
+                const st2 = res.stats;
+                if (st2) {
+                    const diag = document.createElement("div");
+                    diag.style.cssText = "margin-top:4px; color:#6b7880;";
+                    diag.textContent = "Quellen: " + st2.liste + " aus der Pflegeliste, " + st2.freigaben + " Outlook-Freigaben, " +
+                        st2.berechtigte + " mit Rechten an meinem Kalender · " + st2.geprueft + " einzeln geprüft, davon " +
+                        st2.mitZugriff + " mit Zugriff.";
+                    box.appendChild(diag);
+                    if (Array.isArray(st2.fehler) && st2.fehler.length > 0) {
+                        const fl = document.createElement("div");
+                        fl.style.cssText = "margin-top:4px; color:#b3261e; white-space:pre-line;";
+                        fl.textContent = "Ohne Zugriff / Fehler:" + String.fromCharCode(10) + st2.fehler.map((f) => (f.mail ? f.mail + ": " : f.quelle + ": ") + f.msg).join(String.fromCharCode(10));
+                        box.appendChild(fl);
+                    }
+                }
             });
         });
     });
