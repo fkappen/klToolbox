@@ -1,5 +1,5 @@
 // Version
-// version = "1.18.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.19.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -471,7 +471,7 @@
     // steht, WANN der Termin ist (Vorlage: terminEintragText).
     // teamsLink (optional, nur Microsoft 365): Platzhalter %TEAMSLINK% in der
     // Vorlage, sonst als eigene Zeile angehaengt.
-    async function setStatusTerminVereinbart(startDt, artLabel, durMin, teamsLink) {
+    async function setStatusTerminVereinbart(startDt, artLabel, durMin, teamsLink, techniker) {
         try {
             const form = findEntryForm();
             if (!form) {
@@ -491,15 +491,20 @@
                     : "";
                 const tpl = settings.terminEintragText || DEFAULTS.terminEintragText;
                 const link = String(teamsLink || "").trim();
+                const tech = String(techniker || "").trim();
                 let text = tpl
                     .replace(/%DATUM%/g, datum)
                     .replace(/%ZEIT%/g, zeit)
                     .replace(/%ART%/g, artLabel || "")
                     .replace(/%DAUER%/g, dauer)
                     .replace(/%TEAMSLINK%/g, link)
+                    .replace(/%TECHNIKER%/g, tech)
                     .replace(/\s*\(\s*\)/g, "")     // leere Klammern, falls Art/Dauer fehlen
                     .replace(/[ \t]{2,}/g, " ")
                     .trim();
+                if (tech && !/%TECHNIKER%/.test(tpl) && text) {
+                    text += "\nTechniker: " + tech;
+                }
                 if (link && !/%TEAMSLINK%/.test(tpl) && text) {
                     text += "\nTeams-Link: " + link;
                 }
@@ -2378,7 +2383,14 @@
         let enabled = false;
         let kollege = null;          // null = eigener Kalender
         let ownIds = [];             // IDs des zu diesem Ticket angelegten Termins (+ Anfahrt)
-        const kollegen = parseKollegen(settings.m365Kollegen);
+        // Kollegen: aus der Pflegeliste (Optionen) UND dynamisch aus den
+        // freigegebenen Kalendern (/me/calendars). canEdit = Termin darf direkt
+        // dort angelegt werden, readable = Betreffs sichtbar (Kalenderansicht),
+        // sonst nur Frei/Belegt per getSchedule.
+        let kollegen = parseKollegen(settings.m365Kollegen)
+            .map((k) => Object.assign({ canEdit: false, readable: false, quelle: "liste" }, k));
+        let kollegenGeladen = false;
+        let pendingSelect = "";
 
         container.className = "tt-cal";
         container.style.display = "none";
@@ -2393,22 +2405,94 @@
         const kolSelect = document.createElement("select");
         kolSelect.className = "tt-cal-kol";
         kolSelect.title = "Wessen Kalender wird angezeigt? Bei einem Kollegen: Frei/Belegt aus dessen Kalender, der Termin kann ihm als Einladung zugestellt werden.";
-        const optMe = document.createElement("option");
-        optMe.value = "";
-        optMe.textContent = "Mein Kalender";
-        kolSelect.appendChild(optMe);
-        for (const k of kollegen) {
-            const o = document.createElement("option");
-            o.value = k.mail;
-            o.textContent = k.name;
-            kolSelect.appendChild(o);
+        function fillKolSelect() {
+            const aktuell = kolSelect.value;
+            kolSelect.textContent = "";
+            const optMe = document.createElement("option");
+            optMe.value = "";
+            optMe.textContent = "Mein Kalender";
+            kolSelect.appendChild(optMe);
+            const sortiert = kollegen.slice().sort((a, b) => a.name.localeCompare(b.name, "de"));
+            for (const k of sortiert) {
+                const o = document.createElement("option");
+                o.value = k.mail;
+                o.textContent = k.name + (k.canEdit ? " ✎" : (k.readable ? " 👁" : " (Frei/Belegt)"));
+                o.title = k.canEdit
+                    ? "Kalender freigegeben mit Schreibrecht - Termin kann direkt dort angelegt werden"
+                    : (k.readable ? "Kalender freigegeben (nur lesen) - Termin bei mir, Kollege wird eingeladen"
+                        : "Keine Kalenderfreigabe - nur Frei/Belegt sichtbar, Kollege wird eingeladen");
+                kolSelect.appendChild(o);
+            }
+            kolSelect.value = kollegen.some((k) => k.mail === aktuell) ? aktuell : "";
+            kolSelect.style.display = kollegen.length > 0 ? "" : "none";
         }
-        kolSelect.style.display = kollegen.length > 0 ? "" : "none";
-        kolSelect.addEventListener("change", () => {
-            kollege = kollegen.find((k) => k.mail === kolSelect.value) || null;
+        fillKolSelect();
+
+        function waehleKollege(mail) {
+            kollege = kollegen.find((k) => k.mail === mail) || null;
+            kolSelect.value = kollege ? kollege.mail : "";
             cb.onKollege(kollege);
-            load();
-        });
+            if (enabled) {
+                load();
+            }
+        }
+        kolSelect.addEventListener("change", () => waehleKollege(kolSelect.value));
+
+        // Freigegebene Kalender abrufen und mit der Pflegeliste zusammenfuehren;
+        // Listeneintraege ohne sichtbare Freigabe werden einzeln auf Zugriff
+        // geprueft (Admin-Freigaben tauchen in /me/calendars nicht auf).
+        function ladeKollegen() {
+            if (kollegenGeladen) {
+                return;
+            }
+            kollegenGeladen = true;
+            chrome.runtime.sendMessage({ type: "m365Calendars" }, (res) => {
+                if (!chrome.runtime.lastError && res && res.ok) {
+                    for (const c of (res.shared || [])) {
+                        const vorhanden = kollegen.find((k) => k.mail.toLowerCase() === c.mail.toLowerCase());
+                        if (vorhanden) {
+                            vorhanden.canEdit = c.canEdit === true;
+                            vorhanden.readable = true;
+                            vorhanden.quelle = "freigabe";
+                        } else {
+                            kollegen.push({ name: c.name || c.mail, mail: c.mail, canEdit: c.canEdit === true, readable: true, quelle: "freigabe" });
+                        }
+                    }
+                } else {
+                    console.warn("Ticket-Termin: freigegebene Kalender nicht abrufbar:",
+                        chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.error));
+                }
+                fillKolSelect();
+                const offen = kollegen.filter((k) => k.quelle === "liste").slice(0, 15);
+                let rest = offen.length;
+                const fertig = () => {
+                    fillKolSelect();
+                    if (pendingSelect) {
+                        const m = pendingSelect;
+                        pendingSelect = "";
+                        waehleKollege(m);
+                    } else if (kollege) {
+                        cb.onKollege(kollege);
+                    }
+                };
+                if (rest === 0) {
+                    fertig();
+                    return;
+                }
+                for (const k of offen) {
+                    chrome.runtime.sendMessage({ type: "m365ProbeCalendar", mail: k.mail }, (pr) => {
+                        if (!chrome.runtime.lastError && pr && pr.ok) {
+                            k.readable = pr.readable === true;
+                            k.canEdit = pr.canEdit === true;
+                        }
+                        rest--;
+                        if (rest === 0) {
+                            fertig();
+                        }
+                    });
+                }
+            });
+        }
         const todayBtn = document.createElement("button");
         todayBtn.type = "button";
         todayBtn.textContent = "Heute";
@@ -2690,9 +2774,9 @@
             render();
             const start = new Date(weekMonday.getTime());
             const end = new Date(weekMonday.getTime() + 5 * 86400000);
-            const msg = kollege
+            const msg = (kollege && !kollege.readable)
                 ? { type: "m365GetSchedule", mail: kollege.mail, start: toGraphLocal(start), end: toGraphLocal(end), timeZone: localTz() }
-                : { type: "m365CalendarView", start: start.toISOString(), end: end.toISOString(), timeZone: localTz() };
+                : { type: "m365CalendarView", owner: kollege ? kollege.mail : "", start: start.toISOString(), end: end.toISOString(), timeZone: localTz() };
             try {
                 chrome.runtime.sendMessage(msg, (res) => {
                     const err = chrome.runtime.lastError
@@ -2752,6 +2836,24 @@
                 enabled = true;
                 container.style.display = "";
                 goto(selectedStart() || new Date());
+                ladeKollegen();
+            },
+            selectKollege: function (mail) {
+                if (!mail) {
+                    return;
+                }
+                if (kollegen.some((k) => k.mail.toLowerCase() === String(mail).toLowerCase())) {
+                    waehleKollege(kollegen.find((k) => k.mail.toLowerCase() === String(mail).toLowerCase()).mail);
+                } else if (!kollegenGeladen || pendingSelect === "") {
+                    pendingSelect = mail;
+                    if (kollegenGeladen) {
+                        // nicht in der Liste: als reinen Frei/Belegt-Eintrag aufnehmen
+                        kollegen.push({ name: mail, mail: mail, canEdit: false, readable: false, quelle: "termin" });
+                        fillKolSelect();
+                        pendingSelect = "";
+                        waehleKollege(mail);
+                    }
+                }
             },
             disable: function () {
                 enabled = false;
@@ -3074,7 +3176,32 @@
         kolWrap.appendChild(kolText);
         kolRow.appendChild(kolLabel);
         kolRow.appendChild(kolWrap);
+
+        // Zielkalender bei schreibbar freigegebenem Kollegenkalender
+        const zielRow = document.createElement("div");
+        zielRow.className = "tt-row";
+        zielRow.style.display = "none";
+        const zielLabel = document.createElement("label");
+        zielLabel.textContent = "Anlegen in";
+        zielLabel.setAttribute("for", "tt_ziel");
+        const zielSelect = document.createElement("select");
+        zielSelect.id = "tt_ziel";
+        zielRow.appendChild(zielLabel);
+        zielRow.appendChild(zielSelect);
+        left.appendChild(zielRow);
         left.appendChild(kolRow);
+
+        function syncKolRow(kol) {
+            const beiKollege = !!(kol && kol.canEdit && zielSelect.value === "kol");
+            if (beiKollege) {
+                kolText.textContent = "mich selbst als Teilnehmer eintragen (Kopie in meinem Kalender)";
+                kolCheck.checked = false;
+            } else {
+                kolText.textContent = kol ? kol.name + " als Teilnehmer einladen (Einladung in dessen Kalender)" : "als Teilnehmer einladen";
+                kolCheck.checked = true;
+            }
+        }
+        zielSelect.addEventListener("change", () => syncKolRow(calendar.getKollege()));
 
         // Hinweiszeile (Einrichtung/Anmeldung/Fehler) statt alert()
         const note = document.createElement("div");
@@ -3169,7 +3296,22 @@
             },
             onKollege: (kol) => {
                 kolRow.style.display = kol ? "" : "none";
-                kolText.textContent = kol ? kol.name + " als Teilnehmer einladen (Einladung in dessen Kalender)" : "als Teilnehmer einladen";
+                zielSelect.textContent = "";
+                if (kol && kol.canEdit) {
+                    const o1 = document.createElement("option");
+                    o1.value = "kol";
+                    o1.textContent = "Kalender von " + kol.name;
+                    const o2 = document.createElement("option");
+                    o2.value = "me";
+                    o2.textContent = "meinem Kalender (" + kol.name + " einladen)";
+                    zielSelect.appendChild(o1);
+                    zielSelect.appendChild(o2);
+                    zielSelect.value = "kol";
+                    zielRow.style.display = "";
+                } else {
+                    zielRow.style.display = "none";
+                }
+                syncKolRow(kol);
             }
         });
 
@@ -3183,7 +3325,7 @@
             const startDt = parseGraphLocal(rec.start);
             bestehend.textContent = "";
             bestehend.appendChild(document.createTextNode("📅 Outlook-Termin zu diesem Ticket: " +
-                (startDt ? fmtTerminKurz(startDt, rec.durMin) : "?") + (rec.attendees ? " · mit Einladung" : "") + " "));
+                (startDt ? fmtTerminKurz(startDt, rec.durMin) : "?") + (rec.owner ? " · im Kalender von " + (rec.techniker || rec.owner) : "") + (rec.attendees ? " · mit Einladung" : "") + " "));
             const mk = (label, title, fn) => {
                 const b = document.createElement("button");
                 b.type = "button";
@@ -3213,6 +3355,9 @@
                 }
             }
             calendar.setOwnIds([rec.id, rec.anfahrtId]);
+            if (rec.owner) {
+                calendar.selectKollege(rec.owner);
+            }
         });
 
         // Datum/Zeit/Dauer aus dem Formular (null + Meldung bei Luecken)
@@ -3278,7 +3423,7 @@
             const tz = localTz();
             btn.disabled = true;
             btn.textContent = "Wird verschoben…";
-            sendeM365({ type: "m365UpdateEvent", id: rec.id, start: toGraphLocal(z.startDt), end: toGraphLocal(endDt), timeZone: tz }, (err, res) => {
+            sendeM365({ type: "m365UpdateEvent", owner: rec.owner || "", id: rec.id, start: toGraphLocal(z.startDt), end: toGraphLocal(endDt), timeZone: tz }, (err, res) => {
                 if (err) {
                     btn.disabled = false;
                     btn.textContent = "Verschieben";
@@ -3298,7 +3443,7 @@
                 };
                 if (rec.anfahrtId && rec.anfMin > 0) {
                     const aStart = new Date(z.startDt.getTime() - rec.anfMin * 60000);
-                    sendeM365({ type: "m365UpdateEvent", id: rec.anfahrtId, start: toGraphLocal(aStart), end: toGraphLocal(z.startDt), timeZone: tz }, (e2) => {
+                    sendeM365({ type: "m365UpdateEvent", owner: rec.owner || "", id: rec.anfahrtId, start: toGraphLocal(aStart), end: toGraphLocal(z.startDt), timeZone: tz }, (e2) => {
                         if (e2) {
                             console.warn("Ticket-Termin: Anfahrt-Termin nicht verschoben: " + e2);
                         }
@@ -3321,7 +3466,7 @@
             }
             btn.disabled = true;
             btn.textContent = "Wird abgesagt…";
-            sendeM365({ type: "m365DeleteEvent", id: rec.id, cancel: rec.attendees === true, comment: "Termin abgesagt." }, (err) => {
+            sendeM365({ type: "m365DeleteEvent", owner: rec.owner || "", id: rec.id, cancel: rec.attendees === true, comment: "Termin abgesagt." }, (err) => {
                 if (err) {
                     btn.disabled = false;
                     btn.textContent = "Absagen";
@@ -3338,7 +3483,7 @@
                     zeigeFertig("Termin abgesagt.", "");
                 };
                 if (rec.anfahrtId) {
-                    sendeM365({ type: "m365DeleteEvent", id: rec.anfahrtId, cancel: false }, (e2) => {
+                    sendeM365({ type: "m365DeleteEvent", owner: rec.owner || "", id: rec.anfahrtId, cancel: false }, (e2) => {
                         if (e2) {
                             console.warn("Ticket-Termin: Anfahrt-Termin nicht gelöscht: " + e2);
                         }
@@ -3517,12 +3662,22 @@
                     attendees.push({ address: d.email, name: d.ansprechpartner || d.email });
                 }
                 const kol = calendar.getKollege();
+                const beiKollege = !!(kol && kol.canEdit && document.getElementById("tt_ziel").value === "kol");
+                const owner = beiKollege ? kol.mail : "";
                 if (kol && document.getElementById("tt_kol_inv").checked) {
-                    attendees.push({ address: kol.mail, name: kol.name });
+                    if (beiKollege) {
+                        const me = m365 && m365.account && m365.account.upn ? m365.account.upn : "";
+                        if (me) {
+                            attendees.push({ address: me, name: (m365.account.name || me) });
+                        }
+                    } else {
+                        attendees.push({ address: kol.mail, name: kol.name });
+                    }
                 }
                 const kategorie = String(settings.m365Kategorie || "").trim();
                 const erinnerung = Number(settings.m365ErinnerungMin);
                 const basis = {
+                    owner: owner,
                     timeZone: tz,
                     tentative: vorbehalt,
                     categories: kategorie ? [kategorie] : [],
@@ -3544,7 +3699,8 @@
                     if (err) {
                         buttons.forEach((b) => { b.disabled = false; });
                         m365Btn.textContent = "Outlook (Microsoft 365)";
-                        showNote("Termin konnte nicht in Outlook angelegt werden: " + err + " - alternativ ICS oder Outlook Web verwenden.", "", null);
+                        showNote("Termin konnte nicht in Outlook angelegt werden: " + err +
+                            (owner ? " - Tipp: unter „Anlegen in“ auf den eigenen Kalender wechseln (Einladung an " + kol.name + ")." : " - alternativ ICS oder Outlook Web verwenden."), "", null);
                         showAlternatives(true);
                         return;
                     }
@@ -3558,14 +3714,17 @@
                         subject: subject,
                         webLink: res.webLink || "",
                         attendees: attendees.length > 0,
+                        owner: owner,
+                        techniker: kol ? kol.name : "",
                         created: Date.now()
                     };
                     const abschluss = (zusatz) => {
                         saveTermin(d.ticketNr, rec);
                         if (settings.autoStatus !== false) {
-                            setStatusTerminVereinbart(startDt, artText, durMin, res.joinUrl || "");
+                            setStatusTerminVereinbart(startDt, artText, durMin, res.joinUrl || "", kol ? kol.name : "");
                         }
                         zeigeFertig("Termin angelegt: " + fmtTerminKurz(startDt, durMin) +
+                            (owner ? " im Kalender von " + kol.name : "") +
                             (attendees.length > 0 ? " · Einladung an " + attendees.map((a) => a.name).join(", ") : "") +
                             (res.joinUrl ? " · Teams-Link im Ticket-Eintrag" : "") + zusatz, rec.webLink);
                     };

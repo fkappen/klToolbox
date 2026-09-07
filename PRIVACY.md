@@ -82,9 +82,11 @@ vollständig inaktiv, solange sie nicht eingerichtet ist.
   (OAuth 2.0 mit PKCE, Browser-Schnittstelle `identity`); die Erweiterung
   sieht **kein Passwort**. Erst dabei werden die Zugriffe auf
   `login.microsoftonline.com` und `graph.microsoft.com` angefordert.
-- **Berechtigung:** ausschließlich die delegierte Berechtigung
-  `Calendars.ReadWrite` — also nur der **eigene Kalender** des angemeldeten
-  Kontos. Für die Verfügbarkeitsanzeige von Kollegen wird die
+- **Berechtigung:** ausschließlich die delegierten Berechtigungen
+  `Calendars.ReadWrite` (der **eigene Kalender** des angemeldeten Kontos) und
+  `Calendars.ReadWrite.Shared` (Kalender, die dem Nutzer von Kollegen
+  **ausdrücklich freigegeben** wurden — dort lassen sich Termine für den
+  jeweiligen Kollegen anlegen; ohne Freigabe kein Zugriff). Für die Verfügbarkeitsanzeige von Kollegen wird die
   Frei/Belegt-Auskunft genutzt, die Microsoft 365 innerhalb einer Organisation
   ohnehin bereitstellt (`getSchedule`); es werden keine fremden Kalender
   gelesen oder verändert.
@@ -168,7 +170,7 @@ from the user's browser to **one** AI provider (Anthropic, OpenAI or InnoGPT)
 that the user has chosen and configured with **their own API key** — solely to
 produce the requested result, and only after a one-time explicit consent in
 the extension settings. Favicons are fetched from the link's host or Google's
-favicon service (hostname only). An **optional Microsoft 365 integration** lets the user create appointments in their **own** Outlook calendar: it is inactive until the user enters their organisation's Entra app registration and signs in through Microsoft's standard login (OAuth 2.0/PKCE via the `identity` API, delegated `Calendars.ReadWrite` only); appointment data is sent directly from the browser to the user's own Microsoft 365 account, calendar data is displayed only, and tokens stay in local storage. No data is sold or shared beyond this; use of
+favicon service (hostname only). An **optional Microsoft 365 integration** lets the user create appointments in their **own** Outlook calendar: it is inactive until the user enters their organisation's Entra app registration and signs in through Microsoft's standard login (OAuth 2.0/PKCE via the `identity` API, delegated `Calendars.ReadWrite` and `Calendars.ReadWrite.Shared` only - own calendar and calendars explicitly shared with the user); appointment data is sent directly from the browser to the user's own Microsoft 365 account, calendar data is displayed only, and tokens stay in local storage. No data is sold or shared beyond this; use of
 all handled data is limited to the extension's user-facing core functionality
 (Limited Use). All local data can be deleted at any time via the settings or
 by uninstalling the extension.

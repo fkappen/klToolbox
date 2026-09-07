@@ -1,5 +1,5 @@
 // Version
-// version = "1.6.0"
+// version = "1.7.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1340,7 +1340,21 @@ if (chrome.omnibox) {
 // SPA-Refresh-Tokens laufen nach 24 h ab - danach stille Neuanmeldung
 // (prompt=none) ueber die Browser-Sitzung, erst zuletzt interaktiv.
 
-const M365_SCOPES = "openid profile offline_access https://graph.microsoft.com/Calendars.ReadWrite";
+// Calendars.ReadWrite.Shared: Termine in Kalendern anlegen/lesen, die dem
+// Nutzer freigegeben wurden (Techniker-Kalender) - nicht mehr.
+const M365_SCOPES = "openid profile offline_access https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite.Shared";
+
+// Pfadpraefix: eigener Kalender oder (freigegebener) Kalender eines Kollegen
+function m365UserPath(owner) {
+    const o = String(owner || "").trim();
+    if (!o) {
+        return "/me";
+    }
+    if (!/^[^\s@\/]+@[^\s@\/]+\.[^\s@\/]+$/.test(o)) {
+        throw new Error("Ungültige Kalender-Adresse: " + o);
+    }
+    return "/users/" + encodeURIComponent(o);
+}
 const M365_ORIGINS = ["https://login.microsoftonline.com/*", "https://graph.microsoft.com/*"];
 
 function m365Storage(keys) {
@@ -1457,6 +1471,9 @@ async function m365TokenRequest(cfg, params) {
         refreshToken: data.refresh_token || prev.refreshToken || "",
         expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 - 60000,
         account: m365ParseIdToken(data.id_token) || prev.account || null,
+        // vom Token-Endpunkt bestaetigte Scopes (Erkennung, ob ein nach dem
+        // Login hinzugekommener Scope schon im Token steckt)
+        scope: String(data.scope || prev.scope || ""),
         seit: prev.seit || new Date().toISOString()
     };
     await m365StorageSet({ m365Auth: auth });
@@ -1536,8 +1553,16 @@ async function m365AccessToken(allowInteractive) {
     if (!auth) {
         throw new Error("Nicht mit Microsoft 365 verbunden - in den Optionen → Microsoft 365 „Verbinden“ klicken.");
     }
-    if (auth.accessToken && Number(auth.expiresAt) > Date.now()) {
+    // Fehlt dem gespeicherten Token ein inzwischen benoetigter Scope (z. B.
+    // Calendars.ReadWrite.Shared nach einem Update), einmal sofort erneuern -
+    // der Admin-Consent im Tenant reicht, der Nutzer merkt nichts.
+    const scopeFehlt = auth.scope && !/\bCalendars\.ReadWrite\.Shared\b/.test(auth.scope) && !auth.scopeGeprueft;
+    if (auth.accessToken && Number(auth.expiresAt) > Date.now() && !scopeFehlt) {
         return auth.accessToken;
+    }
+    if (scopeFehlt) {
+        auth.scopeGeprueft = true;
+        await m365StorageSet({ m365Auth: auth });
     }
     const hint = auth.account && auth.account.upn ? auth.account.upn : "";
     if (auth.refreshToken) {
@@ -1620,7 +1645,7 @@ async function m365CreateEvent(ev) {
     if (!ev || !ev.start || !ev.end) {
         throw new Error("Termin ohne Start/Ende.");
     }
-    const created = await m365Graph("/me/events", "POST", m365EventBody(ev), true);
+    const created = await m365Graph(m365UserPath(ev.owner) + "/events", "POST", m365EventBody(ev), true);
     return {
         id: created.id || "",
         webLink: created.webLink || "",
@@ -1639,7 +1664,7 @@ async function m365CalendarView(q) {
         throw new Error("Zeitraum fehlt.");
     }
     const tz = String((q && q.timeZone) || "Europe/Berlin").replace(/["\\]/g, "");
-    const path = "/me/calendarView?startDateTime=" + encodeURIComponent(start) +
+    const path = m365UserPath(q.owner) + "/calendarView?startDateTime=" + encodeURIComponent(start) +
         "&endDateTime=" + encodeURIComponent(end) +
         "&$select=id,subject,start,end,showAs,isAllDay&$orderby=start/dateTime&$top=250";
     const data = await m365Graph(path, "GET", null, false, { "Prefer": 'outlook.timezone="' + tz + '"' });
@@ -1697,7 +1722,7 @@ async function m365UpdateEvent(q) {
         throw new Error("Termin-ID oder Zeit fehlt.");
     }
     const tz = String(q.timeZone || "Europe/Berlin");
-    const data = await m365Graph("/me/events/" + encodeURIComponent(id), "PATCH", {
+    const data = await m365Graph(m365UserPath(q.owner) + "/events/" + encodeURIComponent(id), "PATCH", {
         start: { dateTime: q.start, timeZone: tz },
         end: { dateTime: q.end, timeZone: tz }
     }, true);
@@ -1711,12 +1736,12 @@ async function m365DeleteEvent(q) {
     if (!id) {
         throw new Error("Termin-ID fehlt.");
     }
+    const base = m365UserPath(q.owner) + "/events/" + encodeURIComponent(id);
     try {
         if (q.cancel === true) {
-            await m365Graph("/me/events/" + encodeURIComponent(id) + "/cancel", "POST",
-                { comment: String(q.comment || "Termin abgesagt.") }, true);
+            await m365Graph(base + "/cancel", "POST", { comment: String(q.comment || "Termin abgesagt.") }, true);
         } else {
-            await m365Graph("/me/events/" + encodeURIComponent(id), "DELETE", null, true);
+            await m365Graph(base, "DELETE", null, true);
         }
     } catch (err) {
         if (/ErrorItemNotFound|404/.test(String(err && err.message))) {
@@ -1725,6 +1750,47 @@ async function m365DeleteEvent(q) {
         throw err;
     }
     return { ok: true };
+}
+
+// Freigegebene Kalender des Nutzers (erscheinen in /me/calendars mit
+// Besitzer und canEdit) - Grundlage fuer die automatische Kollegenliste.
+async function m365Calendars() {
+    const auth = (await m365Storage({ m365Auth: null })).m365Auth || {};
+    const me = String(auth.account && auth.account.upn ? auth.account.upn : "").toLowerCase();
+    const data = await m365Graph("/me/calendars?$select=id,name,owner,canEdit,isDefaultCalendar&$top=100", "GET", null, false);
+    const shared = [];
+    for (const c of (Array.isArray(data.value) ? data.value : [])) {
+        const mail = String(c.owner && c.owner.address ? c.owner.address : "").trim();
+        if (!mail || mail.toLowerCase() === me) {
+            continue;
+        }
+        if (shared.some((x) => x.mail.toLowerCase() === mail.toLowerCase())) {
+            continue;
+        }
+        shared.push({
+            mail: mail,
+            name: String((c.owner && c.owner.name) || mail),
+            calendarName: String(c.name || ""),
+            canEdit: c.canEdit === true
+        });
+    }
+    return { shared: shared, me: me };
+}
+
+// Zugriff auf den Standardkalender eines bestimmten Kollegen pruefen
+// (auch fuer Freigaben, die nur per Ordnerberechtigung gesetzt wurden).
+async function m365ProbeCalendar(q) {
+    const mail = String((q && q.mail) || "").trim();
+    try {
+        const c = await m365Graph(m365UserPath(mail) + "/calendar?$select=id,name,canEdit,owner", "GET", null, false);
+        return { readable: true, canEdit: c.canEdit === true, name: String((c.owner && c.owner.name) || "") };
+    } catch (err) {
+        const msg = String(err && err.message || "");
+        if (/ErrorAccessDenied|Access is denied|403|ErrorItemNotFound|404|ErrorInvalidUser|MailboxNotEnabled/i.test(msg)) {
+            return { readable: false, canEdit: false, name: "" };
+        }
+        throw err;
+    }
 }
 
 async function m365Status() {
@@ -1736,6 +1802,7 @@ async function m365Status() {
         permission: await m365HostPermission(),
         connected: !!(auth && (auth.refreshToken || (auth.accessToken && Number(auth.expiresAt) > Date.now()))),
         account: auth && auth.account ? auth.account : null,
+        scopeShared: !!(auth && /\bCalendars\.ReadWrite\.Shared\b/.test(String(auth.scope || ""))),
         seit: auth && auth.seit ? auth.seit : "",
         redirectUrl: m365RedirectUrl(),
         identity: !!(chrome.identity && typeof chrome.identity.launchWebAuthFlow === "function")
@@ -1770,6 +1837,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 sendResponse(Object.assign({ ok: true }, await m365CalendarView(msg)));
             } else if (msg.type === "m365GetSchedule") {
                 sendResponse(Object.assign({ ok: true }, await m365GetSchedule(msg)));
+            } else if (msg.type === "m365Calendars") {
+                sendResponse(Object.assign({ ok: true }, await m365Calendars()));
+            } else if (msg.type === "m365ProbeCalendar") {
+                sendResponse(Object.assign({ ok: true }, await m365ProbeCalendar(msg)));
             } else if (msg.type === "m365UpdateEvent") {
                 sendResponse(Object.assign({ ok: true }, await m365UpdateEvent(msg)));
             } else if (msg.type === "m365DeleteEvent") {
