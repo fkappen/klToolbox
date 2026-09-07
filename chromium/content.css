@@ -1,4 +1,4 @@
-/* Version 2.7.0 - 2026-08-17 - FK
+/* Version 2.8.0 - 2026-09-07 - FK
    Neutrale Farben via CSS-Variablen; Branding kommt per Settings-Import
    Panels der Module Ticket-Vorlagen und Ticket-Termin (Ticketsystem) */
 
@@ -450,4 +450,155 @@ a.__tt_code_link:hover {
 #__tt_panel .tt-secondary:hover {
     border-color: var(--klt-p, #46626F);
     color: var(--klt-pd, #35505C);
+}
+
+/* ---------------------------------------------------------- Termin-Panel: Kalenderspalte (M365) */
+#__tt_panel.tt-wide {
+    width: 860px;
+}
+
+#__tt_panel .tt-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+#__tt_panel .tt-left {
+    flex: 0 0 400px;
+    min-width: 0;
+}
+
+#__tt_panel .tt-cal {
+    flex: 1 1 380px;
+    min-width: 0;
+    margin: 6px 12px 0 0;
+    font-size: 11px;
+    color: #26323a;
+}
+
+#__tt_panel .tt-cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: var(--klt-pd, #35505C);
+}
+
+#__tt_panel .tt-cal-head button {
+    padding: 2px 9px !important;
+    font-size: 14px;
+    line-height: 1.2;
+    background: transparent;
+    color: #56646d;
+    border: 1px solid #c3ced5;
+}
+
+#__tt_panel .tt-cal-info {
+    min-height: 14px;
+    color: #6b7880;
+    margin-bottom: 4px;
+}
+
+#__tt_panel .tt-cal-grid {
+    display: flex;
+    gap: 2px;
+    user-select: none;
+}
+
+#__tt_panel .tt-cal-axis {
+    flex: 0 0 34px;
+    color: #6b7880;
+}
+
+#__tt_panel .tt-cal-axisbody {
+    position: relative;
+}
+
+#__tt_panel .tt-cal-axisbody div {
+    position: absolute;
+    right: 3px;
+    transform: translateY(-50%);
+    font-size: 10px;
+}
+
+#__tt_panel .tt-cal-day {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+#__tt_panel .tt-cal-dayhead {
+    height: 18px;
+    text-align: center;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    border-radius: 4px 4px 0 0;
+}
+
+#__tt_panel .tt-cal-dayhead.tt-cal-today {
+    color: var(--klt-p, #46626F);
+}
+
+#__tt_panel .tt-cal-dayhead.tt-cal-selday {
+    background: var(--klt-p, #46626F);
+    color: #fff;
+}
+
+#__tt_panel .tt-cal-daybody {
+    position: relative;
+    background: #f5f8fa;
+    border: 1px solid #d5dde2;
+    cursor: crosshair;
+    overflow: hidden;
+}
+
+#__tt_panel .tt-cal-hline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #e3e9ee;
+    pointer-events: none;
+}
+
+#__tt_panel .tt-cal-ev {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    background: #b9c4cc;
+    border-left: 3px solid #8a9aa5;
+    border-radius: 3px;
+    padding: 0 3px;
+    font-size: 10px;
+    line-height: 12px;
+    color: #26323a;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: not-allowed;
+    box-sizing: border-box;
+}
+
+#__tt_panel .tt-cal-ev.tt-cal-tent {
+    background: repeating-linear-gradient(135deg, #dfe6ea 0 4px, #c9d3da 4px 8px);
+    border-left-style: dashed;
+}
+
+#__tt_panel .tt-cal-sel {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    background: var(--klt-a, #7fa3b3);
+    opacity: .75;
+    border-radius: 3px;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+#__tt_panel .tt-warn button {
+    margin-left: 6px;
+    padding: 3px 9px !important;
+    font-size: 12px;
 }

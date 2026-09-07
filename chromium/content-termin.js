@@ -1,5 +1,5 @@
 // Version
-// version = "1.16.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.17.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -2251,6 +2251,291 @@
         return row;
     }
 
+
+    // ---------------------------------------------------------- Kalenderansicht (Microsoft 365)
+    // Wochenspalte Mo-Fr neben dem Termin-Formular: eigene Termine aus
+    // /me/calendarView als graue Bloecke, gewaehlter Termin farbig, Klick
+    // in eine freie Stelle setzt Datum + Uhrzeit. Nur aktiv, wenn die
+    // M365-Verbindung steht - sonst bleibt das Fenster wie bisher.
+    const CAL_START_H = 7;
+    const CAL_END_H = 19;
+    const CAL_HOUR_PX = 26;
+    const CAL_TAGE = ["Mo", "Di", "Mi", "Do", "Fr"];
+
+    function localTz() {
+        try {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
+        } catch (err) {
+            return "Europe/Berlin";
+        }
+    }
+
+    // Graph liefert (mit Prefer: outlook.timezone) lokale Wandzeit ohne Offset
+    function parseGraphLocal(s) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(s || ""));
+        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), 0) : null;
+    }
+
+    function createCalendarWidget(container, onPick) {
+        let weekMonday = null;
+        const cache = {};
+        let enabled = false;
+
+        container.className = "tt-cal";
+        container.style.display = "none";
+
+        const head = document.createElement("div");
+        head.className = "tt-cal-head";
+        const prev = document.createElement("button");
+        prev.type = "button";
+        prev.textContent = "‹";
+        prev.title = "Vorwoche";
+        const label = document.createElement("span");
+        const next = document.createElement("button");
+        next.type = "button";
+        next.textContent = "›";
+        next.title = "Folgewoche";
+        head.appendChild(prev);
+        head.appendChild(label);
+        head.appendChild(next);
+        container.appendChild(head);
+
+        const info = document.createElement("div");
+        info.className = "tt-cal-info";
+        container.appendChild(info);
+
+        const grid = document.createElement("div");
+        grid.className = "tt-cal-grid";
+        container.appendChild(grid);
+
+        function mondayOf(d) {
+            const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            const wd = (x.getDay() + 6) % 7; // Mo = 0
+            x.setDate(x.getDate() - wd);
+            return x;
+        }
+
+        function dateKey(d) {
+            return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+        }
+
+        function selectedStart() {
+            const dv = (document.getElementById("tt_date") || {}).value;
+            const tv = (document.getElementById("tt_time") || {}).value;
+            if (!dv || !tv) {
+                return null;
+            }
+            const [y, mo, da] = dv.split("-").map(Number);
+            const [h, mi] = tv.split(":").map(Number);
+            return new Date(y, mo - 1, da, h, mi, 0);
+        }
+
+        function selectedDurMin() {
+            const sel = document.getElementById("tt_dur");
+            if (!sel) {
+                return 60;
+            }
+            if (sel.value === "__custom") {
+                return Number((document.getElementById("tt_dur_frei") || {}).value) || 60;
+            }
+            return Number(sel.value) || 60;
+        }
+
+        function minutesToTop(min) {
+            return (min - CAL_START_H * 60) / 60 * CAL_HOUR_PX;
+        }
+
+        function render() {
+            grid.textContent = "";
+            if (!weekMonday) {
+                return;
+            }
+            const friday = new Date(weekMonday.getTime() + 4 * 86400000);
+            label.textContent = "KW " + isoWeek(weekMonday) + " · " + pad(weekMonday.getDate()) + "." + pad(weekMonday.getMonth() + 1) +
+                ". – " + pad(friday.getDate()) + "." + pad(friday.getMonth() + 1) + "." + friday.getFullYear();
+
+            const bodyH = (CAL_END_H - CAL_START_H) * CAL_HOUR_PX;
+            // Zeitachse
+            const axis = document.createElement("div");
+            axis.className = "tt-cal-axis";
+            const axisHead = document.createElement("div");
+            axisHead.className = "tt-cal-dayhead";
+            axis.appendChild(axisHead);
+            const axisBody = document.createElement("div");
+            axisBody.className = "tt-cal-axisbody";
+            axisBody.style.height = bodyH + "px";
+            for (let h = CAL_START_H; h < CAL_END_H; h++) {
+                const t = document.createElement("div");
+                t.textContent = h + ":00";
+                t.style.top = minutesToTop(h * 60) + "px";
+                axisBody.appendChild(t);
+            }
+            axis.appendChild(axisBody);
+            grid.appendChild(axis);
+
+            const events = cache[dateKey(weekMonday)] || [];
+            const sel = selectedStart();
+            const selEnd = sel ? new Date(sel.getTime() + selectedDurMin() * 60000) : null;
+            const today = dateKey(new Date());
+
+            for (let i = 0; i < 5; i++) {
+                const day = new Date(weekMonday.getTime() + i * 86400000);
+                const col = document.createElement("div");
+                col.className = "tt-cal-day";
+                const dh = document.createElement("div");
+                dh.className = "tt-cal-dayhead";
+                dh.textContent = CAL_TAGE[i] + " " + pad(day.getDate()) + "." + pad(day.getMonth() + 1) + ".";
+                if (dateKey(day) === today) {
+                    dh.classList.add("tt-cal-today");
+                }
+                if (sel && dateKey(day) === dateKey(sel)) {
+                    dh.classList.add("tt-cal-selday");
+                }
+                col.appendChild(dh);
+                const body = document.createElement("div");
+                body.className = "tt-cal-daybody";
+                body.style.height = bodyH + "px";
+                for (let h = CAL_START_H + 1; h < CAL_END_H; h++) {
+                    const line = document.createElement("div");
+                    line.className = "tt-cal-hline";
+                    line.style.top = minutesToTop(h * 60) + "px";
+                    body.appendChild(line);
+                }
+                // eigene Termine des Tages
+                for (const ev of events) {
+                    if (!ev.start || !ev.end || dateKey(ev.start) !== dateKey(day)) {
+                        continue;
+                    }
+                    const s = Math.max(ev.start.getHours() * 60 + ev.start.getMinutes(), CAL_START_H * 60);
+                    const e = Math.min(ev.end.getHours() * 60 + ev.end.getMinutes() || CAL_END_H * 60, CAL_END_H * 60);
+                    if (e <= s) {
+                        continue;
+                    }
+                    const b = document.createElement("div");
+                    b.className = "tt-cal-ev" + (ev.showAs === "tentative" ? " tt-cal-tent" : "");
+                    b.style.top = minutesToTop(s) + "px";
+                    b.style.height = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1) + "px";
+                    b.textContent = ev.subject || "";
+                    b.title = pad(ev.start.getHours()) + ":" + pad(ev.start.getMinutes()) + "–" +
+                        pad(ev.end.getHours()) + ":" + pad(ev.end.getMinutes()) + " " + (ev.subject || "(ohne Betreff)");
+                    body.appendChild(b);
+                }
+                // gewaehlter Termin
+                if (sel && dateKey(day) === dateKey(sel)) {
+                    const s = Math.max(sel.getHours() * 60 + sel.getMinutes(), CAL_START_H * 60);
+                    const e = Math.min(selEnd.getHours() * 60 + selEnd.getMinutes() || CAL_END_H * 60, CAL_END_H * 60);
+                    if (e > s) {
+                        const b = document.createElement("div");
+                        b.className = "tt-cal-sel";
+                        b.style.top = minutesToTop(s) + "px";
+                        b.style.height = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1) + "px";
+                        b.title = "Geplanter Termin";
+                        body.appendChild(b);
+                    }
+                }
+                body.addEventListener("click", (evt) => {
+                    if (evt.target.classList.contains("tt-cal-ev")) {
+                        return; // belegte Zeit: kein Setzen
+                    }
+                    const rect = body.getBoundingClientRect();
+                    let min = CAL_START_H * 60 + (evt.clientY - rect.top) / CAL_HOUR_PX * 60;
+                    min = Math.max(CAL_START_H * 60, Math.min(CAL_END_H * 60 - 15, Math.round(min / 15) * 15));
+                    onPick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(min / 60), min % 60, 0));
+                    render();
+                });
+                col.appendChild(body);
+                grid.appendChild(col);
+            }
+        }
+
+        function isoWeek(d) {
+            const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const dayNum = x.getUTCDay() || 7;
+            x.setUTCDate(x.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+            return Math.ceil(((x - yearStart) / 86400000 + 1) / 7);
+        }
+
+        function load() {
+            const key = dateKey(weekMonday);
+            if (cache[key]) {
+                info.textContent = "";
+                render();
+                return;
+            }
+            info.textContent = "Kalender wird geladen…";
+            render();
+            const start = new Date(weekMonday.getTime());
+            const end = new Date(weekMonday.getTime() + 5 * 86400000);
+            try {
+                chrome.runtime.sendMessage({
+                    type: "m365CalendarView",
+                    start: start.toISOString(),
+                    end: end.toISOString(),
+                    timeZone: localTz()
+                }, (res) => {
+                    const err = chrome.runtime.lastError
+                        ? chrome.runtime.lastError.message
+                        : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+                    if (err) {
+                        info.textContent = "Kalender nicht abrufbar: " + err;
+                        return;
+                    }
+                    cache[key] = (res.events || [])
+                        .filter((e) => e.isAllDay !== true && e.showAs !== "free")
+                        .map((e) => ({ subject: e.subject, showAs: e.showAs, start: parseGraphLocal(e.start), end: parseGraphLocal(e.end) }))
+                        .filter((e) => e.start && e.end);
+                    if (dateKey(weekMonday) === key) {
+                        info.textContent = cache[key].length === 0 ? "Keine eigenen Termine in dieser Woche." : "";
+                        render();
+                    }
+                });
+            } catch (err) {
+                info.textContent = "Kalender nicht abrufbar: " + err;
+            }
+        }
+
+        function goto(d) {
+            weekMonday = mondayOf(d);
+            load();
+        }
+
+        prev.addEventListener("click", () => goto(new Date(weekMonday.getTime() - 7 * 86400000)));
+        next.addEventListener("click", () => goto(new Date(weekMonday.getTime() + 7 * 86400000)));
+
+        // Formularaenderungen spiegeln: anderer Tag -> ggf. andere Woche
+        function onFormChange() {
+            if (!enabled) {
+                return;
+            }
+            const sel = selectedStart();
+            if (sel && dateKey(mondayOf(sel)) !== dateKey(weekMonday)) {
+                goto(sel);
+            } else {
+                render();
+            }
+        }
+        for (const id of ["tt_date", "tt_time", "tt_dur", "tt_dur_frei"]) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener("change", onFormChange);
+                el.addEventListener("input", onFormChange);
+            }
+        }
+
+        return {
+            enable: function () {
+                enabled = true;
+                container.style.display = "";
+                goto(selectedStart() || new Date());
+            },
+            disable: function () {
+                enabled = false;
+                container.style.display = "none";
+            }
+        };
+    }
+
     function openPanel(anchor) {
         closePanel();
         panelOpen = true;
@@ -2285,12 +2570,22 @@
             panel.appendChild(wm);
         }
 
-        panel.appendChild(fieldRow("Kunde", "tt_kunde", data.kunde));
-        panel.appendChild(fieldRow("TicketNR", "tt_ticketnr", data.ticketNr));
-        panel.appendChild(fieldRow("Bezeichnung", "tt_bezeichnung", data.bezeichnung));
-        panel.appendChild(fieldRow("Ansprechpartner", "tt_ap", data.ansprechpartner));
-        panel.appendChild(fieldRow("Telefon", "tt_tel", data.telefon));
-        panel.appendChild(fieldRow("E-Mail", "tt_mail", data.email));
+        // Zweispaltig: links das Formular, rechts (bei M365-Verbindung) der Kalender
+        const body = document.createElement("div");
+        body.className = "tt-body";
+        const left = document.createElement("div");
+        left.className = "tt-left";
+        const calEl = document.createElement("div");
+        body.appendChild(left);
+        body.appendChild(calEl);
+        panel.appendChild(body);
+
+        left.appendChild(fieldRow("Kunde", "tt_kunde", data.kunde));
+        left.appendChild(fieldRow("TicketNR", "tt_ticketnr", data.ticketNr));
+        left.appendChild(fieldRow("Bezeichnung", "tt_bezeichnung", data.bezeichnung));
+        left.appendChild(fieldRow("Ansprechpartner", "tt_ap", data.ansprechpartner));
+        left.appendChild(fieldRow("Telefon", "tt_tel", data.telefon));
+        left.appendChild(fieldRow("E-Mail", "tt_mail", data.email));
 
         // Datum/Zeit: naechste volle Stunde, Dauer aus den Optionen
         const now = new Date();
@@ -2358,7 +2653,7 @@
         timeWrap.appendChild(durSelect);
         timeWrap.appendChild(durInput);
         timeRow.appendChild(timeWrap);
-        panel.appendChild(timeRow);
+        left.appendChild(timeRow);
 
         // Terminart (Telefon/Teams/Vor Ort) - bei "Vor Ort" Adressfeld einblenden
         const artRow = document.createElement("div");
@@ -2379,10 +2674,10 @@
         }
         artRow.appendChild(artLabel);
         artRow.appendChild(artSelect);
-        panel.appendChild(artRow);
+        left.appendChild(artRow);
 
         const addrRow = fieldRow("Adresse", "tt_addr", extractKundenAdresse());
-        panel.appendChild(addrRow);
+        left.appendChild(addrRow);
 
         // Anfahrt (nur bei "Vor Ort"): separater Termin direkt vor dem
         // Haupttermin, Startpunkt aktueller Ort oder Firmenadresse.
@@ -2459,7 +2754,7 @@
         anfWrap.appendChild(routeBtn);
         anfRow.appendChild(anfLabel);
         anfRow.appendChild(anfWrap);
-        panel.appendChild(anfRow);
+        left.appendChild(anfRow);
 
         const syncAddrRow = () => {
             const vorort = (artSelect.value === "vorort");
@@ -2488,7 +2783,7 @@
         vbWrap.appendChild(vbText);
         vbRow.appendChild(vbLabel);
         vbRow.appendChild(vbWrap);
-        panel.appendChild(vbRow);
+        left.appendChild(vbRow);
 
         // Kunden einladen (nur Microsoft 365): Outlook verschickt dann die
         // Einladung an den Ansprechpartner - bewusst standardmaessig AUS,
@@ -2511,34 +2806,39 @@
         invWrap.appendChild(invText);
         invRow.appendChild(invLabel);
         invRow.appendChild(invWrap);
-        panel.appendChild(invRow);
+        left.appendChild(invRow);
+
+        // Hinweiszeile (Einrichtung/Anmeldung/Fehler) statt alert()
+        const note = document.createElement("div");
+        note.className = "tt-warn";
+        note.style.display = "none";
+        panel.appendChild(note);
+
+        function showNote(text, btnLabel, onClick) {
+            note.textContent = "";
+            note.appendChild(document.createTextNode(text + " "));
+            if (btnLabel) {
+                const b = document.createElement("button");
+                b.type = "button";
+                b.className = "tt-secondary";
+                b.textContent = btnLabel;
+                b.addEventListener("click", () => onClick(b));
+                note.appendChild(b);
+            }
+            note.style.display = "";
+        }
 
         const bar = document.createElement("div");
         bar.className = "tt-bar";
 
-        // Microsoft 365 direkt (Graph): Knopf erscheint nur, wenn in den
-        // Optionen eingerichtet UND verbunden - sonst bleiben ICS/OWA.
+        // Microsoft 365 direkt (Graph): Knopf ist immer da - je nach Stand
+        // legt er den Termin an, meldet an oder fuehrt zur Einrichtung.
         const m365Btn = document.createElement("button");
         m365Btn.type = "button";
         m365Btn.className = "tt-primary";
         m365Btn.textContent = "Outlook (Microsoft 365)";
         m365Btn.title = "Termin direkt im eigenen Outlook-Kalender anlegen (ohne Datei, ohne neuen Tab)";
-        m365Btn.style.display = "none";
-        m365Btn.addEventListener("click", () => runCreate("m365"));
-        try {
-            chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
-                if (chrome.runtime.lastError || !st || !st.ok) {
-                    return;
-                }
-                if (st.configured && st.connected && st.permission) {
-                    m365Btn.style.display = "";
-                    m365Btn.title += st.account && st.account.upn ? " - Konto: " + st.account.upn : "";
-                    invRow.style.display = "";
-                }
-            });
-        } catch (err) {
-            console.warn("Ticket-Termin: M365-Status nicht abrufbar:", err);
-        }
+        m365Btn.addEventListener("click", onM365Click);
 
         const icsBtn = document.createElement("button");
         icsBtn.type = "button";
@@ -2552,6 +2852,16 @@
         owaBtn.textContent = "Outlook Web";
         owaBtn.addEventListener("click", () => runCreate("owa"));
 
+        // Bei stehender M365-Verbindung sind ICS/Outlook Web eingeklappt -
+        // als Rueckfall (kein Netz, Stoerung) aber jederzeit erreichbar
+        const moreBtn = document.createElement("button");
+        moreBtn.type = "button";
+        moreBtn.className = "tt-secondary";
+        moreBtn.textContent = "weitere ▾";
+        moreBtn.style.display = "none";
+        let altShown = true;
+        moreBtn.addEventListener("click", () => showAlternatives(!altShown));
+
         const closeBtn = document.createElement("button");
         closeBtn.type = "button";
         closeBtn.className = "tt-secondary";
@@ -2561,11 +2871,103 @@
         bar.appendChild(m365Btn);
         bar.appendChild(icsBtn);
         bar.appendChild(owaBtn);
+        bar.appendChild(moreBtn);
         bar.appendChild(closeBtn);
         panel.appendChild(bar);
 
         document.documentElement.appendChild(panel);
         positionPanel(panel, anchor);
+
+        function showAlternatives(show) {
+            altShown = show;
+            icsBtn.style.display = show ? "" : "none";
+            owaBtn.style.display = show ? "" : "none";
+            moreBtn.textContent = show ? "weniger ▴" : "weitere ▾";
+        }
+
+        const calendar = createCalendarWidget(calEl, (dt) => {
+            document.getElementById("tt_date").value = dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate());
+            document.getElementById("tt_time").value = pad(dt.getHours()) + ":" + pad(dt.getMinutes());
+        });
+
+        let m365 = null;
+        function applyM365State(st) {
+            m365 = st;
+            const ready = !!(st && st.ok && st.identity && st.configured && st.permission && st.connected);
+            invRow.style.display = ready ? "" : "none";
+            m365Btn.title = ready && st.account && st.account.upn
+                ? "Termin direkt im eigenen Kalender anlegen - Konto: " + st.account.upn
+                : "Termin direkt im eigenen Outlook-Kalender anlegen (Microsoft 365)";
+            moreBtn.style.display = ready ? "" : "none";
+            showAlternatives(!ready);
+            if (ready) {
+                panel.classList.add("tt-wide");
+                calendar.enable();
+            } else {
+                panel.classList.remove("tt-wide");
+                calendar.disable();
+            }
+            positionPanel(panel, anchor);
+        }
+
+        function refreshM365State(done) {
+            try {
+                chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
+                    applyM365State(chrome.runtime.lastError ? null : st);
+                    if (done) {
+                        done();
+                    }
+                });
+            } catch (err) {
+                console.warn("Ticket-Termin: M365-Status nicht abrufbar:", err);
+                applyM365State(null);
+            }
+        }
+        refreshM365State();
+
+        function openOptionsM365() {
+            chrome.runtime.sendMessage({ type: "m365OpenOptions", anchor: "m365" });
+        }
+
+        function onM365Click() {
+            if (!m365 || !m365.ok || !m365.identity) {
+                showNote("Microsoft 365 direkt steht in diesem Browser nicht zur Verfügung. Bitte ICS oder Outlook Web verwenden.", "", null);
+                showAlternatives(true);
+                return;
+            }
+            if (!m365.configured) {
+                showNote("Microsoft 365 ist noch nicht eingerichtet: Bitte die aktuellen Einstellungen importieren (Optionen → Sicherung → Importieren) und danach unter „Microsoft 365“ auf „Verbinden“ klicken.",
+                    "Optionen öffnen", openOptionsM365);
+                return;
+            }
+            if (!m365.permission) {
+                showNote("Der Zugriff auf Microsoft 365 wurde noch nicht erteilt - das geht nur auf der Optionen-Seite: dort unter „Microsoft 365“ auf „Verbinden“ klicken.",
+                    "Optionen öffnen", openOptionsM365);
+                return;
+            }
+            if (!m365.connected) {
+                showNote("Noch nicht bei Microsoft 365 angemeldet - die Anmeldung nutzt das Firmenkonto aus dem Browser.", "Jetzt anmelden", (b) => {
+                    b.disabled = true;
+                    b.textContent = "Anmeldung läuft…";
+                    chrome.runtime.sendMessage({ type: "m365Login" }, (res) => {
+                        const err = chrome.runtime.lastError
+                            ? chrome.runtime.lastError.message
+                            : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+                        if (err) {
+                            showNote("Anmeldung fehlgeschlagen: " + err, "Optionen öffnen", openOptionsM365);
+                            return;
+                        }
+                        refreshM365State(() => {
+                            const upn = res.account && res.account.upn ? res.account.upn : "";
+                            showNote("Angemeldet" + (upn ? " als " + upn : "") + " - der Kalender ist jetzt sichtbar, „Outlook (Microsoft 365)“ legt den Termin an.", "", null);
+                        });
+                    });
+                });
+                return;
+            }
+            note.style.display = "none";
+            runCreate("m365");
+        }
 
         function runCreate(mode) {
             const d = {
@@ -2673,8 +3075,8 @@
                     if (err) {
                         buttons.forEach((b) => { b.disabled = false; });
                         m365Btn.textContent = "Outlook (Microsoft 365)";
-                        alert("Termin konnte nicht in Outlook angelegt werden:\n\n" + err +
-                            "\n\nAlternativ ICS oder Outlook Web verwenden.");
+                        showNote("Termin konnte nicht in Outlook angelegt werden: " + err + " - alternativ ICS oder Outlook Web verwenden.", "", null);
+                        showAlternatives(true);
                         return;
                     }
                     console.info("Ticket-Termin: Termin über Microsoft 365 angelegt" + (res.webLink ? " (" + res.webLink + ")" : "") + ".");

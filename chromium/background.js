@@ -1,5 +1,5 @@
 // Version
-// version = "1.4.1"
+// version = "1.5.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1561,15 +1561,16 @@ async function m365AccessToken(allowInteractive) {
     return auth.accessToken;
 }
 
-async function m365Graph(path, method, body, allowInteractive) {
+async function m365Graph(path, method, body, allowInteractive, extraHeaders) {
     const token = await m365AccessToken(allowInteractive);
+    const headers = Object.assign({
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }, extraHeaders || {});
     const res = await fetch("https://graph.microsoft.com/v1.0" + path, {
         method: method || "GET",
-        headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
+        headers: headers,
         body: body ? JSON.stringify(body) : undefined
     });
     let data = {};
@@ -1627,6 +1628,32 @@ async function m365CreateEvent(ev) {
     };
 }
 
+// Eigene Termine eines Zeitraums fuer die Kalenderansicht im Termin-Panel.
+// start/end = ISO-Zeitpunkte (UTC), Antwortzeiten in der uebergebenen
+// IANA-Zeitzone als lokale Wandzeit (Prefer: outlook.timezone). $top ist
+// noetig - ohne liefert calendarView nur 10 Eintraege.
+async function m365CalendarView(q) {
+    const start = String((q && q.start) || "");
+    const end = String((q && q.end) || "");
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(start) || !/^\d{4}-\d{2}-\d{2}T/.test(end)) {
+        throw new Error("Zeitraum fehlt.");
+    }
+    const tz = String((q && q.timeZone) || "Europe/Berlin").replace(/["\\]/g, "");
+    const path = "/me/calendarView?startDateTime=" + encodeURIComponent(start) +
+        "&endDateTime=" + encodeURIComponent(end) +
+        "&$select=subject,start,end,showAs,isAllDay&$orderby=start/dateTime&$top=250";
+    const data = await m365Graph(path, "GET", null, false, { "Prefer": 'outlook.timezone="' + tz + '"' });
+    return {
+        events: (Array.isArray(data.value) ? data.value : []).map((e) => ({
+            subject: e.subject || "",
+            start: (e.start && e.start.dateTime) || "",
+            end: (e.end && e.end.dateTime) || "",
+            showAs: e.showAs || "",
+            isAllDay: e.isAllDay === true
+        }))
+    };
+}
+
 async function m365Status() {
     const cfg = await m365Config();
     const auth = (await m365Storage({ m365Auth: null })).m365Auth;
@@ -1666,6 +1693,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 sendResponse({ ok: true });
             } else if (msg.type === "m365CreateEvent") {
                 sendResponse(Object.assign({ ok: true }, await m365CreateEvent(msg.event)));
+            } else if (msg.type === "m365CalendarView") {
+                sendResponse(Object.assign({ ok: true }, await m365CalendarView(msg)));
+            } else if (msg.type === "m365OpenOptions") {
+                // Aus dem Ticket heraus zur Einrichtung springen (Anker = Abschnitt)
+                const anchor = /^[a-z0-9]+$/i.test(String(msg.anchor || "")) ? "#" + msg.anchor : "";
+                await chrome.tabs.create({ url: chrome.runtime.getURL("options.html") + anchor });
+                sendResponse({ ok: true });
             } else {
                 sendResponse({ ok: false, error: "Unbekannte Anfrage: " + msg.type });
             }
