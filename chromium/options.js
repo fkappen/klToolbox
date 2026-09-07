@@ -1,5 +1,5 @@
 // Version
-// version = "2.1.0"
+// version = "2.2.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -169,13 +169,20 @@ function saveAmpel() {
 // und werden NICHT exportiert.
 const M365_DEFAULTS = {
     m365Tenant: "",
-    m365ClientId: ""
+    m365ClientId: "",
+    m365Kategorie: "",
+    m365ErinnerungMin: 15,
+    m365Kollegen: ""
 };
 
 function saveM365() {
+    const erinnerung = Number(document.getElementById("m365ErinnerungMin").value);
     chrome.storage.local.set({
         m365Tenant: document.getElementById("m365Tenant").value.trim(),
-        m365ClientId: document.getElementById("m365ClientId").value.trim()
+        m365ClientId: document.getElementById("m365ClientId").value.trim(),
+        m365Kategorie: document.getElementById("m365Kategorie").value.trim(),
+        m365ErinnerungMin: (isFinite(erinnerung) && erinnerung >= 0) ? erinnerung : M365_DEFAULTS.m365ErinnerungMin,
+        m365Kollegen: document.getElementById("m365Kollegen").value.trim()
     }, () => {
         flashStatus("statusM365");
         renderM365State();
@@ -420,7 +427,8 @@ function loadAll() {
             document.getElementById(key).value = items[key] || "";
         }
         for (const key of Object.keys(M365_DEFAULTS)) {
-            document.getElementById(key).value = items[key] || "";
+            const v = items[key];
+            document.getElementById(key).value = (v === undefined || v === null) ? M365_DEFAULTS[key] : v;
         }
         renderM365State();
         kiActions = Array.isArray(items.customKiActions) ? items.customKiActions : [];
@@ -1236,6 +1244,7 @@ function exportAllSettings() {
         // Persoenliche Anmeldetokens gehoeren nicht in eine Sicherung, die
         // an Kollegen weitergegeben wird
         delete items.m365Auth;
+        delete items.m365Termine;   // Termin-IDs je Ticket sind an den eigenen Kalender gebunden
         const payload = {
             _extension: "klToolbox",
             _exportiert: new Date().toISOString(),
@@ -1326,6 +1335,7 @@ function importAllSettings(file, mode) {
             }
             // Fremde Anmeldetokens niemals uebernehmen
             delete settings.m365Auth;
+            delete settings.m365Termine;
             const keys = Object.keys(settings).join(", ");
             if (mode === "replace") {
                 if (!confirm("ÜBERSCHREIBEN: Sämtliche vorhandenen Einstellungen werden GELÖSCHT und durch den Dateiinhalt ersetzt.\n\nNicht in der Datei enthaltene Einstellungen (z. B. API-Keys) gehen dabei verloren!\n\nDie Datei enthält:\n" + keys + "\n\nWirklich fortfahren?")) {

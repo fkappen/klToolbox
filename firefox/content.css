@@ -1,4 +1,4 @@
-/* Version 2.8.1 - 2026-09-07 - FK
+/* Version 2.9.0 - 2026-09-07 - FK
    Neutrale Farben via CSS-Variablen; Branding kommt per Settings-Import
    Panels der Module Ticket-Vorlagen und Ticket-Termin (Ticketsystem) */
 
@@ -630,4 +630,74 @@ a.__tt_code_link:hover {
 #__tt_panel .tt-cal-info.tt-cal-conflict {
     color: #b3261e;
     font-weight: 600;
+}
+
+/* Kalender: Kollegenwahl, eigener Ticket-Termin, Anfahrt-Vorschau, Ziehen */
+#__tt_panel .tt-cal-kol {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 150px;
+    padding: 2px 4px !important;
+    height: auto !important;
+    min-height: 22px !important;
+    max-height: none !important;
+    font: inherit;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    border: 1px solid #c3ced5;
+    border-radius: 6px;
+    background: #fff;
+    color: #26323a;
+}
+
+#__tt_panel .tt-cal-ev.tt-cal-own {
+    background: #cfe3ec;
+    border-left-color: var(--klt-p, #46626F);
+    outline: 1px dashed var(--klt-p, #46626F);
+    outline-offset: -1px;
+}
+
+#__tt_panel .tt-cal-anf {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    background: repeating-linear-gradient(135deg, rgba(127, 163, 179, .35) 0 4px, rgba(127, 163, 179, .15) 4px 8px);
+    border-radius: 3px 3px 0 0;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+#__tt_panel .tt-cal-drag {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    background: var(--klt-a, #7fa3b3);
+    opacity: .5;
+    border-radius: 3px;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+#__tt_panel .tt-daybody,
+#__tt_panel .tt-cal-daybody {
+    cursor: ns-resize;
+}
+
+#__tt_panel .tt-bestehend {
+    background: #e8f1f5;
+    color: #26323a;
+    border-left: 4px solid var(--klt-p, #46626F);
+}
+
+#__tt_panel .tt-bestehend button {
+    margin: 4px 4px 0 0;
+}
+
+#__tt_panel .tt-ok {
+    margin: 10px 12px 0;
+    padding: 8px 12px;
+    background: #e6f4ea;
+    color: #1a7f37;
+    border-left: 4px solid #1a7f37;
+    border-radius: 0 8px 8px 0;
 }

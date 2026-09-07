@@ -1,5 +1,5 @@
 // Version
-// version = "1.17.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.18.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -53,6 +53,13 @@
         kiBewertungAutor: "",
         // Optionale Tag-Gruppe, in der die Noten 1-3 liegen (z. B. "KI Bewertung")
         kiBewertungTagGruppe: "",
+        // Microsoft 365: Outlook-Kategorie (leer = keine), Erinnerung in Minuten,
+        // Kollegenliste "Name = mail" je Zeile fuer die Verfuegbarkeitsansicht
+        m365Kategorie: "",
+        m365ErinnerungMin: 15,
+        m365Kollegen: "",
+        terminVerschobenText: "Termin verschoben auf %DATUM% um %ZEIT% Uhr (%DAUER%)",
+        terminAbgesagtText: "Termin abgesagt.",
         // Suchvorlage der DATEV Wissensplattform (fuer Fehlercode-Links)
         datevSearchTemplate: "",
         // Ampel-Schwellwerte (Optionen -> Wartezeit-Ampel). Vier Stufen:
@@ -2276,10 +2283,102 @@
         return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), 0) : null;
     }
 
-    function createCalendarWidget(container, onPick) {
+    // "Name = mail" je Zeile (auch nur "mail") -> [{name, mail}]
+    function parseKollegen(text) {
+        const out = [];
+        for (const line of String(text || "").split(/\r?\n/)) {
+            const t = line.trim();
+            if (!t) {
+                continue;
+            }
+            const m = /^(.*?)\s*=\s*([^\s@=]+@[^\s@=]+)$/.exec(t);
+            if (m) {
+                out.push({ name: m[1].trim() || m[2], mail: m[2] });
+            } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) {
+                out.push({ name: t, mail: t });
+            }
+        }
+        return out;
+    }
+
+    // Angelegte Outlook-Termine je Ticket (nur in diesem Browser) - Basis
+    // fuer "Verschieben"/"Absagen" aus dem Ticket heraus.
+    function loadTermin(ticketNr, cb) {
+        if (!ticketNr) {
+            cb(null);
+            return;
+        }
+        chrome.storage.local.get({ m365Termine: {} }, (s) => {
+            const all = (s && s.m365Termine && typeof s.m365Termine === "object") ? s.m365Termine : {};
+            cb(all[ticketNr] || null);
+        });
+    }
+
+    function saveTermin(ticketNr, rec) {
+        if (!ticketNr) {
+            return;
+        }
+        chrome.storage.local.get({ m365Termine: {} }, (s) => {
+            const all = (s && s.m365Termine && typeof s.m365Termine === "object") ? s.m365Termine : {};
+            const grenze = Date.now() - 120 * 86400000;
+            for (const k of Object.keys(all)) {
+                if (!all[k] || Number(all[k].created) < grenze) {
+                    delete all[k];
+                }
+            }
+            if (rec) {
+                all[ticketNr] = rec;
+            } else {
+                delete all[ticketNr];
+            }
+            chrome.storage.local.set({ m365Termine: all });
+        });
+    }
+
+    // Reinen Eintragstext im Ticket speichern (ohne Statuswechsel)
+    async function addEntryText(text) {
+        try {
+            const form = findEntryForm();
+            if (!form) {
+                console.warn("Ticket-Termin: Eintragsformular nicht gefunden - kein Ticket-Eintrag.");
+                return false;
+            }
+            await pasteIntoEntryForm(form, text);
+            realClick(form.saveBtn);
+            return true;
+        } catch (err) {
+            console.warn("Ticket-Termin: Eintrag speichern fehlgeschlagen:", err);
+            return false;
+        }
+    }
+
+    function fmtDauer(durMin) {
+        return durMin ? (durMin % 60 === 0 ? (durMin / 60) + " Std" : durMin + " Min") : "";
+    }
+
+    function fmtTerminKurz(dt, durMin) {
+        return dt.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) +
+            " " + pad(dt.getHours()) + ":" + pad(dt.getMinutes()) + (durMin ? " (" + fmtDauer(durMin) + ")" : "");
+    }
+
+    function fillTerminTpl(tpl, dt, durMin) {
+        return String(tpl || "")
+            .replace(/%DATUM%/g, dt.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }))
+            .replace(/%ZEIT%/g, pad(dt.getHours()) + ":" + pad(dt.getMinutes()))
+            .replace(/%DAUER%/g, fmtDauer(durMin))
+            .replace(/\s*\(\s*\)/g, "")
+            .replace(/[ \t]{2,}/g, " ")
+            .trim();
+    }
+
+    // cb: { onPick(dt), onDuration(min), onKollege(kol|null) }
+    function createCalendarWidget(container, cb) {
         let weekMonday = null;
         const cache = {};
         let enabled = false;
+        let kollege = null;          // null = eigener Kalender
+        let ownIds = [];             // IDs des zu diesem Ticket angelegten Termins (+ Anfahrt)
+        const kollegen = parseKollegen(settings.m365Kollegen);
 
         container.className = "tt-cal";
         container.style.display = "none";
@@ -2291,6 +2390,25 @@
         prev.textContent = "‹";
         prev.title = "Vorwoche";
         const label = document.createElement("span");
+        const kolSelect = document.createElement("select");
+        kolSelect.className = "tt-cal-kol";
+        kolSelect.title = "Wessen Kalender wird angezeigt? Bei einem Kollegen: Frei/Belegt aus dessen Kalender, der Termin kann ihm als Einladung zugestellt werden.";
+        const optMe = document.createElement("option");
+        optMe.value = "";
+        optMe.textContent = "Mein Kalender";
+        kolSelect.appendChild(optMe);
+        for (const k of kollegen) {
+            const o = document.createElement("option");
+            o.value = k.mail;
+            o.textContent = k.name;
+            kolSelect.appendChild(o);
+        }
+        kolSelect.style.display = kollegen.length > 0 ? "" : "none";
+        kolSelect.addEventListener("change", () => {
+            kollege = kollegen.find((k) => k.mail === kolSelect.value) || null;
+            cb.onKollege(kollege);
+            load();
+        });
         const todayBtn = document.createElement("button");
         todayBtn.type = "button";
         todayBtn.textContent = "Heute";
@@ -2301,6 +2419,7 @@
         next.title = "Folgewoche";
         head.appendChild(prev);
         head.appendChild(label);
+        head.appendChild(kolSelect);
         head.appendChild(todayBtn);
         head.appendChild(next);
         container.appendChild(head);
@@ -2322,6 +2441,10 @@
 
         function dateKey(d) {
             return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+        }
+
+        function cacheKey() {
+            return (kollege ? kollege.mail : "me") + "|" + dateKey(weekMonday);
         }
 
         function selectedStart() {
@@ -2346,8 +2469,58 @@
             return Number(sel.value) || 60;
         }
 
+        // Anfahrt-Vorschau: nur bei "Vor Ort" mit Haken und Fahrzeit
+        function anfahrtMin() {
+            const art = document.getElementById("tt_art");
+            const anf = document.getElementById("tt_anf");
+            const dur = document.getElementById("tt_anf_dur");
+            if (!art || !anf || !dur || art.value !== "vorort" || !anf.checked) {
+                return 0;
+            }
+            return Number(dur.value) || 0;
+        }
+
         function minutesToTop(min) {
             return (min - CAL_START_H * 60) / 60 * CAL_HOUR_PX;
+        }
+
+        function minOfDay(d) {
+            return d.getHours() * 60 + d.getMinutes();
+        }
+
+        function block(cls, fromMin, toMin, text, title) {
+            const s = Math.max(fromMin, CAL_START_H * 60);
+            const e = Math.min(toMin || CAL_END_H * 60, CAL_END_H * 60);
+            if (e <= s) {
+                return null;
+            }
+            const b = document.createElement("div");
+            b.className = cls;
+            b.style.top = minutesToTop(s) + "px";
+            b.style.height = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1) + "px";
+            if (text) {
+                b.textContent = text;
+            }
+            if (title) {
+                b.title = title;
+            }
+            return b;
+        }
+
+        function isoWeek(d) {
+            const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const dayNum = x.getUTCDay() || 7;
+            x.setUTCDate(x.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+            return Math.ceil(((x - yearStart) / 86400000 + 1) / 7);
+        }
+
+        // Ziehen im Tagesraster: Start = Mausdruck, Dauer = Zugweite (15-min-Raster)
+        let drag = null;
+        function minutesAt(body, clientY) {
+            const rect = body.getBoundingClientRect();
+            let min = CAL_START_H * 60 + (clientY - rect.top) / CAL_HOUR_PX * 60;
+            return Math.max(CAL_START_H * 60, Math.min(CAL_END_H * 60, Math.round(min / 15) * 15));
         }
 
         function render() {
@@ -2360,7 +2533,6 @@
                 ". – " + pad(friday.getDate()) + "." + pad(friday.getMonth() + 1) + "." + friday.getFullYear();
 
             const bodyH = (CAL_END_H - CAL_START_H) * CAL_HOUR_PX;
-            // Zeitachse
             const axis = document.createElement("div");
             axis.className = "tt-cal-axis";
             const axisHead = document.createElement("div");
@@ -2378,17 +2550,25 @@
             axis.appendChild(axisBody);
             grid.appendChild(axis);
 
-            const events = cache[dateKey(weekMonday)] || [];
+            const events = cache[cacheKey()] || [];
             const sel = selectedStart();
-            const selEnd = sel ? new Date(sel.getTime() + selectedDurMin() * 60000) : null;
+            const dur = selectedDurMin();
+            const selEnd = sel ? new Date(sel.getTime() + dur * 60000) : null;
+            const anf = anfahrtMin();
+            const anfStart = (sel && anf > 0) ? new Date(sel.getTime() - anf * 60000) : null;
             const now = new Date();
             const today = dateKey(now);
-            // Ueberschneidung des geplanten Termins mit eigenen Terminen melden
-            const konflikte = (sel && selEnd)
-                ? events.filter((ev) => ev.start < selEnd && ev.end > sel).map((ev) => ev.subject || "(ohne Betreff)")
+
+            // Ueberschneidung des geplanten Termins (inkl. Anfahrt) - eigene,
+            // zu diesem Ticket gehoerende Termine zaehlen nicht
+            const pruefStart = anfStart || sel;
+            const konflikte = (pruefStart && selEnd)
+                ? events.filter((ev) => ownIds.indexOf(ev.id) === -1 && ev.start < selEnd && ev.end > pruefStart)
+                    .map((ev) => ev.subject || "Belegt")
                 : [];
             if (konflikte.length > 0) {
-                info.textContent = "Überschneidung: " + konflikte.slice(0, 3).join(", ") + (konflikte.length > 3 ? " …" : "");
+                info.textContent = "Überschneidung" + (kollege ? " bei " + kollege.name : "") + ": " +
+                    konflikte.slice(0, 3).join(", ") + (konflikte.length > 3 ? " …" : "");
                 info.classList.add("tt-cal-conflict");
             } else if (info.classList.contains("tt-cal-conflict")) {
                 info.textContent = "";
@@ -2397,15 +2577,16 @@
 
             for (let i = 0; i < 5; i++) {
                 const day = new Date(weekMonday.getTime() + i * 86400000);
+                const dk = dateKey(day);
                 const col = document.createElement("div");
                 col.className = "tt-cal-day";
                 const dh = document.createElement("div");
                 dh.className = "tt-cal-dayhead";
                 dh.textContent = CAL_TAGE[i] + " " + pad(day.getDate()) + "." + pad(day.getMonth() + 1) + ".";
-                if (dateKey(day) === today) {
+                if (dk === today) {
                     dh.classList.add("tt-cal-today");
                 }
-                if (sel && dateKey(day) === dateKey(sel)) {
+                if (sel && dk === dateKey(sel)) {
                     dh.classList.add("tt-cal-selday");
                 }
                 col.appendChild(dh);
@@ -2418,41 +2599,34 @@
                     line.style.top = minutesToTop(h * 60) + "px";
                     body.appendChild(line);
                 }
-                // eigene Termine des Tages
                 for (const ev of events) {
-                    if (!ev.start || !ev.end || dateKey(ev.start) !== dateKey(day)) {
+                    if (!ev.start || !ev.end || dateKey(ev.start) !== dk) {
                         continue;
                     }
-                    const s = Math.max(ev.start.getHours() * 60 + ev.start.getMinutes(), CAL_START_H * 60);
-                    const e = Math.min(ev.end.getHours() * 60 + ev.end.getMinutes() || CAL_END_H * 60, CAL_END_H * 60);
-                    if (e <= s) {
-                        continue;
-                    }
-                    const b = document.createElement("div");
-                    b.className = "tt-cal-ev" + (ev.showAs === "tentative" ? " tt-cal-tent" : "");
-                    b.style.top = minutesToTop(s) + "px";
-                    b.style.height = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1) + "px";
-                    b.textContent = ev.subject || "";
-                    b.title = pad(ev.start.getHours()) + ":" + pad(ev.start.getMinutes()) + "–" +
-                        pad(ev.end.getHours()) + ":" + pad(ev.end.getMinutes()) + " " + (ev.subject || "(ohne Betreff)");
-                    body.appendChild(b);
-                }
-                // gewaehlter Termin
-                if (sel && dateKey(day) === dateKey(sel)) {
-                    const s = Math.max(sel.getHours() * 60 + sel.getMinutes(), CAL_START_H * 60);
-                    const e = Math.min(selEnd.getHours() * 60 + selEnd.getMinutes() || CAL_END_H * 60, CAL_END_H * 60);
-                    if (e > s) {
-                        const b = document.createElement("div");
-                        b.className = "tt-cal-sel";
-                        b.style.top = minutesToTop(s) + "px";
-                        b.style.height = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1) + "px";
-                        b.title = "Geplanter Termin";
+                    const own = ownIds.indexOf(ev.id) !== -1;
+                    const cls = "tt-cal-ev" + (ev.showAs === "tentative" ? " tt-cal-tent" : "") + (own ? " tt-cal-own" : "");
+                    const b = block(cls, minOfDay(ev.start), minOfDay(ev.end), ev.subject || (kollege ? "Belegt" : ""),
+                        pad(ev.start.getHours()) + ":" + pad(ev.start.getMinutes()) + "–" +
+                        pad(ev.end.getHours()) + ":" + pad(ev.end.getMinutes()) + " " +
+                        (ev.subject || (kollege ? "Belegt" : "(ohne Betreff)")) + (own ? " · dieses Ticket" : ""));
+                    if (b) {
                         body.appendChild(b);
                     }
                 }
-                // aktuelle Uhrzeit als Linie (nur heute)
-                if (dateKey(day) === today) {
-                    const nowMin = now.getHours() * 60 + now.getMinutes();
+                if (anfStart && dateKey(anfStart) === dk) {
+                    const b = block("tt-cal-anf", minOfDay(anfStart), minOfDay(sel) || CAL_END_H * 60, "", "Anfahrt (" + anf + " Min)");
+                    if (b) {
+                        body.appendChild(b);
+                    }
+                }
+                if (sel && dk === dateKey(sel)) {
+                    const b = block("tt-cal-sel", minOfDay(sel), minOfDay(selEnd) || CAL_END_H * 60, "", "Geplanter Termin (" + fmtDauer(dur) + ")");
+                    if (b) {
+                        body.appendChild(b);
+                    }
+                }
+                if (dk === today) {
+                    const nowMin = minOfDay(now);
                     if (nowMin >= CAL_START_H * 60 && nowMin <= CAL_END_H * 60) {
                         const line = document.createElement("div");
                         line.className = "tt-cal-now";
@@ -2460,47 +2634,67 @@
                         body.appendChild(line);
                     }
                 }
-                body.addEventListener("click", (evt) => {
-                    if (evt.target.classList.contains("tt-cal-ev")) {
-                        return; // belegte Zeit: kein Setzen
+                // Klick = Start setzen, Ziehen = Start + Dauer
+                body.addEventListener("mousedown", (evt) => {
+                    if (evt.button !== 0 || evt.target.classList.contains("tt-cal-ev")) {
+                        return;
                     }
-                    const rect = body.getBoundingClientRect();
-                    let min = CAL_START_H * 60 + (evt.clientY - rect.top) / CAL_HOUR_PX * 60;
-                    min = Math.max(CAL_START_H * 60, Math.min(CAL_END_H * 60 - 15, Math.round(min / 15) * 15));
-                    onPick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(min / 60), min % 60, 0));
-                    render();
+                    evt.preventDefault();
+                    const startMin = minutesAt(body, evt.clientY);
+                    const ghost = block("tt-cal-drag", startMin, startMin + 15, "", "");
+                    body.appendChild(ghost);
+                    drag = { day: day, body: body, startMin: startMin, endMin: startMin + 15, ghost: ghost, moved: false };
                 });
                 col.appendChild(body);
                 grid.appendChild(col);
             }
         }
 
-        function isoWeek(d) {
-            const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-            const dayNum = x.getUTCDay() || 7;
-            x.setUTCDate(x.getUTCDate() + 4 - dayNum);
-            const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
-            return Math.ceil(((x - yearStart) / 86400000 + 1) / 7);
+        container.addEventListener("mousemove", (evt) => {
+            if (!drag) {
+                return;
+            }
+            const m = minutesAt(drag.body, evt.clientY);
+            if (m > drag.startMin) {
+                drag.endMin = m;
+                drag.moved = true;
+                drag.ghost.style.height = Math.max(6, (drag.endMin - drag.startMin) / 60 * CAL_HOUR_PX - 1) + "px";
+            }
+        });
+        function endDrag() {
+            if (!drag) {
+                return;
+            }
+            const d = drag;
+            drag = null;
+            const startMin = Math.min(d.startMin, CAL_END_H * 60 - 15);
+            cb.onPick(new Date(d.day.getFullYear(), d.day.getMonth(), d.day.getDate(), Math.floor(startMin / 60), startMin % 60, 0));
+            if (d.moved && d.endMin - d.startMin >= 15) {
+                cb.onDuration(d.endMin - d.startMin);
+            }
+            render();
         }
+        container.addEventListener("mouseup", endDrag);
+        container.addEventListener("mouseleave", endDrag);
 
         function load() {
-            const key = dateKey(weekMonday);
+            const key = cacheKey();
             if (cache[key]) {
                 info.textContent = "";
+                info.classList.remove("tt-cal-conflict");
                 render();
                 return;
             }
-            info.textContent = "Kalender wird geladen…";
+            info.textContent = (kollege ? "Kalender von " + kollege.name : "Kalender") + " wird geladen…";
+            info.classList.remove("tt-cal-conflict");
             render();
             const start = new Date(weekMonday.getTime());
             const end = new Date(weekMonday.getTime() + 5 * 86400000);
+            const msg = kollege
+                ? { type: "m365GetSchedule", mail: kollege.mail, start: toGraphLocal(start), end: toGraphLocal(end), timeZone: localTz() }
+                : { type: "m365CalendarView", start: start.toISOString(), end: end.toISOString(), timeZone: localTz() };
             try {
-                chrome.runtime.sendMessage({
-                    type: "m365CalendarView",
-                    start: start.toISOString(),
-                    end: end.toISOString(),
-                    timeZone: localTz()
-                }, (res) => {
+                chrome.runtime.sendMessage(msg, (res) => {
                     const err = chrome.runtime.lastError
                         ? chrome.runtime.lastError.message
                         : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
@@ -2510,10 +2704,12 @@
                     }
                     cache[key] = (res.events || [])
                         .filter((e) => e.isAllDay !== true && e.showAs !== "free")
-                        .map((e) => ({ subject: e.subject, showAs: e.showAs, start: parseGraphLocal(e.start), end: parseGraphLocal(e.end) }))
+                        .map((e) => ({ id: e.id || "", subject: e.subject, showAs: e.showAs, start: parseGraphLocal(e.start), end: parseGraphLocal(e.end) }))
                         .filter((e) => e.start && e.end);
-                    if (dateKey(weekMonday) === key) {
-                        info.textContent = cache[key].length === 0 ? "Keine eigenen Termine in dieser Woche." : "";
+                    if (cacheKey() === key) {
+                        info.textContent = cache[key].length === 0
+                            ? (kollege ? kollege.name + " hat keine Termine in dieser Woche." : "Keine eigenen Termine in dieser Woche.")
+                            : "";
                         info.classList.remove("tt-cal-conflict");
                         render();
                     }
@@ -2532,7 +2728,6 @@
         todayBtn.addEventListener("click", () => goto(new Date()));
         next.addEventListener("click", () => goto(new Date(weekMonday.getTime() + 7 * 86400000)));
 
-        // Formularaenderungen spiegeln: anderer Tag -> ggf. andere Woche
         function onFormChange() {
             if (!enabled) {
                 return;
@@ -2544,7 +2739,7 @@
                 render();
             }
         }
-        for (const id of ["tt_date", "tt_time", "tt_dur", "tt_dur_frei"]) {
+        for (const id of ["tt_date", "tt_time", "tt_dur", "tt_dur_frei", "tt_art", "tt_anf", "tt_anf_dur"]) {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener("change", onFormChange);
@@ -2561,6 +2756,20 @@
             disable: function () {
                 enabled = false;
                 container.style.display = "none";
+            },
+            setOwnIds: function (ids) {
+                ownIds = (ids || []).filter(Boolean);
+                if (enabled) {
+                    render();
+                }
+            },
+            getKollege: function () {
+                return kollege;
+            },
+            refresh: function () {
+                if (enabled) {
+                    render();
+                }
             }
         };
     }
@@ -2608,6 +2817,14 @@
         body.appendChild(left);
         body.appendChild(calEl);
         panel.appendChild(body);
+
+        // Bereits angelegter Outlook-Termin zu diesem Ticket (aus diesem
+        // Browser): Verschieben / Absagen / Oeffnen statt Doppelanlage
+        const bestehend = document.createElement("div");
+        bestehend.className = "tt-warn tt-bestehend";
+        bestehend.style.display = "none";
+        left.appendChild(bestehend);
+        let gespeichert = null;
 
         left.appendChild(fieldRow("Kunde", "tt_kunde", data.kunde));
         left.appendChild(fieldRow("TicketNR", "tt_ticketnr", data.ticketNr));
@@ -2837,6 +3054,28 @@
         invRow.appendChild(invWrap);
         left.appendChild(invRow);
 
+        // Kollege aus der Kalenderansicht als Teilnehmer (Einladung in dessen
+        // Kalender - der Termin selbst entsteht immer im eigenen)
+        const kolRow = document.createElement("div");
+        kolRow.className = "tt-row";
+        kolRow.style.display = "none";
+        const kolLabel = document.createElement("label");
+        kolLabel.textContent = "Kollege";
+        kolLabel.setAttribute("for", "tt_kol_inv");
+        const kolWrap = document.createElement("div");
+        kolWrap.className = "tt-time-wrap";
+        const kolCheck = document.createElement("input");
+        kolCheck.type = "checkbox";
+        kolCheck.id = "tt_kol_inv";
+        kolCheck.checked = true;
+        const kolText = document.createElement("span");
+        kolText.textContent = "als Teilnehmer einladen";
+        kolWrap.appendChild(kolCheck);
+        kolWrap.appendChild(kolText);
+        kolRow.appendChild(kolLabel);
+        kolRow.appendChild(kolWrap);
+        left.appendChild(kolRow);
+
         // Hinweiszeile (Einrichtung/Anmeldung/Fehler) statt alert()
         const note = document.createElement("div");
         note.className = "tt-warn";
@@ -2914,10 +3153,203 @@
             moreBtn.textContent = show ? "weniger ▴" : "weitere ▾";
         }
 
-        const calendar = createCalendarWidget(calEl, (dt) => {
-            document.getElementById("tt_date").value = dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate());
-            document.getElementById("tt_time").value = pad(dt.getHours()) + ":" + pad(dt.getMinutes());
+        const calendar = createCalendarWidget(calEl, {
+            onPick: (dt) => {
+                document.getElementById("tt_date").value = dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate());
+                document.getElementById("tt_time").value = pad(dt.getHours()) + ":" + pad(dt.getMinutes());
+            },
+            onDuration: (min) => {
+                const sel = document.getElementById("tt_dur");
+                const hat = Array.from(sel.options).some((o) => o.value === String(min));
+                sel.value = hat ? String(min) : "__custom";
+                if (!hat) {
+                    document.getElementById("tt_dur_frei").value = String(min);
+                }
+                sel.dispatchEvent(new Event("change"));
+            },
+            onKollege: (kol) => {
+                kolRow.style.display = kol ? "" : "none";
+                kolText.textContent = kol ? kol.name + " als Teilnehmer einladen (Einladung in dessen Kalender)" : "als Teilnehmer einladen";
+            }
         });
+
+        // Gespeicherten Termin zu diesem Ticket anzeigen (asynchron - das
+        // Panel steht dann schon)
+        loadTermin(data.ticketNr, (rec) => {
+            if (!rec || !rec.id) {
+                return;
+            }
+            gespeichert = rec;
+            const startDt = parseGraphLocal(rec.start);
+            bestehend.textContent = "";
+            bestehend.appendChild(document.createTextNode("📅 Outlook-Termin zu diesem Ticket: " +
+                (startDt ? fmtTerminKurz(startDt, rec.durMin) : "?") + (rec.attendees ? " · mit Einladung" : "") + " "));
+            const mk = (label, title, fn) => {
+                const b = document.createElement("button");
+                b.type = "button";
+                b.className = "tt-secondary";
+                b.textContent = label;
+                b.title = title;
+                b.addEventListener("click", () => fn(b));
+                bestehend.appendChild(b);
+            };
+            mk("Verschieben", "Termin auf die links gewählte Zeit verschieben", verschiebeTermin);
+            mk("Absagen", "Termin in Outlook absagen bzw. löschen", sageTerminAb);
+            if (rec.webLink) {
+                mk("Im Kalender öffnen", "", () => window.open(rec.webLink, "_blank"));
+            }
+            bestehend.style.display = "";
+            if (startDt) {
+                document.getElementById("tt_date").value = startDt.getFullYear() + "-" + pad(startDt.getMonth() + 1) + "-" + pad(startDt.getDate());
+                document.getElementById("tt_time").value = pad(startDt.getHours()) + ":" + pad(startDt.getMinutes());
+                if (rec.durMin) {
+                    const sel = document.getElementById("tt_dur");
+                    const hat = Array.from(sel.options).some((o) => o.value === String(rec.durMin));
+                    sel.value = hat ? String(rec.durMin) : "__custom";
+                    if (!hat) {
+                        document.getElementById("tt_dur_frei").value = String(rec.durMin);
+                    }
+                    sel.dispatchEvent(new Event("change"));
+                }
+            }
+            calendar.setOwnIds([rec.id, rec.anfahrtId]);
+        });
+
+        // Datum/Zeit/Dauer aus dem Formular (null + Meldung bei Luecken)
+        function leseZeit() {
+            const dateVal = document.getElementById("tt_date").value;
+            const timeVal = document.getElementById("tt_time").value;
+            if (!dateVal || !timeVal) {
+                showNote("Bitte Datum und Uhrzeit angeben.", "", null);
+                return null;
+            }
+            const [y, mo, da] = dateVal.split("-").map(Number);
+            const [h, mi] = timeVal.split(":").map(Number);
+            const durWahl = document.getElementById("tt_dur").value;
+            const durMin = durWahl === "__custom"
+                ? (Number(document.getElementById("tt_dur_frei").value) || 60)
+                : (Number(durWahl) || 60);
+            return { startDt: new Date(y, mo - 1, da, h, mi, 0), durMin: durMin };
+        }
+
+        // Abschluss-Ansicht: Formular weg, Meldung + Kalenderlink + Schliessen
+        function zeigeFertig(text, webLink) {
+            body.style.display = "none";
+            note.style.display = "none";
+            bestehend.style.display = "none";
+            bar.textContent = "";
+            const ok = document.createElement("div");
+            ok.className = "tt-ok";
+            ok.textContent = text;
+            panel.insertBefore(ok, bar);
+            if (webLink) {
+                const lb = document.createElement("button");
+                lb.type = "button";
+                lb.className = "tt-primary";
+                lb.textContent = "Im Kalender öffnen";
+                lb.addEventListener("click", () => window.open(webLink, "_blank"));
+                bar.appendChild(lb);
+            }
+            const cb2 = document.createElement("button");
+            cb2.type = "button";
+            cb2.className = "tt-secondary";
+            cb2.textContent = "Schließen";
+            cb2.addEventListener("click", closePanel);
+            bar.appendChild(cb2);
+            positionPanel(panel, anchor);
+        }
+
+        function sendeM365(msg, cb3) {
+            chrome.runtime.sendMessage(msg, (res) => {
+                const err = chrome.runtime.lastError
+                    ? chrome.runtime.lastError.message
+                    : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+                cb3(err, res || {});
+            });
+        }
+
+        function verschiebeTermin(btn) {
+            const z = leseZeit();
+            if (!z || !gespeichert) {
+                return;
+            }
+            const rec = gespeichert;
+            const endDt = new Date(z.startDt.getTime() + z.durMin * 60000);
+            const tz = localTz();
+            btn.disabled = true;
+            btn.textContent = "Wird verschoben…";
+            sendeM365({ type: "m365UpdateEvent", id: rec.id, start: toGraphLocal(z.startDt), end: toGraphLocal(endDt), timeZone: tz }, (err, res) => {
+                if (err) {
+                    btn.disabled = false;
+                    btn.textContent = "Verschieben";
+                    showNote("Verschieben fehlgeschlagen: " + err, "", null);
+                    return;
+                }
+                const fertig = () => {
+                    rec.start = toGraphLocal(z.startDt);
+                    rec.durMin = z.durMin;
+                    rec.webLink = res.webLink || rec.webLink;
+                    saveTermin(d0.ticketNr, rec);
+                    const text = fillTerminTpl(settings.terminVerschobenText || DEFAULTS.terminVerschobenText, z.startDt, z.durMin);
+                    if (text) {
+                        addEntryText(text);
+                    }
+                    zeigeFertig("Termin verschoben auf " + fmtTerminKurz(z.startDt, z.durMin) + ".", rec.webLink);
+                };
+                if (rec.anfahrtId && rec.anfMin > 0) {
+                    const aStart = new Date(z.startDt.getTime() - rec.anfMin * 60000);
+                    sendeM365({ type: "m365UpdateEvent", id: rec.anfahrtId, start: toGraphLocal(aStart), end: toGraphLocal(z.startDt), timeZone: tz }, (e2) => {
+                        if (e2) {
+                            console.warn("Ticket-Termin: Anfahrt-Termin nicht verschoben: " + e2);
+                        }
+                        fertig();
+                    });
+                } else {
+                    fertig();
+                }
+            });
+        }
+
+        function sageTerminAb(btn) {
+            if (!gespeichert) {
+                return;
+            }
+            const rec = gespeichert;
+            if (!confirm("Outlook-Termin zu Ticket " + (d0.ticketNr || "") + " absagen?" +
+                (rec.attendees ? "\n\nEingeladene Teilnehmer erhalten eine Absage per E-Mail." : ""))) {
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = "Wird abgesagt…";
+            sendeM365({ type: "m365DeleteEvent", id: rec.id, cancel: rec.attendees === true, comment: "Termin abgesagt." }, (err) => {
+                if (err) {
+                    btn.disabled = false;
+                    btn.textContent = "Absagen";
+                    showNote("Absagen fehlgeschlagen: " + err, "", null);
+                    return;
+                }
+                const fertig = () => {
+                    saveTermin(d0.ticketNr, null);
+                    gespeichert = null;
+                    const text = (settings.terminAbgesagtText || "").trim();
+                    if (text) {
+                        addEntryText(text);
+                    }
+                    zeigeFertig("Termin abgesagt.", "");
+                };
+                if (rec.anfahrtId) {
+                    sendeM365({ type: "m365DeleteEvent", id: rec.anfahrtId, cancel: false }, (e2) => {
+                        if (e2) {
+                            console.warn("Ticket-Termin: Anfahrt-Termin nicht gelöscht: " + e2);
+                        }
+                        fertig();
+                    });
+                } else {
+                    fertig();
+                }
+            });
+        }
+        const d0 = { ticketNr: data.ticketNr };
 
         let m365 = null;
         function applyM365State(st) {
@@ -2995,6 +3427,11 @@
                 return;
             }
             note.style.display = "none";
+            if (gespeichert && !confirm("Zu diesem Ticket gibt es bereits einen Outlook-Termin (" +
+                (parseGraphLocal(gespeichert.start) ? fmtTerminKurz(parseGraphLocal(gespeichert.start), gespeichert.durMin) : "?") +
+                "). Trotzdem einen weiteren anlegen?\n\nZum Ändern stattdessen „Verschieben“ oder „Absagen“ oben im Fenster nutzen.")) {
+                return;
+            }
             runCreate("m365");
         }
 
@@ -3072,35 +3509,38 @@
             if (mode === "m365") {
                 // Direkt in den eigenen Kalender (Graph, ueber den Hintergrund-
                 // Dienst). Anfahrt = zweites Event; Teams-Link kommt zurueck
-                // und wandert in den Ticket-Eintrag.
-                const tz = (() => {
-                    try {
-                        return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
-                    } catch (err) {
-                        return "Europe/Berlin";
-                    }
-                })();
-                const invite = document.getElementById("tt_inv").checked && d.email
-                    ? [{ address: d.email, name: d.ansprechpartner || d.email }]
-                    : [];
-                const ev = {
+                // und wandert in den Ticket-Eintrag; IDs werden je Ticket
+                // gemerkt (Verschieben/Absagen).
+                const tz = localTz();
+                const attendees = [];
+                if (document.getElementById("tt_inv").checked && d.email) {
+                    attendees.push({ address: d.email, name: d.ansprechpartner || d.email });
+                }
+                const kol = calendar.getKollege();
+                if (kol && document.getElementById("tt_kol_inv").checked) {
+                    attendees.push({ address: kol.mail, name: kol.name });
+                }
+                const kategorie = String(settings.m365Kategorie || "").trim();
+                const erinnerung = Number(settings.m365ErinnerungMin);
+                const basis = {
+                    timeZone: tz,
+                    tentative: vorbehalt,
+                    categories: kategorie ? [kategorie] : [],
+                    reminderMin: Number.isFinite(erinnerung) && erinnerung >= 0 ? erinnerung : 15
+                };
+                const ev = Object.assign({
                     subject: subject,
                     body: body,
                     start: toGraphLocal(startDt),
                     end: toGraphLocal(endDt),
-                    timeZone: tz,
                     location: ort,
-                    tentative: vorbehalt,
                     teams: art === "teams",
-                    attendees: invite
-                };
+                    attendees: attendees
+                }, basis);
                 const buttons = Array.from(bar.querySelectorAll("button"));
                 buttons.forEach((b) => { b.disabled = true; });
                 m365Btn.textContent = "Wird angelegt…";
-                chrome.runtime.sendMessage({ type: "m365CreateEvent", event: ev }, (res) => {
-                    const err = chrome.runtime.lastError
-                        ? chrome.runtime.lastError.message
-                        : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+                sendeM365({ type: "m365CreateEvent", event: ev }, (err, res) => {
                     if (err) {
                         buttons.forEach((b) => { b.disabled = false; });
                         m365Btn.textContent = "Outlook (Microsoft 365)";
@@ -3109,30 +3549,46 @@
                         return;
                     }
                     console.info("Ticket-Termin: Termin über Microsoft 365 angelegt" + (res.webLink ? " (" + res.webLink + ")" : "") + ".");
+                    const rec = {
+                        id: res.id || "",
+                        anfahrtId: "",
+                        anfMin: anfahrt ? Math.round((startDt.getTime() - anfahrt.start.getTime()) / 60000) : 0,
+                        start: toGraphLocal(startDt),
+                        durMin: durMin,
+                        subject: subject,
+                        webLink: res.webLink || "",
+                        attendees: attendees.length > 0,
+                        created: Date.now()
+                    };
+                    const abschluss = (zusatz) => {
+                        saveTermin(d.ticketNr, rec);
+                        if (settings.autoStatus !== false) {
+                            setStatusTerminVereinbart(startDt, artText, durMin, res.joinUrl || "");
+                        }
+                        zeigeFertig("Termin angelegt: " + fmtTerminKurz(startDt, durMin) +
+                            (attendees.length > 0 ? " · Einladung an " + attendees.map((a) => a.name).join(", ") : "") +
+                            (res.joinUrl ? " · Teams-Link im Ticket-Eintrag" : "") + zusatz, rec.webLink);
+                    };
                     if (anfahrt) {
-                        const anfEv = {
+                        const anfEv = Object.assign({
                             subject: anfahrt.subject,
                             body: anfahrt.body,
                             start: toGraphLocal(anfahrt.start),
                             end: toGraphLocal(anfahrt.end),
-                            timeZone: tz,
                             location: anfahrt.ort,
-                            tentative: vorbehalt,
                             teams: false,
                             attendees: []
-                        };
-                        chrome.runtime.sendMessage({ type: "m365CreateEvent", event: anfEv }, (r2) => {
-                            const e2 = chrome.runtime.lastError
-                                ? chrome.runtime.lastError.message
-                                : (r2 && r2.ok ? "" : ((r2 && r2.error) || "keine Antwort"));
+                        }, basis);
+                        sendeM365({ type: "m365CreateEvent", event: anfEv }, (e2, r2) => {
                             if (e2) {
-                                alert("Der Haupttermin wurde angelegt, der Anfahrt-Termin nicht:\n\n" + e2);
+                                abschluss(" · Anfahrt-Termin NICHT angelegt: " + e2);
+                                return;
                             }
+                            rec.anfahrtId = r2.id || "";
+                            abschluss(" · Anfahrt " + rec.anfMin + " Min");
                         });
-                    }
-                    closePanel();
-                    if (settings.autoStatus !== false) {
-                        setStatusTerminVereinbart(startDt, artText, durMin, res.joinUrl || "");
+                    } else {
+                        abschluss("");
                     }
                 });
                 return; // Panel bleibt bis zur Antwort offen

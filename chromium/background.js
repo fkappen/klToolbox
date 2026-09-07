@@ -1,5 +1,5 @@
 // Version
-// version = "1.5.0"
+// version = "1.6.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1641,10 +1641,11 @@ async function m365CalendarView(q) {
     const tz = String((q && q.timeZone) || "Europe/Berlin").replace(/["\\]/g, "");
     const path = "/me/calendarView?startDateTime=" + encodeURIComponent(start) +
         "&endDateTime=" + encodeURIComponent(end) +
-        "&$select=subject,start,end,showAs,isAllDay&$orderby=start/dateTime&$top=250";
+        "&$select=id,subject,start,end,showAs,isAllDay&$orderby=start/dateTime&$top=250";
     const data = await m365Graph(path, "GET", null, false, { "Prefer": 'outlook.timezone="' + tz + '"' });
     return {
         events: (Array.isArray(data.value) ? data.value : []).map((e) => ({
+            id: e.id || "",
             subject: e.subject || "",
             start: (e.start && e.start.dateTime) || "",
             end: (e.end && e.end.dateTime) || "",
@@ -1652,6 +1653,78 @@ async function m365CalendarView(q) {
             isAllDay: e.isAllDay === true
         }))
     };
+}
+
+// Frei/Belegt eines Kollegen (getSchedule) - geht mit Calendars.Read fuer
+// jeden Nutzer des Tenants; Betreff nur, wenn dessen Freigabestufe das
+// erlaubt. Zeiten hin und zurueck als lokale Wandzeit in der IANA-Zone.
+async function m365GetSchedule(q) {
+    const mail = String((q && q.mail) || "").trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+        throw new Error("Ungültige E-Mail-Adresse des Kollegen.");
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(String(q.start || "")) || !/^\d{4}-\d{2}-\d{2}T/.test(String(q.end || ""))) {
+        throw new Error("Zeitraum fehlt.");
+    }
+    const tz = String((q && q.timeZone) || "Europe/Berlin").replace(/["\\]/g, "");
+    const body = {
+        schedules: [mail],
+        startTime: { dateTime: q.start, timeZone: tz },
+        endTime: { dateTime: q.end, timeZone: tz },
+        availabilityViewInterval: 15
+    };
+    const data = await m365Graph("/me/calendar/getSchedule", "POST", body, false, { "Prefer": 'outlook.timezone="' + tz + '"' });
+    const v = (Array.isArray(data.value) && data.value[0]) ? data.value[0] : {};
+    if (v.error) {
+        throw new Error((v.error.message || "Kalender des Kollegen nicht abrufbar") + " (" + mail + ")");
+    }
+    return {
+        events: (Array.isArray(v.scheduleItems) ? v.scheduleItems : []).map((i) => ({
+            subject: i.subject || "",
+            start: (i.start && i.start.dateTime) || "",
+            end: (i.end && i.end.dateTime) || "",
+            showAs: i.status || "busy",
+            location: i.location || "",
+            isAllDay: false
+        }))
+    };
+}
+
+// Termin verschieben (nur Start/Ende) - PATCH auf das eigene Event
+async function m365UpdateEvent(q) {
+    const id = String((q && q.id) || "");
+    if (!id || !q.start || !q.end) {
+        throw new Error("Termin-ID oder Zeit fehlt.");
+    }
+    const tz = String(q.timeZone || "Europe/Berlin");
+    const data = await m365Graph("/me/events/" + encodeURIComponent(id), "PATCH", {
+        start: { dateTime: q.start, timeZone: tz },
+        end: { dateTime: q.end, timeZone: tz }
+    }, true);
+    return { id: data.id || id, webLink: data.webLink || "" };
+}
+
+// Termin absagen: mit Teilnehmern per /cancel (Outlook verschickt die
+// Absage), sonst loeschen. Ein bereits fehlender Termin gilt als erledigt.
+async function m365DeleteEvent(q) {
+    const id = String((q && q.id) || "");
+    if (!id) {
+        throw new Error("Termin-ID fehlt.");
+    }
+    try {
+        if (q.cancel === true) {
+            await m365Graph("/me/events/" + encodeURIComponent(id) + "/cancel", "POST",
+                { comment: String(q.comment || "Termin abgesagt.") }, true);
+        } else {
+            await m365Graph("/me/events/" + encodeURIComponent(id), "DELETE", null, true);
+        }
+    } catch (err) {
+        if (/ErrorItemNotFound|404/.test(String(err && err.message))) {
+            return { ok: true, fehlte: true };
+        }
+        throw err;
+    }
+    return { ok: true };
 }
 
 async function m365Status() {
@@ -1695,6 +1768,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 sendResponse(Object.assign({ ok: true }, await m365CreateEvent(msg.event)));
             } else if (msg.type === "m365CalendarView") {
                 sendResponse(Object.assign({ ok: true }, await m365CalendarView(msg)));
+            } else if (msg.type === "m365GetSchedule") {
+                sendResponse(Object.assign({ ok: true }, await m365GetSchedule(msg)));
+            } else if (msg.type === "m365UpdateEvent") {
+                sendResponse(Object.assign({ ok: true }, await m365UpdateEvent(msg)));
+            } else if (msg.type === "m365DeleteEvent") {
+                sendResponse(Object.assign({ ok: true }, await m365DeleteEvent(msg)));
             } else if (msg.type === "m365OpenOptions") {
                 // Aus dem Ticket heraus zur Einrichtung springen (Anker = Abschnitt)
                 const anchor = /^[a-z0-9]+$/i.test(String(msg.anchor || "")) ? "#" + msg.anchor : "";

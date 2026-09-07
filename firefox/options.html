@@ -322,6 +322,17 @@
     <label for="m365ClientId">Client-ID (Anwendungs-ID der App-Registrierung)</label>
     <input type="text" id="m365ClientId" placeholder="00000000-0000-0000-0000-000000000000">
 
+    <label for="m365Kategorie">Outlook-Kategorie für Ticket-Termine (leer = keine)</label>
+    <input type="text" id="m365Kategorie" placeholder="z. B. Kunde">
+    <div class="hint">Muss als Kategorie in Outlook existieren, damit die Farbe erscheint; sonst legt Outlook sie ohne Farbe an.</div>
+
+    <label for="m365ErinnerungMin">Erinnerung vor dem Termin (Minuten)</label>
+    <input type="number" id="m365ErinnerungMin" min="0" step="5" style="width:140px">
+
+    <label for="m365Kollegen">Kollegen für die Verfügbarkeitsansicht (je Zeile „Name = E-Mail“)</label>
+    <textarea id="m365Kollegen" placeholder="Max Mustermann = max.mustermann@firma.de&#10;Erika Beispiel = erika.beispiel@firma.de"></textarea>
+    <div class="hint">Erscheint im Termin-Fenster als Auswahl über dem Kalender: Frei/Belegt des Kollegen wird angezeigt, der Termin kann ihm als Einladung zugestellt werden. Der Termin selbst entsteht immer im eigenen Kalender. Kommt normalerweise per Settings-Import.</div>
+
     <div class="hint">Rücksprungadresse dieses Browsers für die App-Registrierung: <code id="m365Redirect">–</code><br>Sie hängt an der Erweiterungs-ID und ist je Browser verschieden (Chrome/Edge/Brave gleich bei Store-Installation; Firefox eigene Adresse). Alle benötigten Adressen in der App-Registrierung unter „Single-Page Application“ eintragen.</div>
 
     <div class="toolbar">
