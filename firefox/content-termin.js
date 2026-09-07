@@ -1,5 +1,5 @@
 // Version
-// version = "1.17.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.17.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -2257,9 +2257,9 @@
     // /me/calendarView als graue Bloecke, gewaehlter Termin farbig, Klick
     // in eine freie Stelle setzt Datum + Uhrzeit. Nur aktiv, wenn die
     // M365-Verbindung steht - sonst bleibt das Fenster wie bisher.
-    const CAL_START_H = 7;
-    const CAL_END_H = 19;
-    const CAL_HOUR_PX = 26;
+    const CAL_START_H = 6;
+    const CAL_END_H = 22;
+    const CAL_HOUR_PX = 24;
     const CAL_TAGE = ["Mo", "Di", "Mi", "Do", "Fr"];
 
     function localTz() {
@@ -2291,12 +2291,17 @@
         prev.textContent = "‹";
         prev.title = "Vorwoche";
         const label = document.createElement("span");
+        const todayBtn = document.createElement("button");
+        todayBtn.type = "button";
+        todayBtn.textContent = "Heute";
+        todayBtn.title = "Zur aktuellen Woche";
         const next = document.createElement("button");
         next.type = "button";
         next.textContent = "›";
         next.title = "Folgewoche";
         head.appendChild(prev);
         head.appendChild(label);
+        head.appendChild(todayBtn);
         head.appendChild(next);
         container.appendChild(head);
 
@@ -2376,7 +2381,19 @@
             const events = cache[dateKey(weekMonday)] || [];
             const sel = selectedStart();
             const selEnd = sel ? new Date(sel.getTime() + selectedDurMin() * 60000) : null;
-            const today = dateKey(new Date());
+            const now = new Date();
+            const today = dateKey(now);
+            // Ueberschneidung des geplanten Termins mit eigenen Terminen melden
+            const konflikte = (sel && selEnd)
+                ? events.filter((ev) => ev.start < selEnd && ev.end > sel).map((ev) => ev.subject || "(ohne Betreff)")
+                : [];
+            if (konflikte.length > 0) {
+                info.textContent = "Überschneidung: " + konflikte.slice(0, 3).join(", ") + (konflikte.length > 3 ? " …" : "");
+                info.classList.add("tt-cal-conflict");
+            } else if (info.classList.contains("tt-cal-conflict")) {
+                info.textContent = "";
+                info.classList.remove("tt-cal-conflict");
+            }
 
             for (let i = 0; i < 5; i++) {
                 const day = new Date(weekMonday.getTime() + i * 86400000);
@@ -2433,6 +2450,16 @@
                         body.appendChild(b);
                     }
                 }
+                // aktuelle Uhrzeit als Linie (nur heute)
+                if (dateKey(day) === today) {
+                    const nowMin = now.getHours() * 60 + now.getMinutes();
+                    if (nowMin >= CAL_START_H * 60 && nowMin <= CAL_END_H * 60) {
+                        const line = document.createElement("div");
+                        line.className = "tt-cal-now";
+                        line.style.top = minutesToTop(nowMin) + "px";
+                        body.appendChild(line);
+                    }
+                }
                 body.addEventListener("click", (evt) => {
                     if (evt.target.classList.contains("tt-cal-ev")) {
                         return; // belegte Zeit: kein Setzen
@@ -2487,6 +2514,7 @@
                         .filter((e) => e.start && e.end);
                     if (dateKey(weekMonday) === key) {
                         info.textContent = cache[key].length === 0 ? "Keine eigenen Termine in dieser Woche." : "";
+                        info.classList.remove("tt-cal-conflict");
                         render();
                     }
                 });
@@ -2501,6 +2529,7 @@
         }
 
         prev.addEventListener("click", () => goto(new Date(weekMonday.getTime() - 7 * 86400000)));
+        todayBtn.addEventListener("click", () => goto(new Date()));
         next.addEventListener("click", () => goto(new Date(weekMonday.getTime() + 7 * 86400000)));
 
         // Formularaenderungen spiegeln: anderer Tag -> ggf. andere Woche

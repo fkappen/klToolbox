@@ -1,4 +1,4 @@
-/* Version 2.8.0 - 2026-09-07 - FK
+/* Version 2.8.1 - 2026-09-07 - FK
    Neutrale Farben via CSS-Variablen; Branding kommt per Settings-Import
    Panels der Module Ticket-Vorlagen und Ticket-Termin (Ticketsystem) */
 
@@ -601,4 +601,33 @@ a.__tt_code_link:hover {
     margin-left: 6px;
     padding: 3px 9px !important;
     font-size: 12px;
+}
+
+/* Checkboxen im Panel: nicht wie Textfelder auf 32 px strecken */
+#__tt_panel .tt-row input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px !important;
+    min-height: 0 !important;
+    padding: 0;
+    margin: 0;
+    accent-color: var(--klt-p, #46626F);
+}
+
+#__tt_panel .tt-time-wrap {
+    align-items: center;
+}
+
+#__tt_panel .tt-cal-now {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px solid #b3261e;
+    pointer-events: none;
+    z-index: 1;
+}
+
+#__tt_panel .tt-cal-info.tt-cal-conflict {
+    color: #b3261e;
+    font-weight: 600;
 }
