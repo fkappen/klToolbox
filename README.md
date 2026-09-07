@@ -76,3 +76,21 @@ Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
    signierte .xpi als `kl-toolbox-firefox-v<ver>.xpi` nach `dist/` legen
 4. `Build-All.ps1` erneut → .xpi wandert nach `releases/`, `updates.json` wird erzeugt
 5. Committen und pushen — das Repo muss öffentlich bleiben (Firefox-Update-Check ist anonym)
+
+## Datenquellen der Anrede-Erkennung
+
+`chromium/vornamen-data.js` (rund 10.000 Vornamen mit Geschlechtszuordnung) ist aus amtlichen, offen lizenzierten Vornamen-Statistiken generiert. Ein Name gilt nur als weiblich bzw. maennlich, wenn er in den Quellen zu mindestens 92 % so vergeben wird; alle anderen werden bewusst neutral behandelt.
+
+| Quelle | Datensatz | Lizenz |
+|---|---|---|
+| Bundesamt fuer Statistik (CH) | Vornamen der Bevoelkerung nach Geschlecht, 2025 | Quellenangabe (BFS) |
+| Statbel (BE) | Voornamen van de totale bevolking, 2026 | CC BY 4.0 |
+| Ministerstwo Cyfryzacji (PL) | Imiona w rejestrze PESEL, osoby zyjace, 2026 | CC0 1.0 |
+| Statistik Austria (AT) | Vornamen der Geborenen 1984-2025 | CC BY 4.0 |
+| Insee (FR) | Fichier des prenoms, 2025 | Licence Ouverte 2.0 |
+| Amt fuer Statistik Berlin-Brandenburg / LABO (DE) | Haeufige Vornamen Berlin 2012-2023 | CC BY 3.0 DE |
+| Stadt Koeln (DE) | Vornamenstatistik 2019-2023 | dl-de/zero-2-0 |
+| Statistiska centralbyran (SE) | Namn med minst tva barare, Tilltalsnamn 2022 | CC0 |
+| Office for National Statistics (UK) | Baby names in England and Wales, 2025 | OGL v3.0 |
+
+Die Namen liegen normalisiert vor (klein, ae/oe/ue/ss, ohne Akzente, erster Bestandteil bei Doppelnamen); die Quelldaten selbst sind nicht Teil des Repos.

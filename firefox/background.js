@@ -1,5 +1,5 @@
 // Version
-// version = "1.4.0"
+// version = "1.4.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -414,7 +414,8 @@ async function syncTicketContentScripts() {
         const desired = {
             id: TICKET_SCRIPT_ID,
             matches: [match],
-            js: ["content-vorlagen.js", "content-termin.js"],
+            // vornamen-data.js zuerst: stellt KL_VORNAMEN fuer die Anrede bereit
+            js: ["vornamen-data.js", "content-vorlagen.js", "content-termin.js"],
             css: ["content.css"],
             allFrames: true,
             runAt: "document_idle",
