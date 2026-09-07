@@ -1,6 +1,6 @@
 // Version
-// version = "2.0.0"
-// datum   = "2026-08-13"
+// version = "2.1.0"
+// datum   = "2026-09-07"
 // autor   = "FK"
 //
 // Kombinierte Options-Seite: KI-Umformulierer, Ticket-Termin, Ticket-Vorlagen.
@@ -160,6 +160,81 @@ function saveAmpel() {
     chrome.storage.local.set(out, () => {
         fillAmpel(out);
         flashStatus("statusAmpel");
+    });
+}
+
+// ---------------------------------------------------------------- Microsoft 365
+// Tenant + Client-ID der Entra-App-Registrierung (kommen per Import).
+// Tokens (m365Auth) verwaltet der Hintergrund-Dienst; sie sind persoenlich
+// und werden NICHT exportiert.
+const M365_DEFAULTS = {
+    m365Tenant: "",
+    m365ClientId: ""
+};
+
+function saveM365() {
+    chrome.storage.local.set({
+        m365Tenant: document.getElementById("m365Tenant").value.trim(),
+        m365ClientId: document.getElementById("m365ClientId").value.trim()
+    }, () => {
+        flashStatus("statusM365");
+        renderM365State();
+    });
+}
+
+function renderM365State() {
+    const el = document.getElementById("m365State");
+    chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
+        if (chrome.runtime.lastError || !st || !st.ok) {
+            el.textContent = "Status nicht abrufbar.";
+            return;
+        }
+        document.getElementById("m365Redirect").textContent = st.redirectUrl || "(identity-API nicht verfügbar)";
+        if (!st.identity) {
+            el.textContent = "✗ Dieser Browser stellt die identity-API nicht bereit - Microsoft 365 direkt ist hier nicht möglich.";
+        } else if (!st.configured) {
+            el.textContent = "✗ Nicht eingerichtet: Tenant und Client-ID eintragen (oder Einstellungen importieren) und speichern.";
+        } else if (!st.connected) {
+            el.textContent = "✗ Nicht verbunden - „Verbinden“ klicken (Microsoft-Anmeldung im Popup).";
+        } else {
+            const acc = st.account || {};
+            el.textContent = "✓ Verbunden als " + (acc.name ? acc.name + " (" + acc.upn + ")" : (acc.upn || "unbekanntes Konto")) +
+                (st.seit ? " - seit " + new Date(st.seit).toLocaleString("de-DE") : "") +
+                (st.permission ? "" : " - Achtung: Host-Zugriff fehlt, bitte erneut „Verbinden“.");
+        }
+    });
+}
+
+// Verbinden: erst die optionalen Host-Berechtigungen (Nutzer-Klick noetig),
+// dann die Anmeldung im Hintergrund-Dienst.
+function m365Connect() {
+    const btn = document.getElementById("m365Connect");
+    btn.disabled = true;
+    const origins = ["https://login.microsoftonline.com/*", "https://graph.microsoft.com/*"];
+    chrome.permissions.request({ origins: origins }, (granted) => {
+        if (chrome.runtime.lastError || !granted) {
+            btn.disabled = false;
+            alert("Ohne Zugriff auf login.microsoftonline.com und graph.microsoft.com ist keine Verbindung möglich.");
+            return;
+        }
+        chrome.runtime.sendMessage({ type: "m365Login" }, (res) => {
+            btn.disabled = false;
+            const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+            if (err) {
+                alert("Anmeldung fehlgeschlagen:\n\n" + err);
+            } else {
+                flashStatus("statusM365");
+            }
+            renderM365State();
+            renderStatus();
+        });
+    });
+}
+
+function m365Disconnect() {
+    chrome.runtime.sendMessage({ type: "m365Logout" }, () => {
+        renderM365State();
+        renderStatus();
     });
 }
 
@@ -329,7 +404,7 @@ let entryTemplates = [];
 // ---------------------------------------------------------------- Laden
 
 function loadAll() {
-    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, NAMEN_DEFAULTS, {
+    chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, NAMEN_DEFAULTS, M365_DEFAULTS, {
         sidebarMode: false,
         defaultSearch: "datev",
         templates: [],
@@ -344,6 +419,10 @@ function loadAll() {
         for (const key of Object.keys(NAMEN_DEFAULTS)) {
             document.getElementById(key).value = items[key] || "";
         }
+        for (const key of Object.keys(M365_DEFAULTS)) {
+            document.getElementById(key).value = items[key] || "";
+        }
+        renderM365State();
         kiActions = Array.isArray(items.customKiActions) ? items.customKiActions : [];
         renderKiActions();
         makros = Array.isArray(items.makros) ? items.makros : [];
@@ -859,6 +938,19 @@ function finishStatus(list, row, s) {
     } catch (err) {
         row(true, "GPO-Vorgaben: keine");
     }
+    chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
+        if (chrome.runtime.lastError || !st || !st.ok) {
+            return;
+        }
+        if (!st.configured) {
+            row(true, "Microsoft 365: nicht eingerichtet (optional - Termine dann per ICS/Outlook Web)");
+        } else {
+            row(st.connected && st.permission, "Microsoft 365",
+                st.connected && st.permission
+                    ? "verbunden als " + ((st.account && st.account.upn) || "?")
+                    : "nicht verbunden (Optionen → Microsoft 365 → Verbinden)");
+        }
+    });
 }
 
 // ---------------------------------------------------------------- Termin
@@ -1141,6 +1233,9 @@ function saveSections() {
 
 function exportAllSettings() {
     chrome.storage.local.get(null, (items) => {
+        // Persoenliche Anmeldetokens gehoeren nicht in eine Sicherung, die
+        // an Kollegen weitergegeben wird
+        delete items.m365Auth;
         const payload = {
             _extension: "klToolbox",
             _exportiert: new Date().toISOString(),
@@ -1229,6 +1324,8 @@ function importAllSettings(file, mode) {
             if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
                 throw new Error("JSON muss ein Einstellungs-Objekt sein.");
             }
+            // Fremde Anmeldetokens niemals uebernehmen
+            delete settings.m365Auth;
             const keys = Object.keys(settings).join(", ");
             if (mode === "replace") {
                 if (!confirm("ÜBERSCHREIBEN: Sämtliche vorhandenen Einstellungen werden GELÖSCHT und durch den Dateiinhalt ersetzt.\n\nNicht in der Datei enthaltene Einstellungen (z. B. API-Keys) gehen dabei verloren!\n\nDie Datei enthält:\n" + keys + "\n\nWirklich fortfahren?")) {
@@ -1270,6 +1367,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("saveAmpel").addEventListener("click", saveAmpel);
     document.getElementById("saveNamen").addEventListener("click", saveNamen);
     document.getElementById("saveKiBew").addEventListener("click", saveKiBewertung);
+    document.getElementById("saveM365").addEventListener("click", saveM365);
+    document.getElementById("m365Connect").addEventListener("click", m365Connect);
+    document.getElementById("m365Disconnect").addEventListener("click", m365Disconnect);
     document.getElementById("resetAmpel").addEventListener("click", resetAmpel);
     for (const [key] of AMPEL_STUFEN) {
         document.getElementById(key).addEventListener("input", renderAmpelPreview);

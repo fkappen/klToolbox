@@ -311,6 +311,27 @@
         <button id="saveTermin" class="primary">Termin-Einstellungen speichern</button><span id="statusTermin" class="status"></span>
     </div>
 
+    <!-- ================================================== Microsoft 365 -->
+    <h2>Microsoft 365 (Termin direkt in Outlook)</h2>
+    <p class="hint">Legt den Ticket-Termin direkt im <b>eigenen</b> Outlook-Kalender an — ohne ICS-Datei und ohne Outlook-Web-Tab. Die Anmeldung läuft über die bestehende Microsoft-Sitzung des Browsers; jeder Nutzer sieht und schreibt ausschließlich seinen eigenen Kalender. Bei Teams-Terminen wird automatisch ein Teams-Link erzeugt, „Mit Vorbehalt“ wird direkt übernommen, und auf Wunsch lädt Outlook den Ansprechpartner ein.</p>
+    <p class="hint">Voraussetzung ist eine App-Registrierung in Entra ID (Plattform <b>Single-Page Application</b>, delegierte Berechtigung <code>Calendars.ReadWrite</code>, Rücksprungadresse siehe unten). Tenant und Client-ID kommen normalerweise per Settings-Import.</p>
+
+    <label for="m365Tenant">Tenant (ID oder Domäne, z. B. firma.onmicrosoft.com)</label>
+    <input type="text" id="m365Tenant" placeholder="00000000-0000-0000-0000-000000000000">
+
+    <label for="m365ClientId">Client-ID (Anwendungs-ID der App-Registrierung)</label>
+    <input type="text" id="m365ClientId" placeholder="00000000-0000-0000-0000-000000000000">
+
+    <div class="hint">Rücksprungadresse dieses Browsers für die App-Registrierung: <code id="m365Redirect">–</code><br>Sie hängt an der Erweiterungs-ID und ist je Browser verschieden (Chrome/Edge/Brave gleich bei Store-Installation; Firefox eigene Adresse). Alle benötigten Adressen in der App-Registrierung unter „Single-Page Application“ eintragen.</div>
+
+    <div class="toolbar">
+        <button id="saveM365" class="primary">Speichern</button>
+        <button id="m365Connect" class="secondary">Verbinden</button>
+        <button id="m365Disconnect" class="secondary">Trennen</button>
+        <span id="statusM365" class="status"></span>
+    </div>
+    <div id="m365State" class="hint"></div>
+
     <!-- ================================================== Wartezeit-Ampel -->
     <h2>Wartezeit-Ampel</h2>
     <p class="hint">Farbe der Wartezeit-Anzeige im Ticket und in der Ticketliste. Vier Stufen: bis zum ersten Wert grün, dann gelb, dann rot, darüber lila. Tickets mit Priorität <b>„hoch“</b> werden in <b>Minuten</b> gemessen, alle übrigen in <b>Tagen</b>.</p>

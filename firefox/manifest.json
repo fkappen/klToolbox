@@ -1,7 +1,7 @@
 ﻿{
     "manifest_version": 3,
     "name": "klToolbox",
-    "version": "3.27.0",
+    "version": "3.28.0",
     "description": "Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.",
     "author": "FK",
     "browser_specific_settings": {
@@ -19,7 +19,8 @@
         "storage",
         "scripting",
         "activeTab",
-        "clipboardWrite"
+        "clipboardWrite",
+        "identity"
     ],
     "host_permissions": [
         "https://api.anthropic.com/*",

@@ -1,6 +1,6 @@
 // Version
-// version = "1.3.1"
-// datum   = "2026-08-17"
+// version = "1.4.0"
+// datum   = "2026-09-07"
 // autor   = "FK"
 //
 // Service Worker: Kontextmenü, API-Aufrufe (Claude/OpenAI), Ergebnis-Injection.
@@ -1326,3 +1326,352 @@ if (chrome.omnibox) {
         chrome.tabs.create({ url: tpl.replace(/%SUCHE%/g, encodeURIComponent(term)) });
     }
 }
+
+// ---------------------------------------------------------------- Microsoft 365 (Graph)
+// Termin direkt in den EIGENEN Outlook-Kalender des angemeldeten Benutzers:
+// OAuth2 Auth-Code + PKCE ueber identity.launchWebAuthFlow (nutzt die
+// bestehende Browser-Anmeldung bei Microsoft), Tokens in storage.local.
+// Delegierte Berechtigung Calendars.ReadWrite = nur der Kalender des
+// jeweils angemeldeten Kontos - kein Zugriff auf fremde Kalender.
+// Die App-Registrierung (Tenant + Client-ID) kommt per Settings-Import;
+// Plattformtyp muss "Single-Page Application" sein, weil der Browser beim
+// Token-Abruf einen Origin-Header mitsendet (Entra verlangt dann SPA).
+// SPA-Refresh-Tokens laufen nach 24 h ab - danach stille Neuanmeldung
+// (prompt=none) ueber die Browser-Sitzung, erst zuletzt interaktiv.
+
+const M365_SCOPES = "openid profile offline_access https://graph.microsoft.com/Calendars.ReadWrite";
+const M365_ORIGINS = ["https://login.microsoftonline.com/*", "https://graph.microsoft.com/*"];
+
+function m365Storage(keys) {
+    return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+}
+
+function m365StorageSet(obj) {
+    return new Promise((resolve) => chrome.storage.local.set(obj, resolve));
+}
+
+function m365RedirectUrl() {
+    if (!chrome.identity || typeof chrome.identity.getRedirectURL !== "function") {
+        return "";
+    }
+    return chrome.identity.getRedirectURL();
+}
+
+async function m365Config() {
+    const s = await m365Storage({ m365Tenant: "", m365ClientId: "" });
+    return {
+        tenant: String(s.m365Tenant || "").trim(),
+        clientId: String(s.m365ClientId || "").trim()
+    };
+}
+
+function b64url(bytes) {
+    let bin = "";
+    for (const b of new Uint8Array(bytes)) {
+        bin += String.fromCharCode(b);
+    }
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function m365Pkce() {
+    const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+    return { verifier: verifier, challenge: b64url(digest) };
+}
+
+// identity.launchWebAuthFlow: Chrome per Callback, Firefox liefert ein
+// Promise - beides abgedeckt.
+function m365LaunchAuth(url, interactive) {
+    return new Promise((resolve, reject) => {
+        if (!chrome.identity || typeof chrome.identity.launchWebAuthFlow !== "function") {
+            reject(new Error("Die identity-API steht in diesem Browser nicht zur Verfügung."));
+            return;
+        }
+        try {
+            const ret = chrome.identity.launchWebAuthFlow({ url: url, interactive: interactive === true }, (redirect) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message || "Anmeldung abgebrochen."));
+                    return;
+                }
+                if (!redirect) {
+                    reject(new Error("Anmeldung abgebrochen."));
+                    return;
+                }
+                resolve(redirect);
+            });
+            if (ret && typeof ret.then === "function") {
+                ret.then((redirect) => {
+                    if (!redirect) {
+                        reject(new Error("Anmeldung abgebrochen."));
+                        return;
+                    }
+                    resolve(redirect);
+                }, reject);
+            }
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+// Nur die Anzeige-Claims des ID-Tokens (Name, Konto) - keine Validierung,
+// keine Autorisierung daraus.
+function m365ParseIdToken(idToken) {
+    try {
+        const part = String(idToken || "").split(".")[1];
+        if (!part) {
+            return null;
+        }
+        const padded = part.replace(/-/g, "+").replace(/_/g, "/") + "===".slice(0, (4 - part.length % 4) % 4);
+        const c = JSON.parse(atob(padded));
+        return { name: c.name || "", upn: c.preferred_username || "", tid: c.tid || "" };
+    } catch (err) {
+        console.warn("klToolbox M365: ID-Token nicht lesbar:", err);
+        return null;
+    }
+}
+
+async function m365TokenRequest(cfg, params) {
+    const body = new URLSearchParams(Object.assign({ client_id: cfg.clientId, scope: M365_SCOPES }, params));
+    const res = await fetch("https://login.microsoftonline.com/" + encodeURIComponent(cfg.tenant) + "/oauth2/v2.0/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString()
+    });
+    let data = {};
+    try {
+        data = await res.json();
+    } catch (err) {
+        data = {};
+    }
+    if (!res.ok || !data.access_token) {
+        const desc = String(data.error_description || data.error || ("HTTP " + res.status)).split("\r\n")[0];
+        const e = new Error(desc);
+        e.oauthError = data.error || "";
+        throw e;
+    }
+    const prev = (await m365Storage({ m365Auth: null })).m365Auth || {};
+    const auth = {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token || prev.refreshToken || "",
+        expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 - 60000,
+        account: m365ParseIdToken(data.id_token) || prev.account || null,
+        seit: prev.seit || new Date().toISOString()
+    };
+    await m365StorageSet({ m365Auth: auth });
+    return auth;
+}
+
+// interactive=true: Login-Fenster (mit forcePicker Kontoauswahl).
+// interactive=false: prompt=none - klappt nur mit bestehender Browser-Sitzung.
+async function m365Authorize(cfg, interactive, loginHint, forcePicker) {
+    const redirect = m365RedirectUrl();
+    if (!redirect) {
+        throw new Error("Die identity-API steht in diesem Browser nicht zur Verfügung.");
+    }
+    const pk = await m365Pkce();
+    const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
+    const p = new URLSearchParams({
+        client_id: cfg.clientId,
+        response_type: "code",
+        redirect_uri: redirect,
+        response_mode: "query",
+        scope: M365_SCOPES,
+        state: state,
+        code_challenge: pk.challenge,
+        code_challenge_method: "S256"
+    });
+    if (!interactive) {
+        p.set("prompt", "none");
+    } else if (forcePicker) {
+        p.set("prompt", "select_account");
+    }
+    if (loginHint) {
+        p.set("login_hint", loginHint);
+    }
+    const url = "https://login.microsoftonline.com/" + encodeURIComponent(cfg.tenant) + "/oauth2/v2.0/authorize?" + p.toString();
+    const back = await m365LaunchAuth(url, interactive);
+    const q = new URL(back).searchParams;
+    if (q.get("error")) {
+        const e = new Error(String(q.get("error_description") || q.get("error")).split("\r\n")[0]);
+        e.oauthError = q.get("error");
+        throw e;
+    }
+    if (q.get("state") !== state) {
+        throw new Error("Anmeldeantwort passt nicht zur Anfrage (state).");
+    }
+    const code = q.get("code");
+    if (!code) {
+        throw new Error("Kein Autorisierungscode erhalten.");
+    }
+    return m365TokenRequest(cfg, {
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: redirect,
+        code_verifier: pk.verifier
+    });
+}
+
+async function m365HostPermission() {
+    try {
+        return await chrome.permissions.contains({ origins: M365_ORIGINS });
+    } catch (err) {
+        console.warn("klToolbox M365: Berechtigungsprüfung fehlgeschlagen:", err);
+        return false;
+    }
+}
+
+// Gueltiges Access-Token: Cache -> Refresh -> stille Neuanmeldung ->
+// interaktiv (nur wenn erlaubt, z. B. nach Klick im Termin-Panel).
+async function m365AccessToken(allowInteractive) {
+    const cfg = await m365Config();
+    if (!cfg.tenant || !cfg.clientId) {
+        throw new Error("Microsoft 365 ist nicht eingerichtet (Optionen → Microsoft 365: Tenant und Client-ID).");
+    }
+    if (!(await m365HostPermission())) {
+        throw new Error("Zugriff auf login.microsoftonline.com/graph.microsoft.com fehlt - in den Optionen → Microsoft 365 „Verbinden“ klicken.");
+    }
+    let auth = (await m365Storage({ m365Auth: null })).m365Auth;
+    if (!auth) {
+        throw new Error("Nicht mit Microsoft 365 verbunden - in den Optionen → Microsoft 365 „Verbinden“ klicken.");
+    }
+    if (auth.accessToken && Number(auth.expiresAt) > Date.now()) {
+        return auth.accessToken;
+    }
+    const hint = auth.account && auth.account.upn ? auth.account.upn : "";
+    if (auth.refreshToken) {
+        try {
+            auth = await m365TokenRequest(cfg, { grant_type: "refresh_token", refresh_token: auth.refreshToken });
+            return auth.accessToken;
+        } catch (err) {
+            console.warn("klToolbox M365: Token-Refresh fehlgeschlagen (" + err.message + ") - stille Neuanmeldung.");
+        }
+    }
+    try {
+        auth = await m365Authorize(cfg, false, hint, false);
+        return auth.accessToken;
+    } catch (err) {
+        console.warn("klToolbox M365: stille Anmeldung fehlgeschlagen (" + err.message + ").");
+        if (!allowInteractive) {
+            throw new Error("Anmeldung abgelaufen - in den Optionen → Microsoft 365 erneut „Verbinden“ klicken.");
+        }
+    }
+    auth = await m365Authorize(cfg, true, hint, false);
+    return auth.accessToken;
+}
+
+async function m365Graph(path, method, body, allowInteractive) {
+    const token = await m365AccessToken(allowInteractive);
+    const res = await fetch("https://graph.microsoft.com/v1.0" + path, {
+        method: method || "GET",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: body ? JSON.stringify(body) : undefined
+    });
+    let data = {};
+    try {
+        data = await res.json();
+    } catch (err) {
+        data = {};
+    }
+    if (!res.ok) {
+        const msg = (data.error && data.error.message) ? data.error.message : ("HTTP " + res.status);
+        throw new Error("Microsoft Graph: " + msg);
+    }
+    return data;
+}
+
+// Terminobjekt aus dem Termin-Panel -> Graph-Event. Erwartet lokale
+// Zeiten ohne Offset ("2026-09-28T09:00:00") plus IANA-Zeitzone.
+function m365EventBody(ev) {
+    const body = {
+        subject: String(ev.subject || "Termin"),
+        body: { contentType: "text", content: String(ev.body || "") },
+        start: { dateTime: ev.start, timeZone: ev.timeZone || "Europe/Berlin" },
+        end: { dateTime: ev.end, timeZone: ev.timeZone || "Europe/Berlin" },
+        showAs: ev.tentative === true ? "tentative" : "busy",
+        reminderMinutesBeforeStart: Number.isFinite(Number(ev.reminderMin)) ? Number(ev.reminderMin) : 15
+    };
+    if (ev.location) {
+        body.location = { displayName: String(ev.location) };
+    }
+    if (Array.isArray(ev.categories) && ev.categories.length > 0) {
+        body.categories = ev.categories.map(String);
+    }
+    if (ev.teams === true) {
+        body.isOnlineMeeting = true;
+        body.onlineMeetingProvider = "teamsForBusiness";
+    }
+    const attendees = (Array.isArray(ev.attendees) ? ev.attendees : [])
+        .filter((a) => a && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(a.address || "")))
+        .map((a) => ({ emailAddress: { address: String(a.address), name: String(a.name || a.address) }, type: "required" }));
+    if (attendees.length > 0) {
+        body.attendees = attendees;
+    }
+    return body;
+}
+
+async function m365CreateEvent(ev) {
+    if (!ev || !ev.start || !ev.end) {
+        throw new Error("Termin ohne Start/Ende.");
+    }
+    const created = await m365Graph("/me/events", "POST", m365EventBody(ev), true);
+    return {
+        id: created.id || "",
+        webLink: created.webLink || "",
+        joinUrl: (created.onlineMeeting && created.onlineMeeting.joinUrl) ? created.onlineMeeting.joinUrl : ""
+    };
+}
+
+async function m365Status() {
+    const cfg = await m365Config();
+    const auth = (await m365Storage({ m365Auth: null })).m365Auth;
+    return {
+        ok: true,
+        configured: !!(cfg.tenant && cfg.clientId),
+        permission: await m365HostPermission(),
+        connected: !!(auth && (auth.refreshToken || (auth.accessToken && Number(auth.expiresAt) > Date.now()))),
+        account: auth && auth.account ? auth.account : null,
+        seit: auth && auth.seit ? auth.seit : "",
+        redirectUrl: m365RedirectUrl(),
+        identity: !!(chrome.identity && typeof chrome.identity.launchWebAuthFlow === "function")
+    };
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!msg || typeof msg.type !== "string" || msg.type.indexOf("m365") !== 0) {
+        return false;
+    }
+    (async () => {
+        try {
+            if (msg.type === "m365Status") {
+                sendResponse(await m365Status());
+            } else if (msg.type === "m365Login") {
+                const cfg = await m365Config();
+                if (!cfg.tenant || !cfg.clientId) {
+                    throw new Error("Bitte zuerst Tenant und Client-ID speichern.");
+                }
+                if (!(await m365HostPermission())) {
+                    throw new Error("Zugriff auf login.microsoftonline.com und graph.microsoft.com wurde nicht erteilt.");
+                }
+                await m365StorageSet({ m365Auth: null });
+                const auth = await m365Authorize(cfg, true, "", true);
+                sendResponse({ ok: true, account: auth.account });
+            } else if (msg.type === "m365Logout") {
+                await chrome.storage.local.remove("m365Auth");
+                sendResponse({ ok: true });
+            } else if (msg.type === "m365CreateEvent") {
+                sendResponse(Object.assign({ ok: true }, await m365CreateEvent(msg.event)));
+            } else {
+                sendResponse({ ok: false, error: "Unbekannte Anfrage: " + msg.type });
+            }
+        } catch (err) {
+            console.warn("klToolbox M365 (" + msg.type + "):", err);
+            sendResponse({ ok: false, error: (err && err.message) ? err.message : String(err) });
+        }
+    })();
+    return true;
+});

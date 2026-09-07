@@ -1,11 +1,11 @@
 // Version
-// version = "1.15.0"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-08-20"
+// version = "1.16.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-09-07"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
 // aus der Ticketansicht und erstellt daraus einen Outlook-Termin
-// (ICS-Download fuer Outlook Desktop oder Outlook-Web-Deeplink).
+// (ICS-Download fuer Outlook Desktop, Outlook-Web-Deeplink oder direkt per Microsoft Graph).
 //
 // Extraktion bewusst ueber stabile Merkmale (Label-Texte, Wertemuster) statt
 // nur ueber generierte css-*-Klassen - siehe README.
@@ -462,7 +462,9 @@
     // Statuswechsel nach dem Anlegen des Termins - zusaetzlich wird der
     // vereinbarte Zeitpunkt als Eintragstext dokumentiert, damit im Ticket
     // steht, WANN der Termin ist (Vorlage: terminEintragText).
-    async function setStatusTerminVereinbart(startDt, artLabel, durMin) {
+    // teamsLink (optional, nur Microsoft 365): Platzhalter %TEAMSLINK% in der
+    // Vorlage, sonst als eigene Zeile angehaengt.
+    async function setStatusTerminVereinbart(startDt, artLabel, durMin, teamsLink) {
         try {
             const form = findEntryForm();
             if (!form) {
@@ -481,14 +483,19 @@
                     ? (durMin % 60 === 0 ? (durMin / 60) + " Std" : durMin + " Min")
                     : "";
                 const tpl = settings.terminEintragText || DEFAULTS.terminEintragText;
-                const text = tpl
+                const link = String(teamsLink || "").trim();
+                let text = tpl
                     .replace(/%DATUM%/g, datum)
                     .replace(/%ZEIT%/g, zeit)
                     .replace(/%ART%/g, artLabel || "")
                     .replace(/%DAUER%/g, dauer)
+                    .replace(/%TEAMSLINK%/g, link)
                     .replace(/\s*\(\s*\)/g, "")     // leere Klammern, falls Art/Dauer fehlen
                     .replace(/[ \t]{2,}/g, " ")
                     .trim();
+                if (link && !/%TEAMSLINK%/.test(tpl) && text) {
+                    text += "\nTeams-Link: " + link;
+                }
                 if (text) {
                     await pasteIntoEntryForm(form, text);
                     textOk = true;
@@ -2002,6 +2009,12 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }
 
+    // Graph erwartet lokale Zeit ohne Offset; die Zeitzone geht separat mit.
+    function toGraphLocal(dt) {
+        return dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate()) +
+            "T" + pad(dt.getHours()) + ":" + pad(dt.getMinutes()) + ":00";
+    }
+
     function openOutlookWeb(subject, body, start, end, ort) {
         // OWA verschluckt \n im body-Parameter - CRLF bleibt (meist) erhalten
         const bodyCrlf = body.replace(/\r?\n/g, "\r\n");
@@ -2456,8 +2469,8 @@
         syncAddrRow();
         artSelect.addEventListener("change", syncAddrRow);
 
-        // Frei/Gebucht "Mit Vorbehalt" (nur ICS - der Outlook-Web-Link
-        // unterstuetzt den Frei/Gebucht-Status nicht)
+        // Frei/Gebucht "Mit Vorbehalt" (ICS und Microsoft 365 - der
+        // Outlook-Web-Link unterstuetzt den Frei/Gebucht-Status nicht)
         const vbRow = document.createElement("div");
         vbRow.className = "tt-row";
         const vbLabel = document.createElement("label");
@@ -2468,17 +2481,64 @@
         const vbCheck = document.createElement("input");
         vbCheck.type = "checkbox";
         vbCheck.id = "tt_vb";
-        vbCheck.title = "Termin als „Mit Vorbehalt“ anlegen (wirkt nur bei der ICS-Datei - in Outlook Web bitte manuell setzen)";
+        vbCheck.title = "Termin als „Mit Vorbehalt“ anlegen (wirkt bei ICS und Microsoft 365 - in Outlook Web bitte manuell setzen)";
         const vbText = document.createElement("span");
-        vbText.textContent = "als „Mit Vorbehalt“ anlegen (nur ICS)";
+        vbText.textContent = "als „Mit Vorbehalt“ anlegen (ICS, Microsoft 365)";
         vbWrap.appendChild(vbCheck);
         vbWrap.appendChild(vbText);
         vbRow.appendChild(vbLabel);
         vbRow.appendChild(vbWrap);
         panel.appendChild(vbRow);
 
+        // Kunden einladen (nur Microsoft 365): Outlook verschickt dann die
+        // Einladung an den Ansprechpartner - bewusst standardmaessig AUS,
+        // weil eine Einladung nach aussen geht.
+        const invRow = document.createElement("div");
+        invRow.className = "tt-row";
+        invRow.style.display = "none";
+        const invLabel = document.createElement("label");
+        invLabel.textContent = "Einladung";
+        invLabel.setAttribute("for", "tt_inv");
+        const invWrap = document.createElement("div");
+        invWrap.className = "tt-time-wrap";
+        const invCheck = document.createElement("input");
+        invCheck.type = "checkbox";
+        invCheck.id = "tt_inv";
+        invCheck.title = "Den Ansprechpartner als Teilnehmer eintragen - Outlook sendet ihm die Einladung (nur Microsoft 365)";
+        const invText = document.createElement("span");
+        invText.textContent = "Ansprechpartner einladen (E-Mail aus dem Formular, nur Microsoft 365)";
+        invWrap.appendChild(invCheck);
+        invWrap.appendChild(invText);
+        invRow.appendChild(invLabel);
+        invRow.appendChild(invWrap);
+        panel.appendChild(invRow);
+
         const bar = document.createElement("div");
         bar.className = "tt-bar";
+
+        // Microsoft 365 direkt (Graph): Knopf erscheint nur, wenn in den
+        // Optionen eingerichtet UND verbunden - sonst bleiben ICS/OWA.
+        const m365Btn = document.createElement("button");
+        m365Btn.type = "button";
+        m365Btn.className = "tt-primary";
+        m365Btn.textContent = "Outlook (Microsoft 365)";
+        m365Btn.title = "Termin direkt im eigenen Outlook-Kalender anlegen (ohne Datei, ohne neuen Tab)";
+        m365Btn.style.display = "none";
+        m365Btn.addEventListener("click", () => runCreate("m365"));
+        try {
+            chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
+                if (chrome.runtime.lastError || !st || !st.ok) {
+                    return;
+                }
+                if (st.configured && st.connected && st.permission) {
+                    m365Btn.style.display = "";
+                    m365Btn.title += st.account && st.account.upn ? " - Konto: " + st.account.upn : "";
+                    invRow.style.display = "";
+                }
+            });
+        } catch (err) {
+            console.warn("Ticket-Termin: M365-Status nicht abrufbar:", err);
+        }
 
         const icsBtn = document.createElement("button");
         icsBtn.type = "button";
@@ -2498,6 +2558,7 @@
         closeBtn.textContent = "Abbrechen";
         closeBtn.addEventListener("click", closePanel);
 
+        bar.appendChild(m365Btn);
         bar.appendChild(icsBtn);
         bar.appendChild(owaBtn);
         bar.appendChild(closeBtn);
@@ -2575,6 +2636,75 @@
                         ort: ort
                     };
                 }
+            }
+
+            if (mode === "m365") {
+                // Direkt in den eigenen Kalender (Graph, ueber den Hintergrund-
+                // Dienst). Anfahrt = zweites Event; Teams-Link kommt zurueck
+                // und wandert in den Ticket-Eintrag.
+                const tz = (() => {
+                    try {
+                        return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
+                    } catch (err) {
+                        return "Europe/Berlin";
+                    }
+                })();
+                const invite = document.getElementById("tt_inv").checked && d.email
+                    ? [{ address: d.email, name: d.ansprechpartner || d.email }]
+                    : [];
+                const ev = {
+                    subject: subject,
+                    body: body,
+                    start: toGraphLocal(startDt),
+                    end: toGraphLocal(endDt),
+                    timeZone: tz,
+                    location: ort,
+                    tentative: vorbehalt,
+                    teams: art === "teams",
+                    attendees: invite
+                };
+                const buttons = Array.from(bar.querySelectorAll("button"));
+                buttons.forEach((b) => { b.disabled = true; });
+                m365Btn.textContent = "Wird angelegt…";
+                chrome.runtime.sendMessage({ type: "m365CreateEvent", event: ev }, (res) => {
+                    const err = chrome.runtime.lastError
+                        ? chrome.runtime.lastError.message
+                        : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+                    if (err) {
+                        buttons.forEach((b) => { b.disabled = false; });
+                        m365Btn.textContent = "Outlook (Microsoft 365)";
+                        alert("Termin konnte nicht in Outlook angelegt werden:\n\n" + err +
+                            "\n\nAlternativ ICS oder Outlook Web verwenden.");
+                        return;
+                    }
+                    console.info("Ticket-Termin: Termin über Microsoft 365 angelegt" + (res.webLink ? " (" + res.webLink + ")" : "") + ".");
+                    if (anfahrt) {
+                        const anfEv = {
+                            subject: anfahrt.subject,
+                            body: anfahrt.body,
+                            start: toGraphLocal(anfahrt.start),
+                            end: toGraphLocal(anfahrt.end),
+                            timeZone: tz,
+                            location: anfahrt.ort,
+                            tentative: vorbehalt,
+                            teams: false,
+                            attendees: []
+                        };
+                        chrome.runtime.sendMessage({ type: "m365CreateEvent", event: anfEv }, (r2) => {
+                            const e2 = chrome.runtime.lastError
+                                ? chrome.runtime.lastError.message
+                                : (r2 && r2.ok ? "" : ((r2 && r2.error) || "keine Antwort"));
+                            if (e2) {
+                                alert("Der Haupttermin wurde angelegt, der Anfahrt-Termin nicht:\n\n" + e2);
+                            }
+                        });
+                    }
+                    closePanel();
+                    if (settings.autoStatus !== false) {
+                        setStatusTerminVereinbart(startDt, artText, durMin, res.joinUrl || "");
+                    }
+                });
+                return; // Panel bleibt bis zur Antwort offen
             }
 
             if (mode === "ics") {

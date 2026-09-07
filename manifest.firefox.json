@@ -19,7 +19,8 @@
         "storage",
         "scripting",
         "activeTab",
-        "clipboardWrite"
+        "clipboardWrite",
+        "identity"
     ],
     "host_permissions": [
         "https://api.anthropic.com/*",
