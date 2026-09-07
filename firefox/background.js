@@ -1,5 +1,5 @@
 // Version
-// version = "1.7.1"
+// version = "1.8.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1800,6 +1800,97 @@ async function m365CalendarPermissions() {
     return { personen: out };
 }
 
+// "Name = mail" je Zeile (auch nur "mail") -> [{name, mail}]
+function m365ParseKollegen(text) {
+    const out = [];
+    for (const line of String(text || "").split(/\r?\n/)) {
+        const t = line.trim();
+        if (!t) {
+            continue;
+        }
+        const m = /^(.*?)\s*=\s*([^\s@=]+@[^\s@=]+)$/.exec(t);
+        if (m) {
+            out.push({ name: m[1].trim() || m[2], mail: m[2] });
+        } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) {
+            out.push({ name: t, mail: t });
+        }
+    }
+    return out;
+}
+
+// Gesamtliste der Kollegen-Kalender fuer Termin-Panel UND Optionen:
+// Pflegeliste + in Outlook hinzugefuegte Freigaben (/me/calendars) +
+// Personen mit Rechten auf meinem Kalender (gegenseitige Ordnerrechte),
+// jeder Kandidat einzeln auf Zugriff geprueft. Ergebnis 12 h gecacht
+// (m365KollegenCache) - viele Einzelanfragen.
+async function m365Kollegen(q) {
+    const erzwingen = !!(q && q.erzwingen);
+    const st = await m365Storage({ m365Kollegen: "", m365KollegenCache: null });
+    const cache = st.m365KollegenCache;
+    if (!erzwingen && cache && Array.isArray(cache.items) && (Date.now() - Number(cache.ts)) < 12 * 3600000) {
+        return { items: cache.items, ts: cache.ts, cached: true };
+    }
+    const kollegen = m365ParseKollegen(st.m365Kollegen)
+        .map((k) => ({ name: k.name, mail: k.mail, canEdit: false, readable: false, quelle: "liste" }));
+    const finde = (mail) => kollegen.find((k) => k.mail.toLowerCase() === String(mail).toLowerCase());
+    const merge = (c, quelle, nurWennVorhanden) => {
+        const v = finde(c.mail);
+        if (v) {
+            v.canEdit = c.canEdit === true;
+            v.readable = c.readable === true || c.canEdit === true;
+            v.quelle = quelle;
+            if (c.name && v.name === v.mail) {
+                v.name = c.name;
+            }
+        } else if (!nurWennVorhanden) {
+            kollegen.push({ name: c.name || c.mail, mail: c.mail, canEdit: c.canEdit === true,
+                readable: c.readable === true || c.canEdit === true, quelle: quelle });
+        }
+    };
+    try {
+        for (const c of (await m365Calendars()).shared) {
+            merge({ mail: c.mail, name: c.name, canEdit: c.canEdit, readable: true }, "freigabe", false);
+        }
+    } catch (err) {
+        console.warn("klToolbox M365: freigegebene Kalender nicht abrufbar:", err);
+    }
+    const kandidaten = [];
+    try {
+        for (const p of (await m365CalendarPermissions()).personen) {
+            if (!finde(p.mail)) {
+                kandidaten.push({ name: p.name, mail: p.mail, liste: false });
+            }
+        }
+    } catch (err) {
+        console.warn("klToolbox M365: Kalenderberechtigungen nicht abrufbar:", err);
+    }
+    for (const k of kollegen) {
+        if (k.quelle === "liste") {
+            kandidaten.push({ name: k.name, mail: k.mail, liste: true });
+        }
+    }
+    const liste = kandidaten.slice(0, 60);
+    for (let i = 0; i < liste.length; i += 4) {
+        await Promise.all(liste.slice(i, i + 4).map(async (k) => {
+            let pr = { readable: false, canEdit: false, name: "" };
+            try {
+                pr = await m365ProbeCalendar({ mail: k.mail });
+            } catch (err) {
+                console.warn("klToolbox M365: Kalenderpruefung " + k.mail + ": " + err.message);
+            }
+            // Ohne Zugriff nur behalten, wer in der Pflegeliste steht
+            merge({ mail: k.mail, name: pr.name || k.name, readable: pr.readable, canEdit: pr.canEdit }, "geprueft",
+                !(pr.readable || pr.canEdit || k.liste));
+        }));
+    }
+    const items = kollegen
+        .map((k) => ({ mail: k.mail, name: k.name, canEdit: k.canEdit === true, readable: k.readable === true, quelle: k.quelle }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+    const ts = Date.now();
+    await m365StorageSet({ m365KollegenCache: { ts: ts, items: items } });
+    return { items: items, ts: ts, cached: false };
+}
+
 // Zugriff auf den Standardkalender eines bestimmten Kollegen pruefen
 // (auch fuer Freigaben, die nur per Ordnerberechtigung gesetzt wurden).
 async function m365ProbeCalendar(q) {
@@ -1864,6 +1955,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 sendResponse(Object.assign({ ok: true }, await m365Calendars()));
             } else if (msg.type === "m365CalendarPermissions") {
                 sendResponse(Object.assign({ ok: true }, await m365CalendarPermissions()));
+            } else if (msg.type === "m365Kollegen") {
+                sendResponse(Object.assign({ ok: true }, await m365Kollegen(msg)));
             } else if (msg.type === "m365ProbeCalendar") {
                 sendResponse(Object.assign({ ok: true }, await m365ProbeCalendar(msg)));
             } else if (msg.type === "m365UpdateEvent") {

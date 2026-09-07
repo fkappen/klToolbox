@@ -331,7 +331,15 @@
 
     <label for="m365Kollegen">Kollegen für die Verfügbarkeitsansicht (je Zeile „Name = E-Mail“)</label>
     <textarea id="m365Kollegen" placeholder="Max Mustermann = max.mustermann@firma.de&#10;Erika Beispiel = erika.beispiel@firma.de"></textarea>
-    <div class="hint">Erscheint im Termin-Fenster als Auswahl über dem Kalender: Frei/Belegt des Kollegen wird angezeigt, der Termin kann ihm als Einladung zugestellt werden. Der Termin selbst entsteht immer im eigenen Kalender. Kommt normalerweise per Settings-Import.</div>
+    <div class="hint">Ergänzt die automatisch gefundenen Kollegen (siehe Liste unten) um Personen ohne sichtbare Freigabe. Kommt normalerweise per Settings-Import.</div>
+
+    <label>Kollegen-Kalender (automatisch ermittelt)</label>
+    <div id="m365KolListe" class="hint">–</div>
+    <div class="toolbar">
+        <button id="m365KolReload" class="secondary">Kollegen neu ermitteln</button>
+        <span id="statusKol" class="status"></span>
+    </div>
+    <div class="hint">Haken = erscheint im Termin-Fenster in der Kalenderauswahl. <b>✎</b> Schreibrecht: der Termin wird direkt im Kalender des Kollegen angelegt. <b>👁</b> nur Leserecht: Termin bei dir, Kollege wird eingeladen. <b>○</b> keine Freigabe: nur Frei/Belegt sichtbar, Einladung. Quellen: in Outlook hinzugefügte Freigaben, gegenseitige Kalenderrechte und die Pflegeliste oben; das Ergebnis wird 12 Stunden zwischengespeichert.</div>
 
     <div class="hint">Rücksprungadresse dieses Browsers für die App-Registrierung: <code id="m365Redirect">–</code><br>Sie hängt an der Erweiterungs-ID und ist je Browser verschieden (Chrome/Edge/Brave gleich bei Store-Installation; Firefox eigene Adresse). Alle benötigten Adressen in der App-Registrierung unter „Single-Page Application“ eintragen.</div>
 

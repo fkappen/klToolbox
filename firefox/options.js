@@ -1,5 +1,5 @@
 // Version
-// version = "2.2.0"
+// version = "2.3.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -182,10 +182,86 @@ function saveM365() {
         m365ClientId: document.getElementById("m365ClientId").value.trim(),
         m365Kategorie: document.getElementById("m365Kategorie").value.trim(),
         m365ErinnerungMin: (isFinite(erinnerung) && erinnerung >= 0) ? erinnerung : M365_DEFAULTS.m365ErinnerungMin,
-        m365Kollegen: document.getElementById("m365Kollegen").value.trim()
+        m365Kollegen: document.getElementById("m365Kollegen").value.trim(),
+        // Pflegeliste geaendert -> Kollegen-Cache verwerfen
+        m365KollegenCache: null
     }, () => {
         flashStatus("statusM365");
         renderM365State();
+        renderKolListe(false);
+    });
+}
+
+// Gefundene Kollegen-Kalender mit Zugriffsstufe und Haken "anzeigen".
+// Ausgeblendete Adressen liegen in m365KollegenAusgeblendet.
+function renderKolListe(erzwingen) {
+    const box = document.getElementById("m365KolListe");
+    const btn = document.getElementById("m365KolReload");
+    chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
+        if (chrome.runtime.lastError || !st || !st.ok || !st.configured || !st.connected) {
+            box.textContent = "Erst mit Microsoft 365 verbinden - dann werden die Kalender ermittelt.";
+            return;
+        }
+        box.textContent = erzwingen ? "Kollegen werden ermittelt (Freigaben, Berechtigungen, Einzelprüfung)…" : "Lade…";
+        btn.disabled = true;
+        chrome.storage.local.get({ m365KollegenAusgeblendet: [] }, (s) => {
+            const hidden = new Set((Array.isArray(s.m365KollegenAusgeblendet) ? s.m365KollegenAusgeblendet : [])
+                .map((m) => String(m).toLowerCase()));
+            chrome.runtime.sendMessage({ type: "m365Kollegen", erzwingen: erzwingen === true }, (res) => {
+                btn.disabled = false;
+                if (chrome.runtime.lastError || !res || !res.ok) {
+                    box.textContent = "Kollegen nicht abrufbar: " +
+                        (chrome.runtime.lastError ? chrome.runtime.lastError.message : ((res && res.error) || "keine Antwort"));
+                    return;
+                }
+                const items = Array.isArray(res.items) ? res.items : [];
+                box.textContent = "";
+                if (items.length === 0) {
+                    box.textContent = "Keine Kollegen-Kalender gefunden. Freigaben in Outlook prüfen oder Adressen in der Pflegeliste eintragen.";
+                    return;
+                }
+                const table = document.createElement("table");
+                table.style.cssText = "border-collapse:collapse; width:100%;";
+                for (const k of items) {
+                    const tr = document.createElement("tr");
+                    const tdCheck = document.createElement("td");
+                    tdCheck.style.cssText = "width:28px; padding:2px 4px;";
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.style.width = "auto";
+                    cb.checked = !hidden.has(String(k.mail).toLowerCase());
+                    cb.title = "Im Termin-Fenster anzeigen";
+                    cb.addEventListener("change", () => {
+                        chrome.storage.local.get({ m365KollegenAusgeblendet: [] }, (s2) => {
+                            const arr = (Array.isArray(s2.m365KollegenAusgeblendet) ? s2.m365KollegenAusgeblendet : [])
+                                .filter((m) => String(m).toLowerCase() !== String(k.mail).toLowerCase());
+                            if (!cb.checked) {
+                                arr.push(k.mail);
+                            }
+                            chrome.storage.local.set({ m365KollegenAusgeblendet: arr }, () => flashStatus("statusKol"));
+                        });
+                    });
+                    tdCheck.appendChild(cb);
+                    const tdName = document.createElement("td");
+                    tdName.style.cssText = "padding:2px 4px;";
+                    tdName.textContent = k.name + (k.name !== k.mail ? " (" + k.mail + ")" : "");
+                    const tdRecht = document.createElement("td");
+                    tdRecht.style.cssText = "padding:2px 4px; width:170px; white-space:nowrap;";
+                    tdRecht.textContent = k.canEdit ? "✎ Schreibrecht" : (k.readable ? "👁 nur lesen" : "○ keine Freigabe");
+                    tdRecht.title = "Quelle: " + ({ liste: "Pflegeliste", freigabe: "in Outlook hinzugefügte Freigabe", geprueft: "Kalenderrechte / Einzelprüfung" }[k.quelle] || k.quelle || "");
+                    tr.appendChild(tdCheck);
+                    tr.appendChild(tdName);
+                    tr.appendChild(tdRecht);
+                    table.appendChild(tr);
+                }
+                box.appendChild(table);
+                const stand = document.createElement("div");
+                stand.style.cssText = "margin-top:6px; color:#6b7880;";
+                stand.textContent = items.length + " Kalender" + (res.ts ? " · Stand " + new Date(res.ts).toLocaleString("de-DE") : "") +
+                    (res.cached ? " (zwischengespeichert)" : "");
+                box.appendChild(stand);
+            });
+        });
     });
 }
 
@@ -431,6 +507,7 @@ function loadAll() {
             document.getElementById(key).value = (v === undefined || v === null) ? M365_DEFAULTS[key] : v;
         }
         renderM365State();
+        renderKolListe(false);
         kiActions = Array.isArray(items.customKiActions) ? items.customKiActions : [];
         renderKiActions();
         makros = Array.isArray(items.makros) ? items.makros : [];
@@ -1246,6 +1323,7 @@ function exportAllSettings() {
         delete items.m365Auth;
         delete items.m365Termine;   // Termin-IDs je Ticket sind an den eigenen Kalender gebunden
         delete items.m365KollegenCache;   // Zugriffsrechte sind pro Nutzer verschieden
+        delete items.m365KollegenAusgeblendet;
         const payload = {
             _extension: "klToolbox",
             _exportiert: new Date().toISOString(),
@@ -1382,6 +1460,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("saveM365").addEventListener("click", saveM365);
     document.getElementById("m365Connect").addEventListener("click", m365Connect);
     document.getElementById("m365Disconnect").addEventListener("click", m365Disconnect);
+    document.getElementById("m365KolReload").addEventListener("click", () => renderKolListe(true));
     document.getElementById("resetAmpel").addEventListener("click", resetAmpel);
     for (const [key] of AMPEL_STUFEN) {
         document.getElementById(key).addEventListener("input", renderAmpelPreview);

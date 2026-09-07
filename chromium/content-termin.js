@@ -1,5 +1,5 @@
 // Version
-// version = "1.19.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.20.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -2452,11 +2452,9 @@
         // Freigegebene Kalender abrufen und mit der Pflegeliste zusammenfuehren;
         // Listeneintraege ohne sichtbare Freigabe werden einzeln auf Zugriff
         // geprueft (Admin-Freigaben tauchen in /me/calendars nicht auf).
-        // Kandidaten: Pflegeliste + /me/calendars (in Outlook hinzugefuegte
-        // Freigaben) + Personen mit Rechten auf MEINEM Kalender (im Betrieb
-        // sind Ordnerberechtigungen meist gegenseitig vergeben; /me/calendars
-        // kennt solche Freigaben nicht). Alles ohne sichtbare Freigabe wird
-        // einzeln geprueft - das sind viele Anfragen, daher 12 h Cache.
+        // Kollegenliste kommt aus dem Hintergrund-Dienst (m365Kollegen: Pflege-
+        // liste + Freigaben + gegenseitige Kalenderrechte, einzeln geprueft,
+        // 12 h gecacht). In den Optionen ausgeblendete Kollegen bleiben weg.
         function ladeKollegen(erzwingen) {
             if (kollegenGeladen && !erzwingen) {
                 return;
@@ -2466,115 +2464,36 @@
             if (!info.textContent) {
                 info.textContent = hinweis;
             }
-
-            function mergeIn(items, quelle) {
-                for (const c of items) {
-                    if (!c || !c.mail) {
-                        continue;
-                    }
-                    const v = kollegen.find((k) => k.mail.toLowerCase() === String(c.mail).toLowerCase());
-                    if (v) {
-                        v.canEdit = c.canEdit === true;
-                        v.readable = c.readable === true || c.canEdit === true;
-                        v.quelle = quelle;
-                        if (c.name && v.name === v.mail) {
-                            v.name = c.name;
-                        }
-                    } else {
-                        kollegen.push({ name: c.name || c.mail, mail: c.mail, canEdit: c.canEdit === true,
-                            readable: c.readable === true || c.canEdit === true, quelle: quelle });
-                    }
-                }
-            }
-
-            function fertig() {
-                fillKolSelect();
-                if (info.textContent === hinweis) {
-                    info.textContent = "";
-                }
-                if (pendingSelect) {
-                    const m = pendingSelect;
-                    pendingSelect = "";
-                    waehleKollege(m);
-                } else if (kollege) {
-                    cb.onKollege(kollege);
-                }
-            }
-
-            const send = (msg) => new Promise((resolve) => {
+            chrome.storage.local.get({ m365KollegenAusgeblendet: [] }, (st) => {
+                const hidden = new Set((Array.isArray(st.m365KollegenAusgeblendet) ? st.m365KollegenAusgeblendet : [])
+                    .map((m) => String(m).toLowerCase()));
                 try {
-                    chrome.runtime.sendMessage(msg, (r) => resolve(chrome.runtime.lastError ? null : r));
-                } catch (err) {
-                    resolve(null);
-                }
-            });
-
-            async function ermitteln() {
-                const shared = await send({ type: "m365Calendars" });
-                if (shared && shared.ok) {
-                    mergeIn((shared.shared || []).map((c) => ({ mail: c.mail, name: c.name, canEdit: c.canEdit, readable: true })), "freigabe");
-                } else {
-                    console.warn("Ticket-Termin: freigegebene Kalender nicht abrufbar:", shared && shared.error);
-                }
-                const kandidaten = [];
-                const perms = await send({ type: "m365CalendarPermissions" });
-                if (perms && perms.ok) {
-                    for (const pers of (perms.personen || [])) {
-                        if (!kollegen.some((k) => k.mail.toLowerCase() === pers.mail.toLowerCase())) {
-                            kandidaten.push({ name: pers.name, mail: pers.mail });
+                    chrome.runtime.sendMessage({ type: "m365Kollegen", erzwingen: erzwingen === true }, (res) => {
+                        if (!chrome.runtime.lastError && res && res.ok) {
+                            kollegen = (res.items || [])
+                                .filter((k) => k && k.mail && !hidden.has(String(k.mail).toLowerCase()))
+                                .map((k) => Object.assign({}, k));
+                        } else {
+                            console.warn("Ticket-Termin: Kollegenliste nicht abrufbar:",
+                                chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.error));
                         }
-                    }
-                } else {
-                    console.warn("Ticket-Termin: Kalenderberechtigungen nicht abrufbar:", perms && perms.error);
-                }
-                for (const k of kollegen) {
-                    if (k.quelle === "liste") {
-                        kandidaten.push(k);
-                    }
-                }
-                fillKolSelect();
-                // Zugriff je Kandidat pruefen, 4 parallel, max. 60
-                const ergebnisse = [];
-                const liste = kandidaten.slice(0, 60);
-                for (let i = 0; i < liste.length; i += 4) {
-                    await Promise.all(liste.slice(i, i + 4).map(async (k) => {
-                        const pr = await send({ type: "m365ProbeCalendar", mail: k.mail });
-                        const ok = !!(pr && pr.ok);
-                        ergebnisse.push({
-                            mail: k.mail,
-                            name: (ok && pr.name) || k.name,
-                            readable: ok && pr.readable === true,
-                            canEdit: ok && pr.canEdit === true
-                        });
-                    }));
-                }
-                // Ohne Zugriff nur aufnehmen, wer ohnehin in der Pflegeliste steht
-                mergeIn(ergebnisse.filter((e) => e.readable || e.canEdit ||
-                    kollegen.some((k) => k.mail.toLowerCase() === e.mail.toLowerCase())), "geprueft");
-                try {
-                    chrome.storage.local.set({
-                        m365KollegenCache: {
-                            ts: Date.now(),
-                            items: kollegen.map((k) => ({ mail: k.mail, name: k.name, canEdit: k.canEdit, readable: k.readable }))
+                        fillKolSelect();
+                        if (info.textContent === hinweis) {
+                            info.textContent = "";
+                        }
+                        if (pendingSelect) {
+                            const m = pendingSelect;
+                            pendingSelect = "";
+                            waehleKollege(m);
+                        } else if (kollege) {
+                            kollege = kollegen.find((k) => k.mail.toLowerCase() === kollege.mail.toLowerCase()) || kollege;
+                            cb.onKollege(kollege);
                         }
                     });
                 } catch (err) {
-                    console.warn("Ticket-Termin: Kollegen-Cache nicht gespeichert:", err);
+                    console.warn("Ticket-Termin: Kollegenliste nicht abrufbar:", err);
+                    fillKolSelect();
                 }
-                fertig();
-            }
-
-            chrome.storage.local.get({ m365KollegenCache: null }, (st) => {
-                const c = st && st.m365KollegenCache;
-                if (!erzwingen && c && Array.isArray(c.items) && (Date.now() - Number(c.ts)) < 12 * 3600000) {
-                    mergeIn(c.items, "cache");
-                    fertig();
-                    return;
-                }
-                ermitteln().catch((err) => {
-                    console.warn("Ticket-Termin: Kollegen ermitteln fehlgeschlagen:", err);
-                    fertig();
-                });
             });
         }
         const todayBtn = document.createElement("button");
