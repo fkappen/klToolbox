@@ -2,7 +2,7 @@
 
 *Privacy Policy for the klToolbox browser extension — English summary at the bottom.*
 
-**Stand:** 16.08.2026
+**Stand:** 07.09.2026
 **Verantwortlich für die Erweiterung:** Felix Kappen (Entwickler)
 **Kontakt:** über die im jeweiligen Store-Eintrag hinterlegte Support-E-Mail oder
 <https://github.com/fkappen/klToolbox/issues>
@@ -69,7 +69,42 @@ Dabei gilt:
   Datenschutzbestimmungen und die Vereinbarungen des API-Schlüssel-Inhabers
   mit diesem Anbieter.
 
-## 4. Weitere Netzwerkzugriffe
+## 4. Optionale Anbindung an Microsoft 365 (Kalender)
+
+Die Erweiterung kann Termine aus dem Ticketsystem **direkt im Outlook-Kalender
+des angemeldeten Nutzers** anlegen. Diese Funktion ist **optional** und
+vollständig inaktiv, solange sie nicht eingerichtet ist.
+
+- **Einrichtung:** Der Nutzer (bzw. dessen Organisation) hinterlegt in den
+  Einstellungen die Kennung einer **eigenen App-Registrierung in Microsoft
+  Entra ID** (Tenant, Client-ID) und startet die Anmeldung mit „Verbinden".
+  Die Anmeldung läuft über den Standard-Anmeldedialog von Microsoft
+  (OAuth 2.0 mit PKCE, Browser-Schnittstelle `identity`); die Erweiterung
+  sieht **kein Passwort**. Erst dabei werden die Zugriffe auf
+  `login.microsoftonline.com` und `graph.microsoft.com` angefordert.
+- **Berechtigung:** ausschließlich die delegierte Berechtigung
+  `Calendars.ReadWrite` — also nur der **eigene Kalender** des angemeldeten
+  Kontos. Für die Verfügbarkeitsanzeige von Kollegen wird die
+  Frei/Belegt-Auskunft genutzt, die Microsoft 365 innerhalb einer Organisation
+  ohnehin bereitstellt (`getSchedule`); es werden keine fremden Kalender
+  gelesen oder verändert.
+- **Was übertragen wird — nur auf ausdrückliche Nutzeraktion:** Beim Anlegen,
+  Verschieben oder Absagen eines Termins gehen die Termindaten (Betreff,
+  Beschreibung mit Ticketangaben, Zeit, Ort, ggf. die E-Mail-Adresse des
+  einzuladenden Ansprechpartners oder Kollegen) direkt vom Browser des
+  Nutzers an Microsoft Graph, also in dessen eigenes Microsoft-365-Konto.
+  Für die Kalenderansicht werden die Termine des eigenen Kalenders bzw. die
+  Frei/Belegt-Zeiten eines gewählten Kollegen für die angezeigte Woche
+  abgerufen und **nur angezeigt, nicht gespeichert**.
+- **Lokal gespeichert:** die Anmeldetoken (Zugriffs-/Aktualisierungstoken)
+  sowie die Kennungen der angelegten Termine je Ticket — ausschließlich im
+  lokalen Browserspeicher, sie werden **nicht exportiert** und mit „Trennen"
+  bzw. „Alles zurücksetzen" gelöscht.
+- Der Entwickler ist an dieser Kommunikation **nicht beteiligt** und erhält
+  keine Daten. Es gilt die Datenschutzerklärung von Microsoft für das
+  jeweilige Microsoft-365-Konto.
+
+## 5. Weitere Netzwerkzugriffe
 
 - **Favicons:** Für die Link-Kacheln lädt die Erweiterung Website-Symbole —
   zunächst direkt vom jeweiligen Ziel-Host (`/favicon.ico`), ersatzweise über
@@ -79,18 +114,21 @@ Dabei gilt:
 - **Updates (Firefox):** Die Firefox-Variante prüft auf neue Versionen über
   eine statische Datei auf GitHub (`raw.githubusercontent.com`); dabei werden
   keine Nutzerdaten übertragen.
+- **Microsoft 365 (optional):** siehe Abschnitt 4 — nur nach Einrichtung und
+  Anmeldung durch den Nutzer.
 - Es finden **keine weiteren** Netzwerkzugriffe statt.
 
-## 5. Keine Weitergabe, kein Verkauf, Limited Use
+## 6. Keine Weitergabe, kein Verkauf, Limited Use
 
 Nutzerdaten werden **nicht verkauft**, nicht an Dritte weitergegeben (außer der
 in Abschnitt 3 beschriebenen, vom Nutzer ausgelösten Übertragung an den von ihm
-gewählten KI-Anbieter), nicht für Werbung, Kreditwürdigkeitsprüfungen oder
+gewählten KI-Anbieter sowie der in Abschnitt 4 beschriebenen, ebenfalls vom
+Nutzer ausgelösten Übertragung in dessen eigenes Microsoft-365-Konto), nicht für Werbung, Kreditwürdigkeitsprüfungen oder
 andere Zwecke genutzt. Die Verwendung aller gehandhabten Daten beschränkt sich
 auf die **für den Nutzer sichtbaren Kernfunktionen** der Erweiterung
 („Limited Use").
 
-## 6. Berechtigungen (Kurzüberblick)
+## 7. Berechtigungen (Kurzüberblick)
 
 | Berechtigung | Zweck |
 |---|---|
@@ -100,8 +138,10 @@ auf die **für den Nutzer sichtbaren Kernfunktionen** der Erweiterung
 | `clipboardWrite` | Fallback: Ergebnis in die Zwischenablage kopieren |
 | optionale Host-Berechtigung | Zugriff auf das vom Nutzer konfigurierte Ticketsystem — nur nach ausdrücklicher Zustimmung, nur für diese eine Website |
 | `sidePanel` (Chromium) | optionale Seitenleisten-Darstellung |
+| `identity` | optionale Microsoft-365-Anmeldung über den Microsoft-Anmeldedialog (OAuth 2.0); nur nach Einrichtung durch den Nutzer |
+| optionale Hosts `login.microsoftonline.com`, `graph.microsoft.com` | Token-Abruf und Kalenderzugriff für die optionale Microsoft-365-Anbindung — erst beim Klick auf „Verbinden“ angefordert |
 
-## 7. Rechte und Löschung
+## 8. Rechte und Löschung
 
 Alle lokal gespeicherten Daten können jederzeit in den Einstellungen der
 Erweiterung eingesehen, geändert, exportiert oder über „Alles zurücksetzen"
@@ -109,7 +149,7 @@ vollständig gelöscht werden; das Deinstallieren der Erweiterung entfernt sie
 ebenfalls. Da der Entwickler keine Daten erhebt, liegen bei ihm keine
 personenbezogenen Daten vor, die beauskunftet oder gelöscht werden könnten.
 
-## 8. Änderungen
+## 9. Änderungen
 
 Änderungen an dieser Datenschutzerklärung werden in diesem Dokument
 veröffentlicht (Versionsverlauf über die Git-Historie einsehbar).
@@ -128,7 +168,7 @@ from the user's browser to **one** AI provider (Anthropic, OpenAI or InnoGPT)
 that the user has chosen and configured with **their own API key** — solely to
 produce the requested result, and only after a one-time explicit consent in
 the extension settings. Favicons are fetched from the link's host or Google's
-favicon service (hostname only). No data is sold or shared beyond this; use of
+favicon service (hostname only). An **optional Microsoft 365 integration** lets the user create appointments in their **own** Outlook calendar: it is inactive until the user enters their organisation's Entra app registration and signs in through Microsoft's standard login (OAuth 2.0/PKCE via the `identity` API, delegated `Calendars.ReadWrite` only); appointment data is sent directly from the browser to the user's own Microsoft 365 account, calendar data is displayed only, and tokens stay in local storage. No data is sold or shared beyond this; use of
 all handled data is limited to the extension's user-facing core functionality
 (Limited Use). All local data can be deleted at any time via the settings or
 by uninstalling the extension.

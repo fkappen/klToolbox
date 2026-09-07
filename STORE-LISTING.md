@@ -72,6 +72,15 @@ extension-spezifische Erklärung, auf die der Link DIREKT führt.
   ausdrückliche Aktion an den vom Nutzer konfigurierten KI-Anbieter
   übertragen (eigener API-Schlüssel; ohne Einrichtung und ohne die
   Zustimmung in den Optionen findet keine Übertragung statt).
+- ☑ **Personenbezogene Daten** (Personally identifiable information) — seit
+  3.28 (Microsoft-365-Kalender): Name und E-Mail-Adresse des Ansprechpartners
+  bzw. Kollegen werden auf Nutzeraktion als Termin-Teilnehmer an das eigene
+  Microsoft-365-Konto des Nutzers übermittelt. Nicht an den Entwickler.
+- ☑ **Authentifizierungsinformationen** (Authentication information) — seit
+  3.28: Die Erweiterung hält OAuth-Token für das Microsoft-365-Konto des
+  Nutzers im lokalen Browserspeicher (kein Passwort, keine Übertragung an
+  Dritte, nicht exportierbar). Lieber angeben als weglassen — eine fehlende
+  Kategorie ist ein Ablehnungsgrund, eine überflüssige nicht.
 - Alle übrigen Kategorien: **nicht** ankreuzen.
 - Die drei Zusicherungen bestätigen (kein Verkauf, keine zweckfremde
   Nutzung/Weitergabe, keine Kreditwürdigkeits-/Kreditvergabezwecke).
@@ -115,9 +124,10 @@ und erneut einzureichen; das Paket selbst ist unverändert gültig.
 - `storage`: Speichert Einstellungen (Anbieter, API-Keys, Vorlagen, Links) lokal; Managed Storage für Unternehmensvorgaben.
 - `scripting` + `activeTab`: Fügt das KI-Ergebnis in das vom Nutzer gewählte Feld des aktiven Tabs ein; registriert die Ticket-Module für die vom Nutzer freigegebene Website.
 - `clipboardWrite`: Fallback — Ergebnis in die Zwischenablage, wenn direktes Einfügen nicht möglich ist.
+- `identity`: Optionale Microsoft-365-Kalenderfunktion — führt den Standard-Anmeldedialog von Microsoft (OAuth 2.0 mit PKCE, ohne Client-Secret) gegen den eigenen Tenant des Nutzers aus, nachdem dieser die App-Registrierung seiner Organisation in den Optionen eingetragen und „Verbinden“ geklickt hat. Angefordert wird nur die delegierte Berechtigung Calendars.ReadWrite (eigener Kalender). Token bleiben im lokalen Speicher.
 
 **Begründung Hostberechtigungen:**
-> api.anthropic.com / api.openai.com / app.innogpt.de / *.openai.azure.com: Der vom Nutzer markierte Text wird nur auf dessen ausdrückliche Aktion, nach Zustimmung in den Einstellungen und mit dessen eigenem API-Schlüssel an den gewählten KI-Anbieter gesendet (bei Azure OpenAI an die vom Nutzer konfigurierte Ressource des eigenen Microsoft-Tenants), ausschließlich zur Erzeugung des Ergebnisses. — login.microsoftonline.com / login.live.com / login.microsoft.com: Ein sichtbarer, ausschließlich per Klick ausgelöster Button entfernt gemerkte Konten über das seiteneigene „Abmelden und vergessen“-Menü; es werden keine Anmeldedaten gelesen, gespeichert oder übertragen. — Optionale Hostberechtigung (https://*/*): Der Nutzer konfiguriert die URL seines internen Ticketsystems; nur für genau diese Website wird nach ausdrücklicher Zustimmung Zugriff angefordert, um dort Vorlagen-/Termin-Buttons einzublenden. Ohne Konfiguration und Zustimmung wird keine Website berührt.
+> api.anthropic.com / api.openai.com / app.innogpt.de / *.openai.azure.com: Der vom Nutzer markierte Text wird nur auf dessen ausdrückliche Aktion, nach Zustimmung in den Einstellungen und mit dessen eigenem API-Schlüssel an den gewählten KI-Anbieter gesendet (bei Azure OpenAI an die vom Nutzer konfigurierte Ressource des eigenen Microsoft-Tenants), ausschließlich zur Erzeugung des Ergebnisses. — login.microsoftonline.com / login.live.com / login.microsoft.com: Ein sichtbarer, ausschließlich per Klick ausgelöster Button entfernt gemerkte Konten über das seiteneigene „Abmelden und vergessen“-Menü; es werden keine Anmeldedaten gelesen, gespeichert oder übertragen. — Optionale Hostberechtigung (https://*/*): Der Nutzer konfiguriert die URL seines internen Ticketsystems; nur für genau diese Website wird nach ausdrücklicher Zustimmung Zugriff angefordert, um dort Vorlagen-/Termin-Buttons einzublenden. Ohne Konfiguration und Zustimmung wird keine Website berührt. — login.microsoftonline.com / graph.microsoft.com (optional, zur Laufzeit beim Klick auf „Verbinden“ angefordert): Token-Abruf und Anlegen/Lesen von Terminen im eigenen Kalender des angemeldeten Nutzers für die optionale Microsoft-365-Kalenderfunktion; ohne Einrichtung wird keiner der beiden Hosts kontaktiert.
 
 **Remote Code:** Nein. Es werden keine Skripte nachgeladen; alle Inhalte liegen im Paket.
 
@@ -125,10 +135,10 @@ und erneut einzureichen; das Paket selbst ist unverändert gültig.
 
 ## Testanweisungen (Devconsole → „Anleitungen zum Testen", max. 500 Zeichen)
 
-Kurzfassung zum Einreichen (492 Zeichen, Englisch):
+Kurzfassung zum Einreichen (495 Zeichen, Englisch, Stand 3.31):
 
 ```
-Works without account/login; ships neutral. AI actions (context menu, chat, clipper) need the user's OWN API key AND the consent checkbox in Options > KI - without both nothing is transmitted (error toast). Test: add key, tick consent, select text, right-click > "KI: Text bearbeiten". Ticket module is inert until the user enters their ticket URL and grants the optional host permission ("Zugriff erlauben"). Account cleaner only clicks the MS login page's own "Forget" menu. No remote code.
+Works without account/login; ships neutral. AI actions need the user's OWN API key AND the consent checkbox in Options > KI, else nothing is sent. Test: add key, tick consent, select text, right-click > "KI: Text bearbeiten". Ticket module stays inert until the user enters their ticket URL and grants the optional host permission. Microsoft 365 calendar is optional: inert until the user enters their own Entra app registration and clicks "Verbinden" (OAuth, own calendar only). No remote code.
 ```
 
 Ausführliche Fassung (Hintergrund, z. B. für Review-Rückfragen oder AMO-Notizen):
@@ -176,8 +186,21 @@ https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
    transmitted. Without remembered accounts the button stays hidden.
 
 6. No remote code: all scripts/resources are bundled. Network requests
-   are limited to the user-initiated AI calls described in (1) and
-   favicons for user-configured quick links.
+   are limited to the user-initiated AI calls described in (1), the
+   optional Microsoft 365 calls described in (7) and favicons for
+   user-configured quick links.
+
+7. Optional Microsoft 365 calendar (since 3.28): lets the user create
+   ticket appointments in their OWN Outlook calendar. It is inert until
+   the user enters their organisation's Entra app registration (tenant +
+   client ID) in Options -> "Microsoft 365" and clicks "Verbinden"; only
+   then are the optional hosts login.microsoftonline.com and
+   graph.microsoft.com requested and the standard Microsoft sign-in is
+   shown via identity.launchWebAuthFlow (OAuth 2.0 + PKCE, no secret,
+   delegated Calendars.ReadWrite only). Tokens stay in local storage and
+   are excluded from settings export. Reviewers without a tenant can
+   verify the inert state: without configuration the "Outlook (Microsoft
+   365)" button only shows a hint pointing to the options page.
 ```
 
 ## AMO (Firefox) — Reviewer-Hinweise
