@@ -1,5 +1,5 @@
 // Version
-// version = "1.8.1"
+// version = "1.9.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1343,6 +1343,15 @@ if (chrome.omnibox) {
 // Calendars.ReadWrite.Shared: Termine in Kalendern anlegen/lesen, die dem
 // Nutzer freigegeben wurden (Techniker-Kalender) - nicht mehr.
 const M365_SCOPES = "openid profile offline_access https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite.Shared";
+// Optional (Optionen -> "Kollegen aus dem Verzeichnis"): Nutzerliste des
+// Tenants lesen, um alle Kollegen-Kalender pruefen zu koennen. Nur anfordern,
+// wenn im Tenant konsentiert - sonst scheitert jede Token-Erneuerung.
+const M365_SCOPE_VERZEICHNIS = "https://graph.microsoft.com/User.ReadBasic.All";
+
+async function m365Scopes() {
+    const s = await m365Storage({ m365VerzeichnisScope: false });
+    return M365_SCOPES + (s.m365VerzeichnisScope === true ? " " + M365_SCOPE_VERZEICHNIS : "");
+}
 
 // Pfadpraefix: eigener Kalender oder (freigegebener) Kalender eines Kollegen
 function m365UserPath(owner) {
@@ -1447,7 +1456,7 @@ function m365ParseIdToken(idToken) {
 }
 
 async function m365TokenRequest(cfg, params) {
-    const body = new URLSearchParams(Object.assign({ client_id: cfg.clientId, scope: M365_SCOPES }, params));
+    const body = new URLSearchParams(Object.assign({ client_id: cfg.clientId, scope: await m365Scopes() }, params));
     const res = await fetch("https://login.microsoftonline.com/" + encodeURIComponent(cfg.tenant) + "/oauth2/v2.0/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1468,6 +1477,7 @@ async function m365TokenRequest(cfg, params) {
     const prev = (await m365Storage({ m365Auth: null })).m365Auth || {};
     const auth = {
         accessToken: data.access_token,
+        scopeGeprueft: prev.scopeGeprueft || "",
         refreshToken: data.refresh_token || prev.refreshToken || "",
         expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 - 60000,
         account: m365ParseIdToken(data.id_token) || prev.account || null,
@@ -1494,7 +1504,7 @@ async function m365Authorize(cfg, interactive, loginHint, forcePicker) {
         response_type: "code",
         redirect_uri: redirect,
         response_mode: "query",
-        scope: M365_SCOPES,
+        scope: await m365Scopes(),
         state: state,
         code_challenge: pk.challenge,
         code_challenge_method: "S256"
@@ -1557,12 +1567,18 @@ async function m365AccessToken(allowInteractive) {
     // Calendars.ReadWrite.Shared nach einem Update), einmal sofort erneuern -
     // der Admin-Consent im Tenant reicht, der Nutzer merkt nichts.
     // Auch Anmeldungen VOR 3.32 (ohne gespeichertes scope-Feld) einmal erneuern
-    const scopeFehlt = !auth.scopeGeprueft && !/\bCalendars\.ReadWrite\.Shared\b/.test(String(auth.scope || ""));
-    if (auth.accessToken && Number(auth.expiresAt) > Date.now() && !scopeFehlt) {
+    const wollen = await m365Scopes();
+    const hatScope = (name) => new RegExp("\\b" + name.replace(/\./g, "\\.") + "\\b").test(String(auth.scope || ""));
+    const scopeFehlt = !hatScope("Calendars.ReadWrite.Shared") ||
+        (wollen.indexOf(M365_SCOPE_VERZEICHNIS) !== -1 && !hatScope("User.ReadBasic.All"));
+    // je angefordertem Scope-Satz nur EINMAL erneuern (sonst Schleife, wenn
+    // der Tenant den Scope nicht kennt)
+    const erneuern = scopeFehlt && auth.scopeGeprueft !== wollen;
+    if (auth.accessToken && Number(auth.expiresAt) > Date.now() && !erneuern) {
         return auth.accessToken;
     }
-    if (scopeFehlt) {
-        auth.scopeGeprueft = true;
+    if (erneuern) {
+        auth.scopeGeprueft = wollen;
         await m365StorageSet({ m365Auth: auth });
     }
     const hint = auth.account && auth.account.upn ? auth.account.upn : "";
@@ -1787,8 +1803,12 @@ async function m365CalendarPermissions() {
     const me = String(auth.account && auth.account.upn ? auth.account.upn : "").toLowerCase();
     const data = await m365Graph("/me/calendar/calendarPermissions?$top=100", "GET", null, false);
     const out = [];
+    const roh = [];
     for (const p of (Array.isArray(data.value) ? data.value : [])) {
         const mail = String(p.emailAddress && p.emailAddress.address ? p.emailAddress.address : "").trim();
+        if (roh.length < 40) {
+            roh.push(((p.emailAddress && p.emailAddress.name) || "?") + " <" + (mail || "-") + "> " + String(p.role || ""));
+        }
         if (!mail || mail.toLowerCase() === me || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
             continue; // "Standard"/"Anonym" haben keine Adresse
         }
@@ -1796,6 +1816,28 @@ async function m365CalendarPermissions() {
             continue;
         }
         out.push({ mail: mail, name: String((p.emailAddress && p.emailAddress.name) || mail), role: String(p.role || "") });
+    }
+    return { personen: out, roh: roh, anzahl: Array.isArray(data.value) ? data.value.length : 0 };
+}
+
+// Alle aktiven Nutzer des Tenants (nur mit User.ReadBasic.All) - Kandidaten,
+// deren Kalender einzeln auf Zugriff geprueft werden.
+async function m365Verzeichnis() {
+    const auth = (await m365Storage({ m365Auth: null })).m365Auth || {};
+    const me = String(auth.account && auth.account.upn ? auth.account.upn : "").toLowerCase();
+    const out = [];
+    let url = "/users?$select=displayName,mail,userPrincipalName,accountEnabled&$top=200";
+    for (let seite = 0; seite < 10 && url; seite++) {
+        const data = await m365Graph(url, "GET", null, false);
+        for (const u of (Array.isArray(data.value) ? data.value : [])) {
+            const mail = String(u.mail || "").trim();
+            if (!mail || u.accountEnabled === false || mail.toLowerCase() === me || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+                continue;
+            }
+            out.push({ name: String(u.displayName || mail), mail: mail });
+        }
+        const next = String(data["@odata.nextLink"] || "");
+        url = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
     }
     return { personen: out };
 }
@@ -1825,7 +1867,7 @@ function m365ParseKollegen(text) {
 // (m365KollegenCache) - viele Einzelanfragen.
 async function m365Kollegen(q) {
     const erzwingen = !!(q && q.erzwingen);
-    const st = await m365Storage({ m365Kollegen: "", m365KollegenCache: null });
+    const st = await m365Storage({ m365Kollegen: "", m365KollegenCache: null, m365VerzeichnisScope: false });
     const cache = st.m365KollegenCache;
     if (!erzwingen && cache && Array.isArray(cache.items) && (Date.now() - Number(cache.ts)) < 12 * 3600000) {
         return { items: cache.items, ts: cache.ts, cached: true, stats: cache.stats || null };
@@ -1833,7 +1875,7 @@ async function m365Kollegen(q) {
     const kollegen = m365ParseKollegen(st.m365Kollegen)
         .map((k) => ({ name: k.name, mail: k.mail, canEdit: false, readable: false, quelle: "liste" }));
     // Diagnose je Quelle (Optionen zeigen sie an - "warum nur 3 von 20?")
-    const stats = { liste: kollegen.length, freigaben: 0, berechtigte: 0, geprueft: 0, mitZugriff: 0, fehler: [] };
+    const stats = { liste: kollegen.length, freigaben: 0, berechtigte: 0, berechtigteRoh: [], verzeichnis: -1, geprueft: 0, mitZugriff: 0, fehler: [] };
     const finde = (mail) => kollegen.find((k) => k.mail.toLowerCase() === String(mail).toLowerCase());
     const merge = (c, quelle, nurWennVorhanden) => {
         const v = finde(c.mail);
@@ -1860,7 +1902,9 @@ async function m365Kollegen(q) {
     }
     const kandidaten = [];
     try {
-        for (const p of (await m365CalendarPermissions()).personen) {
+        const perm = await m365CalendarPermissions();
+        stats.berechtigteRoh = perm.roh;
+        for (const p of perm.personen) {
             stats.berechtigte++;
             if (!finde(p.mail)) {
                 kandidaten.push({ name: p.name, mail: p.mail, liste: false });
@@ -1870,14 +1914,28 @@ async function m365Kollegen(q) {
         console.warn("klToolbox M365: Kalenderberechtigungen nicht abrufbar:", err);
         stats.fehler.push({ quelle: "berechtigungen", mail: "", msg: String(err && err.message) });
     }
+    if (st.m365VerzeichnisScope === true) {
+        try {
+            const vz = await m365Verzeichnis();
+            stats.verzeichnis = vz.personen.length;
+            for (const p of vz.personen) {
+                if (!finde(p.mail) && !kandidaten.some((k) => k.mail.toLowerCase() === p.mail.toLowerCase())) {
+                    kandidaten.push({ name: p.name, mail: p.mail, liste: false });
+                }
+            }
+        } catch (err) {
+            console.warn("klToolbox M365: Verzeichnis nicht abrufbar:", err);
+            stats.fehler.push({ quelle: "verzeichnis", mail: "", msg: String(err && err.message) });
+        }
+    }
     for (const k of kollegen) {
         if (k.quelle === "liste") {
             kandidaten.push({ name: k.name, mail: k.mail, liste: true });
         }
     }
-    const liste = kandidaten.slice(0, 60);
-    for (let i = 0; i < liste.length; i += 4) {
-        await Promise.all(liste.slice(i, i + 4).map(async (k) => {
+    const liste = kandidaten.slice(0, 150);
+    for (let i = 0; i < liste.length; i += 6) {
+        await Promise.all(liste.slice(i, i + 6).map(async (k) => {
             let pr = { readable: false, canEdit: false, name: "" };
             try {
                 pr = await m365ProbeCalendar({ mail: k.mail });

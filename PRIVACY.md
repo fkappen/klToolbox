@@ -86,7 +86,10 @@ vollständig inaktiv, solange sie nicht eingerichtet ist.
   `Calendars.ReadWrite` (der **eigene Kalender** des angemeldeten Kontos) und
   `Calendars.ReadWrite.Shared` (Kalender, die dem Nutzer von Kollegen
   **ausdrücklich freigegeben** wurden — dort lassen sich Termine für den
-  jeweiligen Kollegen anlegen; ohne Freigabe kein Zugriff). Für die Verfügbarkeitsanzeige von Kollegen wird die
+  jeweiligen Kollegen anlegen; ohne Freigabe kein Zugriff). Optional und
+  standardmäßig aus: `User.ReadBasic.All` (Namen und E-Mail-Adressen der
+  Nutzer des eigenen Tenants lesen, um freigegebene Kollegen-Kalender zu
+  finden) — nur, wenn der Nutzer es in den Einstellungen einschaltet. Für die Verfügbarkeitsanzeige von Kollegen wird die
   Frei/Belegt-Auskunft genutzt, die Microsoft 365 innerhalb einer Organisation
   ohnehin bereitstellt (`getSchedule`); es werden keine fremden Kalender
   gelesen oder verändert.

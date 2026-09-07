@@ -333,6 +333,11 @@
     <textarea id="m365Kollegen" placeholder="Max Mustermann = max.mustermann@firma.de&#10;Erika Beispiel = erika.beispiel@firma.de"></textarea>
     <div class="hint">Ergänzt die automatisch gefundenen Kollegen (siehe Liste unten) um Personen ohne sichtbare Freigabe. Kommt normalerweise per Settings-Import.</div>
 
+    <label style="font-weight:400; display:flex; align-items:center; gap:8px; margin-top:14px;">
+        <input type="checkbox" id="m365VerzeichnisScope" style="width:auto;"> Kollegen aus dem Verzeichnis ermitteln (alle Nutzer des Tenants einzeln auf Kalenderzugriff prüfen)
+    </label>
+    <div class="hint">Benötigt in der App-Registrierung zusätzlich die delegierte Berechtigung <code>User.ReadBasic.All</code> mit Admin-Consent (Script <code>M365_klToolbox_Create-App.ps1 -MitVerzeichnis</code>). <b>Erst dort freigeben, dann hier anhaken</b> — sonst scheitert die Anmeldung. Nach dem Speichern „Trennen“ und „Verbinden“.</div>
+
     <label>Kollegen-Kalender (automatisch ermittelt)</label>
     <div id="m365KolListe" class="hint">–</div>
     <div class="toolbar">

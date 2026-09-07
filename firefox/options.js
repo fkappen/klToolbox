@@ -1,5 +1,5 @@
 // Version
-// version = "2.3.1"
+// version = "2.4.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -172,7 +172,8 @@ const M365_DEFAULTS = {
     m365ClientId: "",
     m365Kategorie: "",
     m365ErinnerungMin: 15,
-    m365Kollegen: ""
+    m365Kollegen: "",
+    m365VerzeichnisScope: false
 };
 
 function saveM365() {
@@ -183,6 +184,7 @@ function saveM365() {
         m365Kategorie: document.getElementById("m365Kategorie").value.trim(),
         m365ErinnerungMin: (isFinite(erinnerung) && erinnerung >= 0) ? erinnerung : M365_DEFAULTS.m365ErinnerungMin,
         m365Kollegen: document.getElementById("m365Kollegen").value.trim(),
+        m365VerzeichnisScope: document.getElementById("m365VerzeichnisScope").checked,
         // Pflegeliste geaendert -> Kollegen-Cache verwerfen
         m365KollegenCache: null
     }, () => {
@@ -266,9 +268,22 @@ function renderKolListe(erzwingen) {
                     const diag = document.createElement("div");
                     diag.style.cssText = "margin-top:4px; color:#6b7880;";
                     diag.textContent = "Quellen: " + st2.liste + " aus der Pflegeliste, " + st2.freigaben + " Outlook-Freigaben, " +
-                        st2.berechtigte + " mit Rechten an meinem Kalender · " + st2.geprueft + " einzeln geprüft, davon " +
-                        st2.mitZugriff + " mit Zugriff.";
+                        st2.berechtigte + " mit Rechten an meinem Kalender" +
+                        (typeof st2.verzeichnis === "number" && st2.verzeichnis >= 0 ? ", " + st2.verzeichnis + " aus dem Verzeichnis" : "") +
+                        " · " + st2.geprueft + " einzeln geprüft, davon " + st2.mitZugriff + " mit Zugriff.";
                     box.appendChild(diag);
+                    if (Array.isArray(st2.berechtigteRoh)) {
+                        const roh = document.createElement("details");
+                        roh.style.cssText = "margin-top:4px; color:#6b7880;";
+                        const sum = document.createElement("summary");
+                        sum.textContent = "Rohdaten „Rechte an meinem Kalender“ (" + st2.berechtigteRoh.length + " Einträge laut Graph)";
+                        roh.appendChild(sum);
+                        const pre = document.createElement("div");
+                        pre.style.cssText = "white-space:pre-line; font-family:monospace; font-size:11px;";
+                        pre.textContent = st2.berechtigteRoh.length ? st2.berechtigteRoh.join(String.fromCharCode(10)) : "(leer)";
+                        roh.appendChild(pre);
+                        box.appendChild(roh);
+                    }
                     if (Array.isArray(st2.fehler) && st2.fehler.length > 0) {
                         const fl = document.createElement("div");
                         fl.style.cssText = "margin-top:4px; color:#b3261e; white-space:pre-line;";
@@ -520,7 +535,12 @@ function loadAll() {
         }
         for (const key of Object.keys(M365_DEFAULTS)) {
             const v = items[key];
-            document.getElementById(key).value = (v === undefined || v === null) ? M365_DEFAULTS[key] : v;
+            const el = document.getElementById(key);
+            if (el.type === "checkbox") {
+                el.checked = v === true;
+            } else {
+                el.value = (v === undefined || v === null) ? M365_DEFAULTS[key] : v;
+            }
         }
         renderM365State();
         renderKolListe(false);
