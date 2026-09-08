@@ -11,9 +11,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$DefaultsPath,
 
-    # Chrome-Web-Store-ID der klToolbox. Ohne ID werden die Chromium-Browser
-    # uebersprungen (Force-Install UND Vorgaben haengen an der ID).
-    [string]$ExtensionId = "",
+    # Chrome-Web-Store-ID der klToolbox (Standard = veroeffentlichter Eintrag;
+    # seit 3.37.0 durch den 'key' im Manifest auch bei entpackter Installation gleich).
+    [string]$ExtensionId = "npichgjhimegeeldmiocainbdckannba",
 
     [ValidateSet("Chrome", "Edge", "Brave", "Firefox")]
     [string[]]$Browsers = @("Chrome", "Edge", "Brave", "Firefox"),
@@ -33,7 +33,7 @@ param(
 )
 
 #Version
-$version = "1.0.0"
+$version = "1.0.1"
 $datum = "2026-09-08"
 $autor = "FK"
 

@@ -20,11 +20,11 @@ param(
     [string[]]$Browsers = @("Chrome", "Edge", "Brave", "Firefox"),
     [Parameter(Mandatory = $true)]
     [string]$DefaultsPath,
-    [string]$ExtensionId = "NEUE_STORE_ID_HIER_EINTRAGEN"
+    [string]$ExtensionId = "npichgjhimegeeldmiocainbdckannba"
 )
 
 #Version
-$version = "2.0.0"
+$version = "2.0.1"
 $datum = "2026-08-14"
 $autor = "FK"
 

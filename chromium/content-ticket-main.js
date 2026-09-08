@@ -1,5 +1,5 @@
 // Version
-// version = "1.0.0"  (Modul Ticket-Datenhook, klToolbox)
+// version = "1.1.0"  (Modul Ticket-Datenhook, klToolbox)
 // datum   = "2026-09-08"
 // autor   = "FK"
 //
@@ -22,6 +22,11 @@
 
     const QUELLE = "klToolbox-ticket";
     const OPS = new Set(["GetTicketInfoData", "GetTicketInfoContactPersons"]);
+    // Puffer: Antworten kommen meist an, BEVOR das isolierte Script (document_idle)
+    // lauscht - postMessage wird nicht nachgereicht. Das isolierte Script fordert
+    // beim Start eine Wiederholung an ("klToolbox-ticket-replay").
+    const puffer = [];
+    const PUFFER_MAX = 40;
 
     function parseOps(body) {
         try {
@@ -52,13 +57,31 @@
             });
         }
         if (eintraege.length > 0) {
-            try {
-                window.postMessage({ source: QUELLE, eintraege: eintraege }, location.origin);
-            } catch (err) {
-                console.debug("[klToolbox] Weitergabe fehlgeschlagen", err);
+            for (const e of eintraege) {
+                puffer.push(e);
             }
+            while (puffer.length > PUFFER_MAX) {
+                puffer.shift();
+            }
+            senden(eintraege);
         }
     }
+
+    function senden(eintraege) {
+        try {
+            window.postMessage({ source: QUELLE, eintraege: eintraege }, location.origin);
+        } catch (err) {
+            console.info("[klToolbox] Weitergabe fehlgeschlagen", err);
+        }
+    }
+
+    window.addEventListener("message", (evt) => {
+        if (evt.source !== window || evt.origin !== location.origin || !evt.data || evt.data.source !== "klToolbox-ticket-replay") {
+            return;
+        }
+        console.info("[klToolbox] Ticket-Datenhook: Wiederholung angefordert, " + puffer.length + " gepufferte Antworten");
+        senden(puffer.slice());
+    });
 
     function istGraphql(url) {
         return typeof url === "string" && /\/graphql(\?|$)/.test(url);
@@ -72,26 +95,36 @@
             try {
                 const input = args[0];
                 const url = typeof input === "string" ? input : (input && typeof input.url === "string" ? input.url : "");
-                const body = (args[1] && typeof args[1].body === "string") ? args[1].body : null;
-                if (!istGraphql(url) || !body) {
+                if (!istGraphql(url)) {
                     return p;
                 }
-                const ops = parseOps(body);
-                if (!ops || !ops.some((o) => OPS.has(o.op))) {
+                // Body: aus init.body (String) oder aus einem Request-Objekt (Klon lesen)
+                let bodyPromise;
+                if (args[1] && typeof args[1].body === "string") {
+                    bodyPromise = Promise.resolve(args[1].body);
+                } else if (input && typeof input.clone === "function" && typeof input.text === "function") {
+                    bodyPromise = input.clone().text();
+                } else {
                     return p;
                 }
-                return p.then((res) => {
-                    try {
-                        res.clone().json()
-                            .then((json) => weiterreichen(ops, json))
-                            .catch((err) => console.debug("[klToolbox] GraphQL-Antwort nicht lesbar", err));
-                    } catch (err) {
-                        console.debug("[klToolbox] Antwort-Klon fehlgeschlagen", err);
+                bodyPromise.then((body) => {
+                    const ops = body ? parseOps(body) : null;
+                    if (!ops || !ops.some((o) => OPS.has(o.op))) {
+                        return;
                     }
-                    return res;
-                });
+                    p.then((res) => {
+                        try {
+                            res.clone().json()
+                                .then((json) => weiterreichen(ops, json))
+                                .catch((err) => console.info("[klToolbox] GraphQL-Antwort nicht lesbar", err));
+                        } catch (err) {
+                            console.info("[klToolbox] Antwort-Klon fehlgeschlagen", err);
+                        }
+                    }).catch(() => null);
+                }).catch((err) => console.info("[klToolbox] Request-Body nicht lesbar", err));
+                return p;
             } catch (err) {
-                console.debug("[klToolbox] fetch-Hook uebersprungen", err);
+                console.info("[klToolbox] fetch-Hook uebersprungen", err);
                 return p;
             }
         };
@@ -161,5 +194,5 @@
         });
     };
 
-    console.debug("[klToolbox] Ticket-Datenhook aktiv");
+    console.info("[klToolbox] Ticket-Datenhook aktiv (fetch" + (XHR ? "+XHR" : "") + ")");
 })();

@@ -62,7 +62,7 @@ Hinweise:
 
 ## Variante C: GPP-Registrierungseinträge (manuell in der GPO)
 
-`<ID>` = Chrome-Web-Store-ID der klToolbox (nach Einreichung aus der Devconsole) ·
+`<ID>` = Chrome-Web-Store-ID der klToolbox: **`npichgjhimegeeldmiocainbdckannba`** (seit 3.37.0 durch den `key` im Manifest auch bei entpackter Installation identisch) ·
 Firefox-ID: `app@kltoolbox.dev`
 
 ### Force-Install (Chromium)

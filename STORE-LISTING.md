@@ -7,6 +7,9 @@ Beide Listings: Sichtbarkeit **„Nicht gelistet“ / unlisted** (interne Vertei
 
 klToolbox
 
+- Chrome-Web-Store-ID: `npichgjhimegeeldmiocainbdckannba` — seit 3.37.0 steht der zugehörige öffentliche Schlüssel als `key` in `chromium/manifest.json`, damit entpackte Installationen dieselbe ID (und damit dieselbe M365-Rücksprungadresse und denselben Managed-Storage-Pfad) haben. Der Schlüssel ist öffentlich (aus dem CRX-Header, per ID-Hash verifiziert).
+- AMO-Eintrag (Entwicklerseite): https://addons.mozilla.org/de/developers/addon/7df1a831d4be4b9c9f52/edit — Firefox-ID bleibt `app@kltoolbox.dev`.
+
 ## Kurzbeschreibung (≤132 Zeichen)
 
 Kommt aus `chromium/manifest.json` (`description`) — Änderungen daran

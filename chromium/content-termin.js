@@ -1,5 +1,5 @@
 // Version
-// version = "1.22.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.23.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -407,19 +407,19 @@
                 contactValue: apiString(t.contactPersonValue),
                 at: Date.now()
             };
-            console.debug("[klToolbox] Ticketdaten aus API: " + id + (apiTickets[id].contact ? " (Ansprechpartner " + apiTickets[id].contact.name + ")" : " (kein Ansprechpartner)"));
+            console.info("[klToolbox] Ticketdaten aus API: " + id + (apiTickets[id].contact ? " (Ansprechpartner " + apiTickets[id].contact.name + (apiTickets[id].contact.email ? ", " + apiTickets[id].contact.email : ", ohne E-Mail") + ")" : " (kein Ansprechpartner)"));
         } else if (eintrag.op === "GetTicketInfoContactPersons" && Array.isArray(d.contactPersons)) {
             const addr = apiString(eintrag.vars && eintrag.vars.filter && eintrag.vars.filter.addressId);
             if (!addr) {
                 return;
             }
             apiKontakte[addr] = { persons: d.contactPersons.map(apiPerson).filter(Boolean), at: Date.now() };
-            console.debug("[klToolbox] Ansprechpartner aus API: Kunde " + addr + ", " + apiKontakte[addr].persons.length + " Personen");
+            console.info("[klToolbox] Ansprechpartner aus API: Kunde " + addr + ", " + apiKontakte[addr].persons.length + " Personen");
         }
     }
 
     window.addEventListener("message", (evt) => {
-        if (evt.origin !== location.origin || !evt.data || evt.data.source !== "klToolbox-ticket") {
+        if (evt.source !== window || evt.origin !== location.origin || !evt.data || evt.data.source !== "klToolbox-ticket") {
             return;
         }
         apiHookGesehen = true;
@@ -4164,6 +4164,13 @@
 
     function init() {
         ladeM365Status();
+        // Der MAIN-world-Hook hat die GraphQL-Antworten meist schon gesehen,
+        // bevor dieses Script lief - gepufferte Antworten nachfordern
+        try {
+            window.postMessage({ source: "klToolbox-ticket-replay" }, location.origin);
+        } catch (err) {
+            console.info("[klToolbox] Wiederholung nicht anforderbar", err);
+        }
         chrome.storage.local.get({ modTicket: true }, (items) => {
             moduleEnabled = items.modTicket !== false;
             if (moduleEnabled) {
