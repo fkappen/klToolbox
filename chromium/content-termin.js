@@ -1,5 +1,5 @@
 // Version
-// version = "1.22.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.22.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -337,7 +337,15 @@
     // laedt. Hier: zentrale Ablage je Ticket-ID bzw. Kunden-ID, defensiv
     // gelesen (Feldnamen koennen sich mit Updates des Ticketsystems aendern -
     // fehlt etwas, bleibt der DOM-Weg).
-    const apiTickets = {};    // ticketId -> { customerId, customerName, customerAddress, contact:{id,name,phone,email}, at }
+    // REGEL (Handout 2026-09-08): Ein passiver Hook liefert nur die Felder,
+    // die die App selbst abfragt. Vor jedem neuen Feature pruefen, ob das
+    // Feld im Mitschnitt von GetTicketInfoData vorkommt - dann reicht der
+    // Hook (z. B. dueDate/resubmissionDate); sonst braucht es einen eigenen
+    // GraphQL-Request aus dem MAIN world (z. B. createdAt/updatedAt).
+    // ticket.contactPerson traegt laut Mitschnitt denselben Feldsatz wie die
+    // Kontaktliste (Fragment TicketInfoContactPersonFragment) - der Nachschlag
+    // in der Personenliste ist nur Rueckfall, wenn contactPerson null ist.
+    const apiTickets = {};    // ticketId -> { customerId, customerName, customerAddress, subject, due:{...}, contact:{id,name,phone,email}, at }
     const apiKontakte = {};   // customerId -> { persons:[{id,name,phone,email,important,roles}], at }
     let apiHookGesehen = false;
 
@@ -380,7 +388,21 @@
                 customerName: apiString(cust.fullName),
                 customerAddress: apiString(cust.fullAddress),
                 subject: apiString(t.subject),
+                // im Mitschnitt enthalten (fuer ein spaeteres Faelligkeits-Badge)
+                due: {
+                    dueDate: apiString(t.dueDate),
+                    dueTime: apiString(t.dueTime),
+                    resubmissionDate: apiString(t.resubmissionDate),
+                    resubmissionTime: apiString(t.resubmissionTime)
+                },
+                statusId: apiString(t.status && t.status.id),
+                completesTicket: !!(t.status && t.status.completesTicket),
+                priority: apiString(t.priority && t.priority.name),
+                assignees: Array.isArray(t.assignees) ? t.assignees.map((a) => apiString(a && a.fullName)).filter(Boolean) : [],
+                // NICHT im Mitschnitt (App fragt es nicht ab) - bleibt leer, bis
+                // ein eigener Request ticket(id){createdAt updatedAt} gebaut ist
                 createdAt: apiString(t.createdAt),
+                updatedAt: apiString(t.updatedAt),
                 contact: apiPerson(t.contactPerson),
                 contactValue: apiString(t.contactPersonValue),
                 at: Date.now()
@@ -420,6 +442,8 @@
         }
         let c = t.contact ? Object.assign({}, t.contact) : null;
         const liste = t.customerId && apiKontakte[t.customerId] ? apiKontakte[t.customerId].persons : [];
+        // Regelweg: contactPerson traegt Mail/Telefon selbst. Nachschlag nur,
+        // wenn das Fragment sie (wider Erwarten) nicht liefert.
         if (c && (!c.email || !c.phone) && c.id) {
             const voll = liste.find((p) => p.id === c.id);
             if (voll) {
