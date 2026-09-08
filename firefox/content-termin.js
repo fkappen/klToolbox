@@ -1,5 +1,5 @@
 // Version
-// version = "1.23.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.23.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -3432,12 +3432,15 @@
         const mailCheck = document.createElement("input");
         mailCheck.type = "checkbox";
         mailCheck.id = "tt_mailbest";
+        // Standard: NICHT gesetzt (Mail nach aussen) - nur wenn in den Optionen
+        // "standardmaessig gesetzt" aktiv ist
         mailCheck.checked = settings.terminMailStandard === true && !!data.email;
         mailCheck.disabled = !data.email;
         const mailText = document.createElement("span");
-        mailText.textContent = data.email
-            ? "Terminbestätigung per E-Mail an den Ansprechpartner"
-            : "Terminbestätigung nicht möglich - keine E-Mail-Adresse";
+        mailText.textContent = data.email ? "per E-Mail an Ansprechpartner" : "nicht möglich - keine E-Mail-Adresse";
+        mailText.title = data.email
+            ? "Terminbestätigung an " + data.email + " - Vorlage unter Optionen → Ticket-Termin"
+            : "Im Ticket ist keine E-Mail-Adresse des Ansprechpartners hinterlegt";
         const mailWeg = document.createElement("select");
         mailWeg.id = "tt_mailweg";
         mailWeg.style.cssText = "flex:0 0 auto; width:auto;";
@@ -3833,10 +3836,15 @@
             showAlternatives(!ready);
             const graphOpt = Array.from(mailWeg.options).find((o) => o.value === "graph");
             if (graphOpt) {
-                graphOpt.disabled = !(ready && st.scopeMail);
-                graphOpt.textContent = (ready && st.scopeMail) ? "direkt senden" : "direkt senden (nicht freigegeben)";
-                if (graphOpt.disabled && mailWeg.value === "graph") {
-                    mailWeg.value = "mailto";
+                const direkt = !!(ready && st.scopeMail);
+                graphOpt.disabled = !direkt;
+                graphOpt.textContent = direkt ? "direkt senden" : "direkt senden (nicht freigegeben)";
+                // Ist der direkte Versand moeglich, ist er auch vorbelegt -
+                // Outlook/Outlook Web bleiben als bewusste Wahl im Dropdown
+                if (direkt) {
+                    mailWeg.value = "graph";
+                } else if (mailWeg.value === "graph") {
+                    mailWeg.value = (settings.terminMailWeg && settings.terminMailWeg !== "graph") ? settings.terminMailWeg : "mailto";
                 }
             }
             if (ready) {
