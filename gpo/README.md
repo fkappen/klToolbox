@@ -15,16 +15,20 @@ verteilt und liegt bewusst nicht in diesem Repo.
 
 [`New-KlToolboxGpo.ps1`](New-KlToolboxGpo.ps1) legt die GPO an bzw. befüllt sie
 direkt über das GroupPolicy-Modul (Computerkonfiguration → Richtlinien-Registry):
-Force-Install + `defaultsJson` für Chrome, Edge, Brave und Firefox. Vorhandene
-Forcelist-Nummern und eine bestehende Firefox-`ExtensionSettings`-Richtlinie in
-der GPO werden zusammengeführt.
+`ExtensionSettings` mit `installation_mode: normal_installed` (automatisch
+installiert, **Nutzer dürfen deaktivieren/entfernen**; `-Erzwingen` =
+`force_installed`) + `defaultsJson` für Chrome, Edge, Brave und Firefox. Eine
+bestehende `ExtensionSettings`-Richtlinie in der GPO wird zusammengeführt, alte
+Forcelist-Einträge der klToolbox werden entfernt.
 
 ```powershell
 .\New-KlToolboxGpo.ps1 -GpoName "klToolbox" -DefaultsPath "\\pfad\zur\defaults.json" -ExtensionId "<Store-ID>" -CreateGpo
 ```
 
-`-WhatIf` zeigt die Änderungen vorab, `-SkipForceInstall` schreibt nur die
-Vorgaben, `-Browsers Firefox` beschränkt auf einzelne Browser. Danach die GPO mit
+`-WhatIf` zeigt die Änderungen vorab, `-SkipInstall` schreibt nur die
+Vorgaben, `-Browsers Firefox` beschränkt auf einzelne Browser. Entwickler-PCs
+mit entpackter Testinstallation (gleiche ID seit 3.37.0) per Sicherheitsfilterung
+von der GPO ausnehmen. Danach die GPO mit
 der Computer-OU verknüpfen.
 
 ## Variante A: Script (lokale Registry)

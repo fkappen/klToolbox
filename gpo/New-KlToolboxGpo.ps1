@@ -22,8 +22,15 @@ param(
     # Version aus releases/updates.json des Repos.
     [string]$FirefoxInstallUrl = "",
 
-    # Nur die Vorgaben (defaultsJson) schreiben, keinen Force-Install
-    [switch]$SkipForceInstall,
+    # Nur die Vorgaben (defaultsJson) schreiben, keine automatische Installation
+    [Alias("SkipForceInstall")]
+    [switch]$SkipInstall,
+
+    # Standard = "normal_installed": wird automatisch installiert, der Nutzer
+    # darf sie aber deaktivieren/entfernen. -Erzwingen = "force_installed"
+    # (Nutzer kann nichts aendern, Testinstallationen mit gleicher ID werden
+    # verdraengt).
+    [switch]$Erzwingen,
 
     [string]$Domain,
     [string]$Server,
@@ -33,7 +40,7 @@ param(
 )
 
 #Version
-$version = "1.0.2"
+$version = "1.1.0"
 $datum = "2026-09-08"
 $autor = "FK"
 
@@ -45,10 +52,13 @@ $autor = "FK"
 .DESCRIPTION
     Schreibt fuer Chrome, Edge, Brave und Firefox die Registry-Richtlinien unter
     HKLM\SOFTWARE\Policies\... direkt in die GPO (Set-GPRegistryValue):
-      - ExtensionInstallForcelist (Chromium) bzw. ExtensionSettings (Firefox)
+      - ExtensionSettings (JSON) mit installation_mode "normal_installed":
+        automatische Installation, Nutzer darf deaktivieren/entfernen
+        (-Erzwingen: "force_installed")
       - Managed Storage "defaultsJson" mit dem Inhalt der Vorgabe-Datei
-    Vorhandene Forcelist-Nummern und eine bestehende Firefox-ExtensionSettings-
-    Richtlinie in der GPO werden zusammengefuehrt, nicht ueberschrieben.
+    Eine bestehende ExtensionSettings-Richtlinie in der GPO wird zusammen-
+    gefuehrt, nicht ueberschrieben. Aeltere Forcelist-Eintraege dieser
+    Erweiterung (frueherer Script-Stand) werden entfernt.
 
     Voraussetzung: RSAT-Modul GroupPolicy (auf einem DC oder Admin-Rechner).
     Die GPO danach mit der Computer-OU verknuepfen; die Browser lesen die
@@ -82,6 +92,8 @@ catch {
     return
 }
 
+$installMode = if ($Erzwingen) { "force_installed" } else { "normal_installed" }
+
 $gpParams = @{}
 if (-not [string]::IsNullOrWhiteSpace($Domain)) { $gpParams['Domain'] = $Domain }
 if (-not [string]::IsNullOrWhiteSpace($Server)) { $gpParams['Server'] = $Server }
@@ -99,6 +111,31 @@ function Set-PolValue {
     }
     $null = Set-GPRegistryValue @gpParams -Name $GpoName -Key $Key -ValueName $ValueName -Type String -Value $Value -ErrorAction Stop
     Write-Host ("  OK   {0,-8} {1}" -f $Info, ($Key -replace '^HKLM\\SOFTWARE\\Policies\\', '') + "\" + $ValueName)
+}
+
+# Bestehende ExtensionSettings-JSON (String) um unseren Eintrag ergaenzen
+function Merge-ExtensionSettings {
+    param(
+        [string]$Existing,
+        [Parameter(Mandatory = $true)] [string]$Id,
+        [Parameter(Mandatory = $true)] $Entry
+    )
+    $obj = $null
+    if (-not [string]::IsNullOrWhiteSpace($Existing)) {
+        try {
+            $obj = $Existing.TrimStart([char]0xFEFF) | ConvertFrom-Json
+        }
+        catch {
+            Write-Warning "Vorhandene ExtensionSettings in der GPO sind kein gueltiges JSON und werden ersetzt (alter Wert im Verbose-Log)."
+            Write-Verbose $Existing
+            $obj = $null
+        }
+    }
+    if ($null -eq $obj) {
+        $obj = New-Object PSObject
+    }
+    $obj | Add-Member -NotePropertyName $Id -NotePropertyValue $Entry -Force
+    return $obj
 }
 
 # Vorhandenen Richtlinienwert lesen (leer, wenn nicht gesetzt)
@@ -139,7 +176,7 @@ try {
 
     $chromiumWanted = @($Browsers | Where-Object { $chromiumTargets.ContainsKey($_) })
     if ($chromiumWanted.Count -gt 0 -and [string]::IsNullOrWhiteSpace($ExtensionId)) {
-        Write-Warning "Keine -ExtensionId angegeben - Chrome/Edge/Brave werden uebersprungen (Force-Install und Vorgaben brauchen die Store-ID)."
+        Write-Warning "Keine -ExtensionId angegeben - Chrome/Edge/Brave werden uebersprungen (Installation und Vorgaben brauchen die Store-ID)."
         $chromiumWanted = @()
     }
     if ($ExtensionId -and $ExtensionId -notmatch '^[a-p]{32}$') {
@@ -159,7 +196,7 @@ try {
             throw "GPO '$GpoName' nicht gefunden. Mit -CreateGpo anlegen lassen oder Namen pruefen."
         }
         if ($PSCmdlet.ShouldProcess($GpoName, "GPO anlegen")) {
-            $gpo = New-GPO -Name $GpoName -Comment "klToolbox: Force-Install + Vorgaben (New-KlToolboxGpo.ps1 v$version)" @gpParams -ErrorAction Stop
+            $gpo = New-GPO -Name $GpoName -Comment "klToolbox: Installation + Vorgaben (New-KlToolboxGpo.ps1 v$version)" @gpParams -ErrorAction Stop
             Write-Host "GPO angelegt: $GpoName" -ForegroundColor Green
         }
     }
@@ -173,10 +210,19 @@ try {
         Write-Host ""
         Write-Host ">> $browser" -ForegroundColor Cyan
 
-        if (-not $SkipForceInstall) {
-            # Forcelist: vorhandene Nummern in der GPO respektieren, eigene ID nur einmal
+        if (-not $SkipInstall) {
+            # ExtensionSettings (JSON-Richtlinie): normal_installed = automatisch
+            # installiert, vom Nutzer deaktivierbar. Bestehende Eintraege anderer
+            # Erweiterungen in der GPO bleiben erhalten.
+            $esSettings = Merge-ExtensionSettings -Existing (Get-PolValue -Key $base -ValueName "ExtensionSettings") -Id $ExtensionId -Entry ([PSCustomObject]@{
+                installation_mode = $installMode
+                update_url        = $cwsUpdateUrl
+            })
+            Set-PolValue -Key $base -ValueName "ExtensionSettings" -Value ($esSettings | ConvertTo-Json -Compress -Depth 6) -Info $installMode
+
+            # Alten Forcelist-Eintrag dieser Erweiterung entfernen (frueherer Script-Stand),
+            # sonst erzwingt er die Installation trotz normal_installed
             $flKey = "$base\ExtensionInstallForcelist"
-            $flEntry = $ExtensionId + ";" + $cwsUpdateUrl
             $existing = @()
             try {
                 $existing = @(Get-GPRegistryValue @gpParams -Name $GpoName -Key $flKey -ErrorAction Stop)
@@ -184,18 +230,13 @@ try {
             catch {
                 $existing = @()
             }
-            $found = $null
-            $maxIdx = 0
             foreach ($e in $existing) {
-                if ($null -eq $e -or [string]::IsNullOrWhiteSpace($e.ValueName)) { continue }
-                $n = 0
-                if ([int]::TryParse($e.ValueName, [ref]$n) -and $n -gt $maxIdx) { $maxIdx = $n }
-                if ([string]$e.Value -like ($ExtensionId + ";*")) { $found = $e.ValueName }
-            }
-            if ($null -ne $found) {
-                Set-PolValue -Key $flKey -ValueName $found -Value $flEntry -Info "Force"
-            } else {
-                Set-PolValue -Key $flKey -ValueName ([string]($maxIdx + 1)) -Value $flEntry -Info "Force"
+                if ($null -ne $e -and [string]$e.Value -like ($ExtensionId + ";*")) {
+                    if ($PSCmdlet.ShouldProcess("$GpoName : $flKey\$($e.ValueName)", "alten Forcelist-Eintrag entfernen")) {
+                        $null = Remove-GPRegistryValue @gpParams -Name $GpoName -Key $flKey -ValueName $e.ValueName -ErrorAction Stop
+                        Write-Host ("  WEG  Forcelist " + ($flKey -replace '^HKLM\\SOFTWARE\\Policies\\', '') + "\" + $e.ValueName)
+                    }
+                }
             }
         }
 
@@ -208,7 +249,7 @@ try {
         Write-Host ">> Firefox" -ForegroundColor Cyan
         $ffBase = "HKLM\SOFTWARE\Policies\Mozilla\Firefox"
 
-        if (-not $SkipForceInstall) {
+        if (-not $SkipInstall) {
             $installUrl = $FirefoxInstallUrl
             if ([string]::IsNullOrWhiteSpace($installUrl)) {
                 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -218,7 +259,7 @@ try {
                 $updates = $updatesRaw.TrimStart([char]0xFEFF) | ConvertFrom-Json
                 $entries = @($updates.addons.$geckoId.updates)
                 if ($entries.Count -eq 0) {
-                    throw "Keine signierte Firefox-Version in updates.json gefunden - -FirefoxInstallUrl angeben oder -SkipForceInstall."
+                    throw "Keine signierte Firefox-Version in updates.json gefunden - -FirefoxInstallUrl angeben oder -SkipInstall."
                 }
                 $latest = $entries | Sort-Object { [version]$_.version } | Select-Object -Last 1
                 $installUrl = $latest.update_link
@@ -226,27 +267,11 @@ try {
             }
 
             # ExtensionSettings in der GPO mergen statt ueberschreiben
-            $ffSettings = $null
-            $existingRaw = Get-PolValue -Key $ffBase -ValueName "ExtensionSettings"
-            if (-not [string]::IsNullOrWhiteSpace($existingRaw)) {
-                try {
-                    $ffSettings = $existingRaw | ConvertFrom-Json
-                }
-                catch {
-                    Write-Warning "Vorhandene ExtensionSettings in der GPO sind kein gueltiges JSON und werden ersetzt (alter Wert im Verbose-Log)."
-                    Write-Verbose $existingRaw
-                    $ffSettings = $null
-                }
-            }
-            if ($null -eq $ffSettings) {
-                $ffSettings = New-Object PSObject
-            }
-            $ourEntry = [PSCustomObject]@{
-                installation_mode = "force_installed"
+            $ffSettings = Merge-ExtensionSettings -Existing (Get-PolValue -Key $ffBase -ValueName "ExtensionSettings") -Id $geckoId -Entry ([PSCustomObject]@{
+                installation_mode = $installMode
                 install_url       = $installUrl
-            }
-            $ffSettings | Add-Member -NotePropertyName $geckoId -NotePropertyValue $ourEntry -Force
-            Set-PolValue -Key $ffBase -ValueName "ExtensionSettings" -Value ($ffSettings | ConvertTo-Json -Compress -Depth 6) -Info "Force"
+            })
+            Set-PolValue -Key $ffBase -ValueName "ExtensionSettings" -Value ($ffSettings | ConvertTo-Json -Compress -Depth 6) -Info $installMode
         }
 
         Set-PolValue -Key "$ffBase\3rdparty\Extensions\$geckoId" -ValueName "defaultsJson" -Value $defaultsCompact -Info "Vorgaben"
@@ -259,6 +284,7 @@ try {
     Write-Host "  2. Auf einem Client 'gpupdate /force', Browser komplett neu starten."
     Write-Host "  3. Pruefen: chrome://policy, edge://policy, brave://policy bzw. about:policies."
     Write-Host "  4. Die optionale Ticketsystem-Berechtigung bestaetigt jeder Nutzer einmal in den Optionen."
+    Write-Host ("  Installationsmodus: " + $installMode + $(if ($installMode -eq "normal_installed") { " (Nutzer duerfen die Erweiterung deaktivieren)" } else { " (Nutzer koennen nichts aendern)" }))
     Write-Host "  Vorgaben aendern: Datei anpassen, Script erneut ausfuehren (ueberschreibt defaultsJson)."
 }
 catch {
