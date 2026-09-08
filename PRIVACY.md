@@ -36,7 +36,11 @@ Datei-Download oder in das lokale E-Mail-Programm des Nutzers.
 Auf Seiten des vom Nutzer konfigurierten Ticketsystems liest die Erweiterung
 Seiteninhalte (z. B. Kundenname, Ticketnummer, Einträge) **ausschließlich
 lokal**, um dort Funktionen wie Textvorlagen, Terminerstellung oder die
-Wartezeit-Anzeige bereitzustellen. Diese Inhalte werden nicht an den
+Wartezeit-Anzeige bereitzustellen. Dazu gehört auch das Mitlesen der Daten,
+die das Ticketsystem beim Öffnen eines Tickets selbst vom eigenen Server lädt
+(Ticket-Stammdaten und Ansprechpartner des Kunden); die Erweiterung stellt
+dafür keine eigenen Anfragen und hält diese Daten nur im Arbeitsspeicher der
+jeweiligen Seite. Diese Inhalte werden nicht an den
 Entwickler oder Dritte übertragen — mit der einzigen, unten beschriebenen
 Ausnahme der ausdrücklich vom Nutzer ausgelösten KI-Funktionen.
 

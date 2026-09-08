@@ -1,5 +1,5 @@
 // Version
-// version = "1.10.0"
+// version = "1.11.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -380,6 +380,7 @@ async function clipPage(tab) {
 // fuer genau diesen Origin registriert.
 
 const TICKET_SCRIPT_ID = "kltoolbox-ticket";
+const TICKET_MAIN_ID = "kltoolbox-ticket-main";
 
 function ticketOriginFromSettings(items) {
     try {
@@ -401,6 +402,7 @@ async function syncTicketContentScripts() {
         if (!origin) {
             if (existing.length > 0) {
                 await chrome.scripting.unregisterContentScripts({ ids: [TICKET_SCRIPT_ID] });
+                await chrome.scripting.unregisterContentScripts({ ids: [TICKET_MAIN_ID] }).catch(() => null);
             }
             return;
         }
@@ -427,6 +429,31 @@ async function syncTicketContentScripts() {
             await chrome.scripting.registerContentScripts([desired]);
         }
         console.log("klToolbox: Ticket-Module registriert fuer " + match);
+
+        // Passiver Datenhook im Seitenkontext (MAIN world, document_start):
+        // liest die GraphQL-Antworten mit, die das Ticketsystem selbst laedt.
+        // Braucht Chrome >= 102 / Firefox >= 128 - faellt die Registrierung
+        // aus, bleibt der DOM-Weg (Kontaktmenue) als Rueckfall.
+        const hook = {
+            id: TICKET_MAIN_ID,
+            matches: [match],
+            js: ["content-ticket-main.js"],
+            allFrames: true,
+            runAt: "document_start",
+            world: "MAIN",
+            persistAcrossSessions: true
+        };
+        try {
+            const hookExisting = await chrome.scripting.getRegisteredContentScripts({ ids: [TICKET_MAIN_ID] }).catch(() => []);
+            if (hookExisting.length > 0) {
+                await chrome.scripting.updateContentScripts([hook]);
+            } else {
+                await chrome.scripting.registerContentScripts([hook]);
+            }
+            console.log("klToolbox: Ticket-Datenhook (MAIN) registriert fuer " + match);
+        } catch (err) {
+            console.warn("klToolbox: Ticket-Datenhook nicht registrierbar (Browser zu alt?) - DOM-Weg bleibt:", err);
+        }
     }
     catch (err) {
         console.error("klToolbox: Registrierung der Ticket-Module fehlgeschlagen:", err);

@@ -1,5 +1,5 @@
 // Version
-// version = "1.21.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.22.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -331,10 +331,113 @@
         return "";
     }
 
+    // ---------------------------------------------------------- Ticket-Daten aus der API (passiv)
+    // content-ticket-main.js (MAIN world) reicht die Antworten der
+    // GraphQL-Operationen weiter, die die Seite beim Ticket-Oeffnen selbst
+    // laedt. Hier: zentrale Ablage je Ticket-ID bzw. Kunden-ID, defensiv
+    // gelesen (Feldnamen koennen sich mit Updates des Ticketsystems aendern -
+    // fehlt etwas, bleibt der DOM-Weg).
+    const apiTickets = {};    // ticketId -> { customerId, customerName, customerAddress, contact:{id,name,phone,email}, at }
+    const apiKontakte = {};   // customerId -> { persons:[{id,name,phone,email,important,roles}], at }
+    let apiHookGesehen = false;
+
+    function apiString(v) {
+        return (v === null || v === undefined) ? "" : String(v).trim();
+    }
+
+    function apiPerson(p) {
+        if (!p || typeof p !== "object") {
+            return null;
+        }
+        const phone = apiString(p.phoneNumber) || apiString(p.phoneNumber2) || apiString(p.phoneNumber3) || apiString(p.phoneNumber4) || apiString(p.phone);
+        return {
+            id: apiString(p.id),
+            name: apiString(p.name) || [apiString(p.firstName), apiString(p.lastName)].filter(Boolean).join(" "),
+            phone: phone,
+            email: apiString(p.email),
+            important: p.important === true,
+            roles: Array.isArray(p.addressContactPersonMappings) ? p.addressContactPersonMappings.map((m) => apiString(m && m.role)).filter(Boolean) : []
+        };
+    }
+
+    function apiVerarbeiten(eintrag) {
+        if (!eintrag || !eintrag.data) {
+            if (eintrag && eintrag.errors) {
+                console.debug("[klToolbox] " + eintrag.op + " mit Fehlern:", eintrag.errors);
+            }
+            return;
+        }
+        const d = eintrag.data;
+        if (eintrag.op === "GetTicketInfoData" && d.ticket && typeof d.ticket === "object") {
+            const t = d.ticket;
+            const id = apiString(t.id) || apiString(eintrag.vars && eintrag.vars.ticketId);
+            if (!id) {
+                return;
+            }
+            const cust = (t.customer && typeof t.customer === "object") ? t.customer : {};
+            apiTickets[id] = {
+                customerId: apiString(cust.id),
+                customerName: apiString(cust.fullName),
+                customerAddress: apiString(cust.fullAddress),
+                subject: apiString(t.subject),
+                createdAt: apiString(t.createdAt),
+                contact: apiPerson(t.contactPerson),
+                contactValue: apiString(t.contactPersonValue),
+                at: Date.now()
+            };
+            console.debug("[klToolbox] Ticketdaten aus API: " + id + (apiTickets[id].contact ? " (Ansprechpartner " + apiTickets[id].contact.name + ")" : " (kein Ansprechpartner)"));
+        } else if (eintrag.op === "GetTicketInfoContactPersons" && Array.isArray(d.contactPersons)) {
+            const addr = apiString(eintrag.vars && eintrag.vars.filter && eintrag.vars.filter.addressId);
+            if (!addr) {
+                return;
+            }
+            apiKontakte[addr] = { persons: d.contactPersons.map(apiPerson).filter(Boolean), at: Date.now() };
+            console.debug("[klToolbox] Ansprechpartner aus API: Kunde " + addr + ", " + apiKontakte[addr].persons.length + " Personen");
+        }
+    }
+
+    window.addEventListener("message", (evt) => {
+        if (evt.origin !== location.origin || !evt.data || evt.data.source !== "klToolbox-ticket") {
+            return;
+        }
+        apiHookGesehen = true;
+        for (const e of (Array.isArray(evt.data.eintraege) ? evt.data.eintraege : [])) {
+            try {
+                apiVerarbeiten(e);
+            } catch (err) {
+                console.debug("[klToolbox] API-Eintrag nicht verarbeitet", err);
+            }
+        }
+    });
+
+    // Kontakt des aktuellen Tickets aus der API: Ansprechpartner des Tickets,
+    // ergaenzt um die Personenliste des Kunden (Mail/Telefon, falls der
+    // Ticket-Ansprechpartner sie nicht traegt).
+    function apiKontaktFuerTicket(ticketNr) {
+        const t = apiTickets[apiString(ticketNr)];
+        if (!t) {
+            return null;
+        }
+        let c = t.contact ? Object.assign({}, t.contact) : null;
+        const liste = t.customerId && apiKontakte[t.customerId] ? apiKontakte[t.customerId].persons : [];
+        if (c && (!c.email || !c.phone) && c.id) {
+            const voll = liste.find((p) => p.id === c.id);
+            if (voll) {
+                c.email = c.email || voll.email;
+                c.phone = c.phone || voll.phone;
+                c.name = c.name || voll.name;
+            }
+        }
+        if (!c && liste.length === 1) {
+            c = Object.assign({}, liste[0]);
+        }
+        return { ticket: t, contact: c, persons: liste };
+    }
+
     function extractAll() {
         const kunde = extractKunde();
         const ticketNr = extractTicketNr();
-        return {
+        const out = {
             // Kunde inkl. Kundennummer, wie im Ticketsystem angezeigt
             kunde: (kunde.nr ? kunde.nr + " - " : "") + kunde.name,
             kundeName: kunde.name,
@@ -343,8 +446,28 @@
             bezeichnung: extractBezeichnung(),
             ansprechpartner: extractAnsprechpartner(),
             telefon: labelValue(["Telefon-Nr.:", "Telefon:", "Rufnummer:"]),
-            email: extractEmail()
+            email: extractEmail(),
+            quelle: "dom"
         };
+        // API-Daten (passiver Hook) fuellen die Luecken des DOM-Wegs - vor
+        // allem die E-Mail, die im DOM nur im Kontaktmenue steht.
+        const api = apiKontaktFuerTicket(ticketNr);
+        if (api && api.contact) {
+            if (!out.email && api.contact.email) {
+                out.email = api.contact.email;
+                out.quelle = "api";
+            }
+            if (!out.telefon && api.contact.phone) {
+                out.telefon = api.contact.phone;
+            }
+            if (!out.ansprechpartner && api.contact.name) {
+                out.ansprechpartner = api.contact.name;
+            }
+        }
+        if (api && !out.bezeichnung && api.ticket.subject) {
+            out.bezeichnung = api.ticket.subject;
+        }
+        return out;
     }
 
     // ---------------------------------------------------------- Templates
@@ -3000,7 +3123,9 @@
         if (!data.email) {
             const wm = document.createElement("div");
             wm.className = "tt-warn";
-            wm.textContent = "E-Mail nicht gefunden - einmal das Menü neben dem Ansprechpartner öffnen, dann „Termin“ erneut aufrufen.";
+            wm.textContent = apiHookGesehen
+                ? "E-Mail nicht gefunden - der Ansprechpartner hat im Ticketsystem keine E-Mail-Adresse hinterlegt (oder das Menü neben dem Ansprechpartner einmal öffnen)."
+                : "E-Mail nicht gefunden - einmal das Menü neben dem Ansprechpartner öffnen, dann „Termin“ erneut aufrufen (oder die Ticketseite neu laden, damit die Daten automatisch ankommen).";
             panel.appendChild(wm);
         }
 
@@ -3118,7 +3243,8 @@
         artRow.appendChild(artSelect);
         left.appendChild(artRow);
 
-        const addrRow = fieldRow("Adresse", "tt_addr", extractKundenAdresse());
+        const apiT = apiKontaktFuerTicket(data.ticketNr);
+        const addrRow = fieldRow("Adresse", "tt_addr", extractKundenAdresse() || (apiT && apiT.ticket.customerAddress) || "");
         left.appendChild(addrRow);
 
         // Anfahrt (nur bei "Vor Ort"): separater Termin direkt vor dem
