@@ -1,9 +1,9 @@
 // Version
-// version = "1.11.0"
+// version = "1.12.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
-// Service Worker: Kontextmenü, API-Aufrufe (Claude/OpenAI), Ergebnis-Injection.
+// Service Worker: Kontextmenü, API-Aufrufe (DeutschlandGPT/InnoGPT/Azure OpenAI), Ergebnis-Injection.
 
 const ACTIONS = {
     rewrite: {
@@ -47,11 +47,13 @@ const SYSTEM_PROMPT =
 // Neutrale Auslieferung: guenstige Modelle vorbelegt, kein Kontext -
 // firmenspezifische Vorgaben kommen erst per Settings-Import/GPO.
 const DEFAULTS = {
-    provider: "claude",
-    claudeApiKey: "",
-    claudeModel: "claude-haiku-4-5",
-    openaiApiKey: "",
-    openaiModel: "gpt-4o-mini",
+    provider: "dgpt",
+    // DeutschlandGPT: OpenAI-kompatibel, Server in DE/EU. Base-URL laut
+    // www.deutschlandgpt.de/plattform/api (Stand 2026-09-08), in den
+    // Optionen anpassbar, falls der Anbieter sie aendert.
+    dgptApiKey: "",
+    dgptModel: "claude-4.5-haiku",
+    dgptBaseUrl: "https://apiv2.deutschlandgpt.de/platform-api/api/v2",
     innogptApiKey: "",
     innogptModel: "gpt-5",
     kiKontext: "",
@@ -140,6 +142,24 @@ function buildSystemPrompt(settings) {
 
 // InnoGPT ist OpenAI-kompatibel (https://docs.innogpt.de -> Entwickler & API)
 const INNOGPT_BASE_URL = "https://app.innogpt.de/api/ext/v1";
+
+function dgptBaseUrl(settings) {
+    return String(settings.dgptBaseUrl || DEFAULTS.dgptBaseUrl).trim().replace(/\/+$/, "");
+}
+
+// Migration (3.38.0): Claude und OpenAI als Anbieter entfernt - Anbieter
+// umstellen (InnoGPT/Azure, wenn dort ein Key liegt, sonst DeutschlandGPT)
+// und die alten Keys aus dem Speicher loeschen.
+chrome.storage.local.get({ provider: "dgpt", innogptApiKey: "", azureApiKey: "", claudeApiKey: "", openaiApiKey: "" }, (s) => {
+    if (s.provider === "claude" || s.provider === "openai") {
+        const neu = s.innogptApiKey ? "innogpt" : (s.azureApiKey ? "azure" : "dgpt");
+        chrome.storage.local.set({ provider: neu });
+        console.info("klToolbox: KI-Anbieter '" + s.provider + "' wird nicht mehr unterstuetzt - umgestellt auf '" + neu + "'.");
+    }
+    if (s.claudeApiKey || s.openaiApiKey) {
+        chrome.storage.local.remove(["claudeApiKey", "claudeModel", "openaiApiKey", "openaiModel"]);
+    }
+});
 
 // ---------------------------------------------------------------- Kontextmenü
 
@@ -777,53 +797,16 @@ async function chatProvider(settings, messages, systemOverride) {
         return azureChat(settings, system, messages);
     }
 
-    if (settings.provider === "claude") {
-        if (!settings.claudeApiKey) {
-            throw new Error("Kein Anthropic API-Key hinterlegt (Optionen).");
-        }
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-                "content-type": "application/json",
-                "x-api-key": settings.claudeApiKey,
-                "anthropic-version": "2023-06-01",
-                "anthropic-dangerous-direct-browser-access": "true"
-            },
-            body: JSON.stringify({
-                model: settings.claudeModel || DEFAULTS.claudeModel,
-                max_tokens: 8192,
-                system: system,
-                messages: messages
-            })
-        });
-        if (!res.ok) {
-            const body = await res.text().catch(() => "");
-            throw new Error("Anthropic API " + res.status + ": " + shorten(body));
-        }
-        const data = await res.json();
-        if (data.stop_reason === "refusal") {
-            throw new Error("Anfrage wurde vom Modell abgelehnt.");
-        }
-        if (data.usage) {
-            recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens, settings.claudeModel || DEFAULTS.claudeModel);
-        }
-        const out = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-        if (!out) {
-            throw new Error("Leere Antwort von der Anthropic API.");
-        }
-        return out.trim();
-    }
-
-    // OpenAI-kompatibel (OpenAI / InnoGPT)
+    // OpenAI-kompatibel (DeutschlandGPT / InnoGPT)
     const isInno = settings.provider === "innogpt";
-    const apiKey = isInno ? settings.innogptApiKey : settings.openaiApiKey;
+    const apiKey = isInno ? settings.innogptApiKey : settings.dgptApiKey;
     if (!apiKey) {
-        throw new Error("Kein " + (isInno ? "InnoGPT" : "OpenAI") + " API-Key hinterlegt (Optionen).");
+        throw new Error("Kein " + (isInno ? "InnoGPT" : "DeutschlandGPT") + " API-Key hinterlegt (Optionen).");
     }
-    const baseUrl = isInno ? INNOGPT_BASE_URL : "https://api.openai.com/v1";
+    const baseUrl = isInno ? INNOGPT_BASE_URL : dgptBaseUrl(settings);
     const model = isInno
         ? (settings.innogptModel || DEFAULTS.innogptModel)
-        : (settings.openaiModel || DEFAULTS.openaiModel);
+        : (settings.dgptModel || DEFAULTS.dgptModel);
 
     const res = await fetch(baseUrl + "/chat/completions", {
         method: "POST",
@@ -838,11 +821,11 @@ async function chatProvider(settings, messages, systemOverride) {
     });
     if (!res.ok) {
         const body = await res.text().catch(() => "");
-        throw new Error((isInno ? "InnoGPT" : "OpenAI") + " API " + res.status + ": " + shorten(body));
+        throw new Error((isInno ? "InnoGPT" : "DeutschlandGPT") + " API " + res.status + ": " + shorten(body));
     }
     const data = await res.json();
     if (data.usage) {
-        recordUsage(settings.provider, data.usage.prompt_tokens, data.usage.completion_tokens, model);
+        recordUsage(isInno ? "innogpt" : "dgpt", data.usage.prompt_tokens, data.usage.completion_tokens, model);
     }
     const out = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
     if (!out) {
@@ -921,7 +904,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             try {
                 const settings = await getSettings();
                 // Provider-Override (z. B. Kontextmenue "In InnoGPT fragen")
-                if (msg.provider === "claude" || msg.provider === "openai" || msg.provider === "innogpt") {
+                if (msg.provider === "dgpt" || msg.provider === "innogpt") {
                     settings.provider = msg.provider;
                 }
                 const text = await chatProvider(settings, msg.messages);
@@ -952,18 +935,6 @@ async function callProvider(settings, instruction, text) {
             { role: "user", content: "Aufgabe: " + instruction + "\n\nText:\n" + text }
         ]);
     }
-    if (settings.provider === "openai") {
-        if (!settings.openaiApiKey) {
-            throw new Error("Kein OpenAI API-Key hinterlegt (Erweiterungs-Optionen öffnen).");
-        }
-        return callOpenAICompatible({
-            baseUrl: "https://api.openai.com/v1",
-            apiKey: settings.openaiApiKey,
-            model: settings.openaiModel || DEFAULTS.openaiModel,
-            label: "OpenAI",
-            system: buildSystemPrompt(settings)
-        }, instruction, text);
-    }
     if (settings.provider === "innogpt") {
         if (!settings.innogptApiKey) {
             throw new Error("Kein InnoGPT API-Key hinterlegt (Erweiterungs-Optionen öffnen).");
@@ -973,57 +944,25 @@ async function callProvider(settings, instruction, text) {
             apiKey: settings.innogptApiKey,
             model: settings.innogptModel || DEFAULTS.innogptModel,
             label: "InnoGPT",
+            provider: "innogpt",
             system: buildSystemPrompt(settings)
         }, instruction, text);
     }
-    if (!settings.claudeApiKey) {
-        throw new Error("Kein Anthropic API-Key hinterlegt (Erweiterungs-Optionen öffnen).");
+    // Standard: DeutschlandGPT (auch fuer noch nicht migrierte Alt-Werte)
+    if (!settings.dgptApiKey) {
+        throw new Error("Kein DeutschlandGPT API-Key hinterlegt (Erweiterungs-Optionen öffnen).");
     }
-    return callClaude(settings, instruction, text);
+    return callOpenAICompatible({
+        baseUrl: dgptBaseUrl(settings),
+        apiKey: settings.dgptApiKey,
+        model: settings.dgptModel || DEFAULTS.dgptModel,
+        label: "DeutschlandGPT",
+        provider: "dgpt",
+        system: buildSystemPrompt(settings)
+    }, instruction, text);
 }
 
-async function callClaude(settings, instruction, text) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-            "content-type": "application/json",
-            "x-api-key": settings.claudeApiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-            model: settings.claudeModel || DEFAULTS.claudeModel,
-            max_tokens: 8192,
-            system: buildSystemPrompt(settings),
-            messages: [
-                { role: "user", content: "Aufgabe: " + instruction + "\n\nText:\n" + text }
-            ]
-        })
-    });
-
-    if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error("Anthropic API " + res.status + ": " + shorten(body));
-    }
-
-    const data = await res.json();
-    if (data.stop_reason === "refusal") {
-        throw new Error("Anfrage wurde vom Modell abgelehnt.");
-    }
-    if (data.usage) {
-        recordUsage("claude", data.usage.input_tokens, data.usage.output_tokens, settings.claudeModel || DEFAULTS.claudeModel);
-    }
-    const out = (data.content || [])
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-    if (!out) {
-        throw new Error("Leere Antwort von der Anthropic API.");
-    }
-    return out.trim();
-}
-
-// Gemeinsamer Aufruf fuer alle OpenAI-kompatiblen Endpunkte (OpenAI, InnoGPT)
+// Gemeinsamer Aufruf fuer alle OpenAI-kompatiblen Endpunkte (DeutschlandGPT, InnoGPT)
 async function callOpenAICompatible(cfg, instruction, text) {
     const res = await fetch(cfg.baseUrl + "/chat/completions", {
         method: "POST",
@@ -1047,7 +986,7 @@ async function callOpenAICompatible(cfg, instruction, text) {
 
     const data = await res.json();
     if (data.usage) {
-        recordUsage(cfg.label === "InnoGPT" ? "innogpt" : "openai", data.usage.prompt_tokens, data.usage.completion_tokens, cfg.model);
+        recordUsage(cfg.provider || "dgpt", data.usage.prompt_tokens, data.usage.completion_tokens, cfg.model);
     }
     const out = data.choices && data.choices[0] && data.choices[0].message
         ? data.choices[0].message.content

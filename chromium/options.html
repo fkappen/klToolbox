@@ -136,8 +136,7 @@
     <fieldset>
         <legend>Anbieter</legend>
         <div class="radio-row" style="flex-wrap:wrap;">
-            <label><input type="radio" name="provider" value="claude"> Claude (Anthropic)</label>
-            <label><input type="radio" name="provider" value="openai"> ChatGPT (OpenAI)</label>
+            <label><input type="radio" name="provider" value="dgpt"> DeutschlandGPT</label>
             <label><input type="radio" name="provider" value="innogpt"> InnoGPT</label>
             <label><input type="radio" name="provider" value="azure"> Azure OpenAI (Business)</label>
         </div>
@@ -150,31 +149,28 @@
     </fieldset>
 
     <fieldset>
-        <legend>Claude (Anthropic)</legend>
-        <label for="claudeApiKey">API-Key</label>
-        <input type="password" id="claudeApiKey" placeholder="sk-ant-...">
-        <label for="claudeModelSel">Modell</label>
-        <select id="claudeModelSel">
-            <option value="claude-haiku-4-5">Haiku 4.5 — € günstig &amp; schnell</option>
-            <option value="claude-sonnet-5">Sonnet 5 — €€ ausgewogen</option>
-            <option value="claude-opus-5">Opus 5 — €€€ leistungsstark</option>
-            <option value="claude-fable-5">Fable 5 — €€€€ Spitzenmodell</option>
+        <legend>DeutschlandGPT</legend>
+        <label for="dgptApiKey">API-Key</label>
+        <input type="password" id="dgptApiKey" placeholder="API-Key aus der DeutschlandGPT-Konsole">
+        <label for="dgptModelSel">Modell</label>
+        <select id="dgptModelSel">
+            <option value="claude-4.5-haiku">claude-4.5-haiku</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="mistral-small-latest">mistral-small-latest</option>
+            <option value="llama-3.3-70b">llama-3.3-70b</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="claude-4.5-sonnet">claude-4.5-sonnet</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+            <option value="mistral-large-latest">mistral-large-latest</option>
+            <option value="gpt-5">gpt-5</option>
+            <option value="gpt-5.5">gpt-5.5</option>
+            <option value="claude-opus-5">claude-opus-5</option>
             <option value="__custom">Eigenes Modell…</option>
         </select>
-        <input type="text" id="claudeModel" placeholder="Modell-ID, z. B. claude-haiku-4-5" style="display:none; margin-top:6px;">
-    </fieldset>
-
-    <fieldset>
-        <legend>ChatGPT (OpenAI)</legend>
-        <label for="openaiApiKey">API-Key</label>
-        <input type="password" id="openaiApiKey" placeholder="sk-...">
-        <label for="openaiModelSel">Modell</label>
-        <select id="openaiModelSel">
-            <option value="gpt-4o-mini">GPT-4o mini — € günstig &amp; schnell</option>
-            <option value="gpt-4o">GPT-4o — €€€ leistungsstark</option>
-            <option value="__custom">Eigenes Modell…</option>
-        </select>
-        <input type="text" id="openaiModel" placeholder="Modell-ID, z. B. gpt-4o-mini" style="display:none; margin-top:6px;">
+        <input type="text" id="dgptModel" placeholder="Modell-ID laut DeutschlandGPT-Doku" style="display:none; margin-top:6px;">
+        <label for="dgptBaseUrl">API-Adresse (Base-URL)</label>
+        <input type="text" id="dgptBaseUrl" placeholder="https://apiv2.deutschlandgpt.de/platform-api/api/v2">
+        <div class="hint">OpenAI-kompatible API, Server in Deutschland/EU; den Key in der DeutschlandGPT-Konsole (dialog.deutschlandgpt.de) erzeugen. Modell-IDs und Base-URL laut Anbieter-Dokumentation Stand 09/2026 — die Adresse nur ändern, wenn der Anbieter sie ändert. Liefert ein Modell 400/404, die exakte ID über „Eigenes Modell…“ eintragen.</div>
     </fieldset>
 
     <fieldset>

@@ -18,9 +18,9 @@ const MAX_CONVOS = 50;
 const MAX_MSGS = 60;
 
 // URL-Parameter: ?q=<Frage> (wird automatisch gesendet),
-// ?provider=claude|openai|innogpt (Override, z. B. "In InnoGPT fragen")
+// ?provider=dgpt|innogpt (Override, z. B. "In InnoGPT fragen")
 const urlParams = new URLSearchParams(location.search);
-const providerOverride = ["claude", "openai", "innogpt"].includes(urlParams.get("provider"))
+const providerOverride = ["dgpt", "innogpt"].includes(urlParams.get("provider"))
     ? urlParams.get("provider")
     : "";
 const initialQuery = (urlParams.get("q") || "").trim();
@@ -208,7 +208,7 @@ function ensureConvo(firstText) {
 
 function updateMeta() {
     chrome.storage.local.get({
-        provider: "claude", claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini",
+        provider: "dgpt", dgptModel: "claude-4.5-haiku",
         innogptModel: "gpt-5", azureDeployment: "",
         brandPrimary: "", brandAccent: "", brandIcon: ""
     }, (s) => {
@@ -236,10 +236,10 @@ function updateMeta() {
             document.documentElement.style.setProperty("--klt-a", s.brandAccent);
         }
         const provider = providerOverride || s.provider;
-        const model = provider === "openai" ? s.openaiModel
-            : (provider === "innogpt" ? s.innogptModel
-                : (provider === "azure" ? (s.azureDeployment || "Deployment") : s.claudeModel));
-        el("meta").textContent = provider + " · " + model;
+        const model = provider === "innogpt" ? s.innogptModel
+            : (provider === "azure" ? (s.azureDeployment || "Deployment") : s.dgptModel);
+        const provName = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure OpenAI" }[provider] || provider;
+        el("meta").textContent = provName + " · " + model;
     });
 }
 

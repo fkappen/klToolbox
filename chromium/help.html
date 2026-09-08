@@ -107,22 +107,15 @@
     </ul>
 
     <h2 id="ki">KI-Funktionen</h2>
-    <p>Der KI-Anbieter und das Modell werden in den Optionen gewählt — verfügbar sind Claude (Anthropic), ChatGPT (OpenAI), InnoGPT (mit großem Modellkatalog inkl. Preisen je 1 Mio. Tokens) und <b>Azure OpenAI</b> als „Copilot for Business“-Weg (eigene Azure-Ressource des Microsoft-Tenants: Endpoint, Deployment, Key). „Eigenes Modell…“ erlaubt beliebige Modell-IDs. Darunter zeigt die <b>Token-Verbrauchsstatistik</b> die genutzten Tokens der letzten 24 Stunden, 7/30 Tage und des letzten Jahres (nur lokal erfasst).</p>
+    <p>Der KI-Anbieter und das Modell werden in den Optionen gewählt — verfügbar sind DeutschlandGPT (OpenAI-kompatible API, Server in Deutschland/EU, Modellkatalog aller großen Anbieter), InnoGPT (mit großem Modellkatalog inkl. Preisen je 1 Mio. Tokens) und <b>Azure OpenAI</b> als „Copilot for Business“-Weg (eigene Azure-Ressource des Microsoft-Tenants: Endpoint, Deployment, Key). „Eigenes Modell…“ erlaubt beliebige Modell-IDs. Darunter zeigt die <b>Token-Verbrauchsstatistik</b> die genutzten Tokens der letzten 24 Stunden, 7/30 Tage und des letzten Jahres (nur lokal erfasst).</p>
     <h3>KI-Anbieter einrichten</h3>
     <p>Für alle Anbieter gilt: Key in den Optionen eintragen, die <b>Zustimmung zur Datenübertragung</b> anhaken, speichern — der Status-Bereich oben zeigt, ob alles grün ist. Es genügt, <b>einen</b> Anbieter einzurichten.</p>
 
-    <p><b>Claude (Anthropic):</b></p>
+    <p><b>DeutschlandGPT:</b> DSGVO-konforme API, alle Modelle laufen auf Servern in Deutschland bzw. der EU.</p>
     <ol>
-        <li><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> → Konto anlegen bzw. anmelden, unter <i>Billing</i> Guthaben/Zahlungsmittel hinterlegen</li>
-        <li><i>API Keys</i> → <i>Create Key</i> → Key (<code>sk-ant-…</code>) kopieren — er wird nur einmal angezeigt</li>
-        <li>In den Optionen bei „Claude" eintragen; Modell-Empfehlung: Haiku (günstig) für Alltagsaufgaben</li>
-    </ol>
-
-    <p><b>ChatGPT (OpenAI):</b></p>
-    <ol>
-        <li><a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a> → anmelden, unter <i>Billing</i> Guthaben aufladen (Prepaid)</li>
-        <li><i>API keys</i> → <i>Create new secret key</i> → Key (<code>sk-…</code>) kopieren</li>
-        <li>In den Optionen bei „ChatGPT (OpenAI)" eintragen</li>
+        <li>Bei <a href="https://dialog.deutschlandgpt.de" target="_blank" rel="noopener">dialog.deutschlandgpt.de</a> anmelden, in der Konsole einen Workspace und einen API-Key anlegen</li>
+        <li>In den Optionen bei „DeutschlandGPT" eintragen; Modell aus der Liste wählen (z. B. ein Haiku- oder Flash-Modell für Alltagsaufgaben) oder eine Modell-ID aus der Anbieter-Doku über „Eigenes Modell…“</li>
+        <li>Die API-Adresse ist vorbelegt und muss nur geändert werden, wenn der Anbieter sie ändert</li>
     </ol>
 
     <p><b>InnoGPT:</b></p>

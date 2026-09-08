@@ -23,8 +23,7 @@
         "identity"
     ],
     "host_permissions": [
-        "https://api.anthropic.com/*",
-        "https://api.openai.com/*",
+        "https://apiv2.deutschlandgpt.de/*",
         "https://app.innogpt.de/*",
         "https://*.openai.azure.com/*"
     ],

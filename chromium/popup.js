@@ -1,5 +1,5 @@
 // Version
-// version = "2.1.0"  (Modul Popup, klToolbox)
+// version = "2.2.0"  (Modul Popup, klToolbox)
 // datum   = "2026-08-13"
 // autor   = "FK"
 //
@@ -164,7 +164,7 @@ let hasKundenUrl = false;
 let hasDatevDoc = true;
 const DATEV_DOC_DEFAULT = "https://wissensplattform.apps.datev.de/help/document/%DOKNR%";
 const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "KI" };
-const PROVIDER_LABELS = { claude: "Claude", openai: "ChatGPT", innogpt: "InnoGPT", azure: "Azure KI" };
+const PROVIDER_LABELS = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure KI" };
 
 function classifyQuery(value) {
     // Ticket-/Kunden-Erkennung nur, wenn das jeweilige Linkziel auch
@@ -288,10 +288,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isPanel) {
         document.body.classList.add("panel");
         chrome.storage.local.get({
-            modChat: true, provider: "claude",
-            claudeApiKey: "", openaiApiKey: "", innogptApiKey: "", azureApiKey: ""
+            modChat: true, provider: "dgpt",
+            dgptApiKey: "", innogptApiKey: "", azureApiKey: ""
         }, (s) => {
-            const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey, azure: s.azureApiKey };
+            const keyMap = { dgpt: s.dgptApiKey, innogpt: s.innogptApiKey, azure: s.azureApiKey };
             if (s.modChat !== false && !!(keyMap[s.provider] || "").trim()) {
                 document.getElementById("chatFrame").src = chrome.runtime.getURL("chat.html");
             } else {
@@ -379,10 +379,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // ein API-Key hinterlegt ist; der dritte Such-Button traegt den Namen
     // des gewaehlten Anbieters (Frage geht an den KI-Chat mit ebendiesem).
     chrome.storage.local.get({
-        modChat: true, provider: "claude",
-        claudeApiKey: "", openaiApiKey: "", innogptApiKey: "", azureApiKey: ""
+        modChat: true, provider: "dgpt",
+        dgptApiKey: "", innogptApiKey: "", azureApiKey: ""
     }, (items) => {
-        const keyMap = { claude: items.claudeApiKey, openai: items.openaiApiKey, innogpt: items.innogptApiKey, azure: items.azureApiKey };
+        const keyMap = { dgpt: items.dgptApiKey, innogpt: items.innogptApiKey, azure: items.azureApiKey };
         const chatOk = items.modChat !== false && !!(keyMap[items.provider] || "").trim();
         if (!chatOk) {
             document.getElementById("openChat").style.display = "none";

@@ -24,7 +24,7 @@ Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugri
 
 klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams in einer Erweiterung.
 
-**KI-Textbearbeitung** — Markierten Text per Rechtsklick überarbeiten lassen: umformulieren, förmlicher oder lockerer fassen, kürzen, Rechtschreibung korrigieren oder übersetzen. Eigene Aktionen mit eigenem Prompt lassen sich ergänzen. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld. Die Anfrage geht mit dem eigenen API-Schlüssel an den selbst gewählten Anbieter; unterstützt werden Anthropic, OpenAI, InnoGPT und Azure OpenAI. Ohne hinterlegten Schlüssel und ohne ausdrückliche Zustimmung in den Optionen wird nichts übertragen.
+**KI-Textbearbeitung** — Markierten Text per Rechtsklick überarbeiten lassen: umformulieren, förmlicher oder lockerer fassen, kürzen, Rechtschreibung korrigieren oder übersetzen. Eigene Aktionen mit eigenem Prompt lassen sich ergänzen. Das Ergebnis ersetzt die Markierung direkt im Eingabefeld. Die Anfrage geht mit dem eigenen API-Schlüssel an den selbst gewählten Anbieter; unterstützt werden DeutschlandGPT, InnoGPT und Azure OpenAI. Ohne hinterlegten Schlüssel und ohne ausdrückliche Zustimmung in den Optionen wird nichts übertragen.
 
 **KI-Chat** — Eine eigene Chat-Seite mit dem eingerichteten Anbieter. Der Gesprächsverlauf der letzten 30 Tage bleibt ausschließlich lokal gespeichert; eine Übersicht zeigt den angefallenen Verbrauch samt Kostenschätzung.
 
@@ -44,7 +44,7 @@ Die Erweiterung wird ohne Voreinstellungen ausgeliefert und erhebt keine Daten. 
 
 klToolbox bundles everyday tools for IT service teams in a single extension.
 
-**AI text editing** — Have selected text reworked from the right-click menu: rephrase it, make it more formal or more casual, shorten it, correct spelling, or translate it. Custom actions with your own prompt can be added. The result replaces the selection directly in the input field. The request is sent with your own API key to the provider you choose; Anthropic, OpenAI, InnoGPT and Azure OpenAI are supported. Nothing is transmitted without a stored key and your explicit consent in the options.
+**AI text editing** — Have selected text reworked from the right-click menu: rephrase it, make it more formal or more casual, shorten it, correct spelling, or translate it. Custom actions with your own prompt can be added. The result replaces the selection directly in the input field. The request is sent with your own API key to the provider you choose; DeutschlandGPT, InnoGPT and Azure OpenAI are supported. Nothing is transmitted without a stored key and your explicit consent in the options.
 
 **AI chat** — A dedicated chat page using the provider you set up. The conversation history of the past 30 days is stored locally only, and an overview shows the usage incurred along with an estimated cost.
 
@@ -107,7 +107,7 @@ also „mit Formatierung in die Zwischenablage übernehmen, als Datei sichern,
 drucken oder per E-Mail weitergeben".
 
 Fremdnamen nur, wo sie technisch unvermeidbar sind, und höchstens einmal:
-- KI-Anbieter (Anthropic/OpenAI/InnoGPT/Azure OpenAI) — sind die tatsächlich
+- KI-Anbieter (DeutschlandGPT/InnoGPT/Azure OpenAI) — sind die tatsächlich
   angesprochenen Endpunkte, daher relevant; in einem Satz, nicht als Liste.
 - Microsoft/Windows — die Anmeldeseite, auf der der Konten-Aufräumer arbeitet.
 - Entfernt wurden: OneNote, Word, Outlook, ICS, Markdown, HTML, PDF, DATEV
@@ -130,7 +130,7 @@ und erneut einzureichen; das Paket selbst ist unverändert gültig.
 - `identity`: Optionale Microsoft-365-Kalenderfunktion — führt den Standard-Anmeldedialog von Microsoft (OAuth 2.0 mit PKCE, ohne Client-Secret) gegen den eigenen Tenant des Nutzers aus, nachdem dieser die App-Registrierung seiner Organisation in den Optionen eingetragen und „Verbinden“ geklickt hat. Angefordert werden nur die delegierten Berechtigungen Calendars.ReadWrite (eigener Kalender) und Calendars.ReadWrite.Shared (Kalender, die dem Nutzer von Kollegen freigegeben wurden); optional und nur nach Einschalten in den Optionen zusätzlich User.ReadBasic.All (Namen/E-Mail der Nutzer des eigenen Tenants, um freigegebene Kalender zu finden) und Mail.Send (Terminbestätigung im Namen des Nutzers an den Ticket-Ansprechpartner, Vorlage vom Nutzer, ausgelöst per Haken im Termin-Fenster). Token bleiben im lokalen Speicher.
 
 **Begründung Hostberechtigungen:**
-> api.anthropic.com / api.openai.com / app.innogpt.de / *.openai.azure.com: Der vom Nutzer markierte Text wird nur auf dessen ausdrückliche Aktion, nach Zustimmung in den Einstellungen und mit dessen eigenem API-Schlüssel an den gewählten KI-Anbieter gesendet (bei Azure OpenAI an die vom Nutzer konfigurierte Ressource des eigenen Microsoft-Tenants), ausschließlich zur Erzeugung des Ergebnisses. — login.microsoftonline.com / login.live.com / login.microsoft.com: Ein sichtbarer, ausschließlich per Klick ausgelöster Button entfernt gemerkte Konten über das seiteneigene „Abmelden und vergessen“-Menü; es werden keine Anmeldedaten gelesen, gespeichert oder übertragen. — Optionale Hostberechtigung (https://*/*): Der Nutzer konfiguriert die URL seines internen Ticketsystems; nur für genau diese Website wird nach ausdrücklicher Zustimmung Zugriff angefordert, um dort Vorlagen-/Termin-Buttons einzublenden. Ohne Konfiguration und Zustimmung wird keine Website berührt. — login.microsoftonline.com / graph.microsoft.com (optional, zur Laufzeit beim Klick auf „Verbinden“ angefordert): Token-Abruf und Anlegen/Lesen von Terminen im eigenen Kalender des angemeldeten Nutzers für die optionale Microsoft-365-Kalenderfunktion; ohne Einrichtung wird keiner der beiden Hosts kontaktiert.
+> apiv2.deutschlandgpt.de / app.innogpt.de / *.openai.azure.com: Der vom Nutzer markierte Text wird nur auf dessen ausdrückliche Aktion, nach Zustimmung in den Einstellungen und mit dessen eigenem API-Schlüssel an den gewählten KI-Anbieter gesendet (bei Azure OpenAI an die vom Nutzer konfigurierte Ressource des eigenen Microsoft-Tenants), ausschließlich zur Erzeugung des Ergebnisses. — login.microsoftonline.com / login.live.com / login.microsoft.com: Ein sichtbarer, ausschließlich per Klick ausgelöster Button entfernt gemerkte Konten über das seiteneigene „Abmelden und vergessen“-Menü; es werden keine Anmeldedaten gelesen, gespeichert oder übertragen. — Optionale Hostberechtigung (https://*/*): Der Nutzer konfiguriert die URL seines internen Ticketsystems; nur für genau diese Website wird nach ausdrücklicher Zustimmung Zugriff angefordert, um dort Vorlagen-/Termin-Buttons einzublenden. Ohne Konfiguration und Zustimmung wird keine Website berührt. — login.microsoftonline.com / graph.microsoft.com (optional, zur Laufzeit beim Klick auf „Verbinden“ angefordert): Token-Abruf und Anlegen/Lesen von Terminen im eigenen Kalender des angemeldeten Nutzers für die optionale Microsoft-365-Kalenderfunktion; ohne Einrichtung wird keiner der beiden Hosts kontaktiert.
 
 **Remote Code:** Nein. Es werden keine Skripte nachgeladen; alle Inhalte liegen im Paket.
 
@@ -153,11 +153,11 @@ defaults can come via managed storage. Privacy policy:
 https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
 
 1. AI features (context menu "KI: Text bearbeiten", AI chat, summarize/
-   translate in the clipper) require the user's OWN API key (Anthropic,
-   OpenAI, InnoGPT or Azure OpenAI) AND an explicit consent checkbox in
+   translate in the clipper) require the user's OWN API key (DeutschlandGPT,
+   InnoGPT or Azure OpenAI) AND an explicit consent checkbox in
    Options -> "KI". Without key + consent, every AI action shows an error
-   toast and NOTHING is transmitted. To test end-to-end, enter any
-   Anthropic or OpenAI API key, tick the consent checkbox, select text on
+   toast and NOTHING is transmitted. To test end-to-end, enter a
+   DeutschlandGPT API key (or any OpenAI-compatible key via Azure OpenAI), tick the consent checkbox, select text on
    any page -> right-click -> "KI: Text bearbeiten" -> "Umformulieren":
    the selection is replaced by the AI result. The request goes directly
    from the browser to the provider chosen by the user - no developer
@@ -215,7 +215,7 @@ https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
 | `storage` | Local settings (provider, API keys, templates, links); managed storage for enterprise defaults. |
 | `scripting` + `activeTab` | Inserts the AI result into the field the user selected; registers ticket-system content scripts for the origin the user explicitly granted. |
 | `clipboardWrite` | Fallback: copy result to clipboard if inline insertion is impossible. |
-| Host `api.anthropic.com`, `api.openai.com`, `app.innogpt.de`, `*.openai.azure.com` | Selected text is sent to the AI provider chosen by the user, with the user's own API key, solely to generate the result. Azure OpenAI targets a resource in the user's own Microsoft tenant, configured by the user. |
+| Host `apiv2.deutschlandgpt.de`, `app.innogpt.de`, `*.openai.azure.com` | Selected text is sent to the AI provider chosen by the user, with the user's own API key, solely to generate the result. Azure OpenAI targets a resource in the user's own Microsoft tenant, configured by the user. |
 | Optional host (`https://*/*`) | The user configures the URL of their internal ticket system; access is requested for that single origin only, after explicit consent, to add template/appointment buttons there. No site is touched without configuration and consent. |
 | `identity` | Optional feature "create appointment directly in the user's own Microsoft 365 calendar": `identity.launchWebAuthFlow` runs the standard OAuth 2.0 authorization-code flow (PKCE, no client secret) against the user's own Entra tenant. Used only after the user enters their organisation's app registration in the options and clicks "Connect". Tokens stay in local storage and are never exported. The only Graph permissions requested are the delegated `Calendars.ReadWrite` (own calendar) and `Calendars.ReadWrite.Shared` (calendars colleagues have shared with the user). |
 | Optional host `login.microsoftonline.com`, `graph.microsoft.com` | Requested at runtime (user click) for the same optional feature: token exchange and `POST /me/events`. Nothing is contacted unless the user connects. |

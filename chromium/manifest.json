@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "klToolbox",
-    "version": "3.37.4",
+    "version": "3.38.0",
     "description": "Werkzeuge für IT-Service-Teams: KI-Textbearbeitung, Ticket-Helfer, Schnellzugriffe, KI-Chat und Konto-Aufräumer.",
     "author": "FK",
     "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzbYeHZnJTEPVmoC9OTT6+6uL5ftsOLP7mm6XC5fdQXdy6iU5OXBAiXQecluRphsKrT3TnLMlR76oNs3mJ+8T8fkhuLWfAPAQVVlsGejtTlcxKYT5dKOI1RJqLO7rvEZUY6nXZ9BVVN8BKJz7nQhuOe9PudHDkTGA4CT7HJjD7bbfIkwPEVQ0Gx1FrufDGTobnBKPpqFAbmnzY6SxbLTMr3KxKC3qkiddFaZB3y4ZzOWqVGALccY2GZlT2dD0qPhC15v88eiQa6OVk1xX+XN6+7RGbr2qsAkmoQMZ6hVcFv8bcfkXo6+LXZwAXh43mHpHUgU8ILrmvCyLnJZDMroMAwIDAQAB",
@@ -21,8 +21,7 @@
         "default_path": "popup.html?panel=1"
     },
     "host_permissions": [
-        "https://api.anthropic.com/*",
-        "https://api.openai.com/*",
+        "https://apiv2.deutschlandgpt.de/*",
         "https://app.innogpt.de/*",
         "https://*.openai.azure.com/*"
     ],

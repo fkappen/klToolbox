@@ -1,5 +1,5 @@
 // Version
-// version = "2.5.0"
+// version = "2.6.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -9,11 +9,10 @@
 // Neutrale Auslieferung: guenstige Modelle, kein Kontext - firmenspezifische
 // Vorgaben (kiKontext, Branding, Links) kommen erst per Settings-Import/GPO.
 const KI_DEFAULTS = {
-    provider: "claude",
-    claudeApiKey: "",
-    claudeModel: "claude-haiku-4-5",
-    openaiApiKey: "",
-    openaiModel: "gpt-4o-mini",
+    provider: "dgpt",
+    dgptApiKey: "",
+    dgptModel: "claude-4.5-haiku",
+    dgptBaseUrl: "https://apiv2.deutschlandgpt.de/platform-api/api/v2",
     innogptApiKey: "",
     innogptModel: "gpt-5",
     kiKontext: "",
@@ -30,8 +29,8 @@ const KI_DEFAULTS = {
 // Modell..." fuer alles, was nicht in der Liste steht. Quelle der Wahrheit
 // bleibt das (versteckte) Textfeld - saveKi liest weiterhin nur das Input.
 const MODEL_PRESETS = {
-    claude: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5"],
-    openai: ["gpt-4o-mini", "gpt-4o"],
+    // DeutschlandGPT: Modell-IDs laut www.deutschlandgpt.de/plattform/api (09/2026)
+    dgpt: ["claude-4.5-haiku", "gemini-2.5-flash", "mistral-small-latest", "llama-3.3-70b", "gpt-4o", "claude-4.5-sonnet", "gemini-2.5-pro", "mistral-large-latest", "gpt-5", "gpt-5.5", "claude-opus-5"],
     innogpt: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5",
         "gpt-5-mini", "gpt-5", "gpt-5.5", "gpt-4o-mini", "gpt-4o",
         "gemini-2.5-flash", "gemini-2.5-pro", "deepseek-v3", "mistral-large-3"]
@@ -603,15 +602,15 @@ function loadAll() {
         document.getElementById("cleanerWhitelist").value =
             (Array.isArray(items.cleanerWhitelist) ? items.cleanerWhitelist : []).join("\n");
         // KI
-        document.querySelector('input[name="provider"][value="' + items.provider + '"]').checked = true;
-        document.getElementById("claudeApiKey").value = items.claudeApiKey;
-        document.getElementById("claudeModel").value = items.claudeModel;
-        document.getElementById("openaiApiKey").value = items.openaiApiKey;
-        document.getElementById("openaiModel").value = items.openaiModel;
+        const provRadio = document.querySelector('input[name="provider"][value="' + items.provider + '"]')
+            || document.querySelector('input[name="provider"][value="dgpt"]');
+        provRadio.checked = true;
+        document.getElementById("dgptApiKey").value = items.dgptApiKey;
+        document.getElementById("dgptModel").value = items.dgptModel;
+        document.getElementById("dgptBaseUrl").value = items.dgptBaseUrl || KI_DEFAULTS.dgptBaseUrl;
         document.getElementById("innogptApiKey").value = items.innogptApiKey;
         document.getElementById("innogptModel").value = items.innogptModel;
-        initModelSelect("claude");
-        initModelSelect("openai");
+        initModelSelect("dgpt");
         initModelSelect("innogpt");
         document.getElementById("azureEndpoint").value = items.azureEndpoint;
         document.getElementById("azureDeployment").value = items.azureDeployment;
@@ -663,9 +662,9 @@ function flashStatus(id) {
 
 function saveKi() {
     const consent = document.getElementById("kiConsent").checked;
-    const anyKey = document.getElementById("claudeApiKey").value.trim() ||
-        document.getElementById("openaiApiKey").value.trim() ||
-        document.getElementById("innogptApiKey").value.trim();
+    const anyKey = document.getElementById("dgptApiKey").value.trim() ||
+        document.getElementById("innogptApiKey").value.trim() ||
+        document.getElementById("azureApiKey").value.trim();
     if (anyKey && !consent) {
         alert("Bitte zuerst der Datenübertragung an den KI-Anbieter zustimmen (Häkchen oben im KI-Bereich) - ohne Zustimmung bleiben die KI-Funktionen deaktiviert.");
     }
@@ -676,10 +675,9 @@ function saveKi() {
     chrome.storage.local.set({
         kiConsent: consent,
         provider: document.querySelector('input[name="provider"]:checked').value,
-        claudeApiKey: document.getElementById("claudeApiKey").value.trim(),
-        claudeModel: document.getElementById("claudeModel").value.trim() || KI_DEFAULTS.claudeModel,
-        openaiApiKey: document.getElementById("openaiApiKey").value.trim(),
-        openaiModel: document.getElementById("openaiModel").value.trim() || KI_DEFAULTS.openaiModel,
+        dgptApiKey: document.getElementById("dgptApiKey").value.trim(),
+        dgptModel: document.getElementById("dgptModel").value.trim() || KI_DEFAULTS.dgptModel,
+        dgptBaseUrl: document.getElementById("dgptBaseUrl").value.trim().replace(/\/+$/, "") || KI_DEFAULTS.dgptBaseUrl,
         innogptApiKey: document.getElementById("innogptApiKey").value.trim(),
         innogptModel: document.getElementById("innogptModel").value.trim() || KI_DEFAULTS.innogptModel,
         azureEndpoint: document.getElementById("azureEndpoint").value.trim(),
@@ -818,12 +816,13 @@ function priceFor(model, provider) {
 function renderUsage() {
     chrome.storage.local.get({
         kiUsage: [],
-        claudeModel: "claude-haiku-4-5", openaiModel: "gpt-4o-mini",
+        dgptModel: "claude-4.5-haiku",
         innogptModel: "gpt-5", azureDeployment: ""
     }, (s) => {
         const events = Array.isArray(s.kiUsage) ? s.kiUsage : [];
         // Alt-Events ohne Modellangabe: aktuelles Modell des Anbieters als Schaetzung
-        const providerModel = { claude: s.claudeModel, openai: s.openaiModel, innogpt: s.innogptModel, azure: s.azureDeployment };
+        // (claude/openai = Alt-Eintraege vor 3.38.0, Modell unbekannt)
+        const providerModel = { dgpt: s.dgptModel, innogpt: s.innogptModel, azure: s.azureDeployment, claude: "", openai: "" };
         const now = Date.now();
         const fmt = (n) => n.toLocaleString("de-DE");
         const fmtEur = (v) => (v > 0 && v < 0.005)
@@ -1064,9 +1063,10 @@ function renderStatus() {
         const version = chrome.runtime.getManifest().version;
         row(true, "klToolbox v" + version);
 
-        const keyMap = { claude: s.claudeApiKey, openai: s.openaiApiKey, innogpt: s.innogptApiKey, azure: s.azureApiKey };
+        const keyMap = { dgpt: s.dgptApiKey, innogpt: s.innogptApiKey, azure: s.azureApiKey };
+        const provName = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure OpenAI" }[s.provider] || s.provider;
         const hasKey = !!(keyMap[s.provider] || "").trim();
-        row(hasKey, "KI-Anbieter: " + s.provider, hasKey ? "API-Key hinterlegt" : "kein API-Key hinterlegt");
+        row(hasKey, "KI-Anbieter: " + provName, hasKey ? "API-Key hinterlegt" : "kein API-Key hinterlegt");
         row(s.kiConsent === true, "KI-Datenübertragung", s.kiConsent === true ? "Zustimmung erteilt" : "Zustimmung fehlt (KI-Funktionen deaktiviert)");
 
         let origin = null;
@@ -1533,8 +1533,7 @@ function importAllSettings(file, mode) {
 document.addEventListener("DOMContentLoaded", () => {
     loadAll();
     document.getElementById("saveKi").addEventListener("click", saveKi);
-    wireModelSelect("claude");
-    wireModelSelect("openai");
+    wireModelSelect("dgpt");
     wireModelSelect("innogpt");
     document.getElementById("saveTermin").addEventListener("click", saveTermin);
     document.getElementById("saveAmpel").addEventListener("click", saveAmpel);

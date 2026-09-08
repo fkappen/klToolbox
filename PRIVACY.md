@@ -52,8 +52,8 @@ Nutzer angestoßenen Inhalte** (z. B. den sichtbaren Ticketverlauf beim
 Antwortentwurf) an **einen** der folgenden, vom Nutzer ausgewählten
 KI-Anbieter — ausschließlich zur Erzeugung des angeforderten Ergebnisses:
 
-- Anthropic (api.anthropic.com) — [Datenschutz](https://www.anthropic.com/privacy)
-- OpenAI (api.openai.com) — [Datenschutz](https://openai.com/privacy)
+- DeutschlandGPT (apiv2.deutschlandgpt.de) — Server in Deutschland/EU,
+  [Datenschutz](https://www.deutschlandgpt.de/datenschutz)
 - InnoGPT (app.innogpt.de) — Datenschutzhinweise des Anbieters
 - Azure OpenAI (\*.openai.azure.com) — eine Azure-Ressource des eigenen
   Microsoft-Tenants ([Microsoft-Datenschutz](https://privacy.microsoft.com))
@@ -178,7 +178,7 @@ and the AI chat history are stored **locally** in the browser. Page content of
 the user-configured ticket system is processed locally only. The **only**
 transmission of user data happens when the user explicitly triggers an AI
 feature: the selected text (or the user-initiated content) is sent directly
-from the user's browser to **one** AI provider (Anthropic, OpenAI or InnoGPT)
+from the user's browser to **one** AI provider (DeutschlandGPT, InnoGPT or Azure OpenAI)
 that the user has chosen and configured with **their own API key** — solely to
 produce the requested result, and only after a one-time explicit consent in
 the extension settings. Favicons are fetched from the link's host or Google's

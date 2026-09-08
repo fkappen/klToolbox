@@ -13,7 +13,7 @@ zentral per Gruppenrichtlinie (Managed Storage).
 
 | Modul | Beschreibung |
 |---|---|
-| KI-Umformulierer | Markierten Text per Rechtsklick mit KI umformulieren, korrigieren oder übersetzen (Claude / OpenAI / InnoGPT, eigener API-Key) |
+| KI-Umformulierer | Markierten Text per Rechtsklick mit KI umformulieren, korrigieren oder übersetzen (DeutschlandGPT / InnoGPT / Azure OpenAI, eigener API-Key) |
 | Kontextmenü-Suchen | Markierten Text in der DATEV Wissensplattform, bei Google oder in InnoGPT nachschlagen |
 | Ticket-Vorlagen | Textbausteine mit einem Klick in das Mail-Fenster des (konfigurierten) Ticketsystems einfügen — mit Platzhaltern wie `{anrede}` |
 | Ticket-Termin & Wartezeit | Outlook-Termin aus dem Ticket erstellen (ICS oder Outlook Web), „Nicht erreicht“-Eintrag, Abonnieren, Anfahrtsplanung, Wartezeit-Ampel |
