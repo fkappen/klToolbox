@@ -1,5 +1,5 @@
 // Version
-// version = "2.4.0"
+// version = "2.4.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -314,7 +314,14 @@ function renderM365State() {
             const acc = st.account || {};
             el.textContent = "✓ Verbunden als " + (acc.name ? acc.name + " (" + acc.upn + ")" : (acc.upn || "unbekanntes Konto")) +
                 (st.seit ? " - seit " + new Date(st.seit).toLocaleString("de-DE") : "") +
-                (st.permission ? "" : " - Achtung: Host-Zugriff fehlt, bitte erneut „Verbinden“.");
+                (st.permission ? "" : " - Achtung: Host-Zugriff fehlt, bitte erneut „Verbinden“.") +
+                (st.tokenScopes ? " · Berechtigungen im Token: " + st.tokenScopes : "");
+            if (st.verzeichnisGewuenscht && !st.scopeVerzeichnis) {
+                el.textContent += " · ✗ Verzeichnis-Berechtigung (User.ReadBasic.All) FEHLT im Token: erst im Tenant freigeben (Script mit -MitVerzeichnis), dann „Trennen“ und „Verbinden“.";
+            }
+            if (!st.scopeShared) {
+                el.textContent += " · ✗ Calendars.ReadWrite.Shared fehlt im Token - „Trennen“ und „Verbinden“.";
+            }
         }
     });
 }
@@ -324,6 +331,21 @@ function renderM365State() {
 function m365Connect() {
     const btn = document.getElementById("m365Connect");
     btn.disabled = true;
+    // Eingaben (Tenant, Client-ID, Verzeichnis-Schalter) zuerst sichern - sonst
+    // meldet sich der Hintergrund-Dienst mit dem alten Stand an
+    const erinnerung = Number(document.getElementById("m365ErinnerungMin").value);
+    chrome.storage.local.set({
+        m365Tenant: document.getElementById("m365Tenant").value.trim(),
+        m365ClientId: document.getElementById("m365ClientId").value.trim(),
+        m365Kategorie: document.getElementById("m365Kategorie").value.trim(),
+        m365ErinnerungMin: (isFinite(erinnerung) && erinnerung >= 0) ? erinnerung : M365_DEFAULTS.m365ErinnerungMin,
+        m365Kollegen: document.getElementById("m365Kollegen").value.trim(),
+        m365VerzeichnisScope: document.getElementById("m365VerzeichnisScope").checked,
+        m365KollegenCache: null
+    }, () => m365ConnectWeiter(btn));
+}
+
+function m365ConnectWeiter(btn) {
     const origins = ["https://login.microsoftonline.com/*", "https://graph.microsoft.com/*"];
     chrome.permissions.request({ origins: origins }, (granted) => {
         if (chrome.runtime.lastError || !granted) {
@@ -335,12 +357,16 @@ function m365Connect() {
             btn.disabled = false;
             const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
             if (err) {
-                alert("Anmeldung fehlgeschlagen:\n\n" + err);
+                alert("Anmeldung fehlgeschlagen:\n\n" + err +
+                    (/consent|AADSTS65001|AADSTS90008|admin approval/i.test(err)
+                        ? "\n\nHinweis: Eine angeforderte Berechtigung ist im Tenant nicht freigegeben. Bei eingeschaltetem Verzeichnis-Schalter das Script M365_klToolbox_Create-App.ps1 mit -MitVerzeichnis ausführen oder den Schalter abwählen."
+                        : ""));
             } else {
                 flashStatus("statusM365");
             }
             renderM365State();
             renderStatus();
+            renderKolListe(false);
         });
     });
 }

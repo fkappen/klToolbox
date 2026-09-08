@@ -1,5 +1,5 @@
 // Version
-// version = "1.9.0"
+// version = "1.9.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1989,6 +1989,10 @@ async function m365Status() {
         connected: !!(auth && (auth.refreshToken || (auth.accessToken && Number(auth.expiresAt) > Date.now()))),
         account: auth && auth.account ? auth.account : null,
         scopeShared: !!(auth && /\bCalendars\.ReadWrite\.Shared\b/.test(String(auth.scope || ""))),
+        scopeVerzeichnis: !!(auth && /\bUser\.ReadBasic\.All\b/.test(String(auth.scope || ""))),
+        verzeichnisGewuenscht: (await m365Storage({ m365VerzeichnisScope: false })).m365VerzeichnisScope === true,
+        // Nur Kurznamen der Graph-Scopes, keine Token
+        tokenScopes: String(auth && auth.scope || "").split(/\s+/).filter((x) => x).map((x) => x.replace(/^https:\/\/graph\.microsoft\.com\//, "")).join(", "),
         seit: auth && auth.seit ? auth.seit : "",
         redirectUrl: m365RedirectUrl(),
         identity: !!(chrome.identity && typeof chrome.identity.launchWebAuthFlow === "function")
