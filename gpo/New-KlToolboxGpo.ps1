@@ -32,6 +32,12 @@ param(
     # verdraengt).
     [switch]$Erzwingen,
 
+    # Standard: Symbol in der Browser-Symbolleiste anheften (Chrome/Brave
+    # toolbar_pin=force_pinned, Edge toolbar_state=force_shown ab Edge 103,
+    # Firefox default_area=navbar ab Firefox 113 - dort nur Vorgabe, Nutzer
+    # koennen es verschieben). -NichtAnheften laesst die Symbolleiste in Ruhe.
+    [switch]$NichtAnheften,
+
     [string]$Domain,
     [string]$Server,
 
@@ -40,7 +46,7 @@ param(
 )
 
 #Version
-$version = "1.1.0"
+$version = "1.2.0"
 $datum = "2026-09-08"
 $autor = "FK"
 
@@ -214,10 +220,16 @@ try {
             # ExtensionSettings (JSON-Richtlinie): normal_installed = automatisch
             # installiert, vom Nutzer deaktivierbar. Bestehende Eintraege anderer
             # Erweiterungen in der GPO bleiben erhalten.
-            $esSettings = Merge-ExtensionSettings -Existing (Get-PolValue -Key $base -ValueName "ExtensionSettings") -Id $ExtensionId -Entry ([PSCustomObject]@{
+            $eintrag = [ordered]@{
                 installation_mode = $installMode
                 update_url        = $cwsUpdateUrl
-            })
+            }
+            if (-not $NichtAnheften) {
+                # Edge kennt toolbar_state (force_shown/default_shown/default_hidden),
+                # Chrome und Brave toolbar_pin (force_pinned/default_unpinned)
+                if ($browser -eq "Edge") { $eintrag["toolbar_state"] = "force_shown" } else { $eintrag["toolbar_pin"] = "force_pinned" }
+            }
+            $esSettings = Merge-ExtensionSettings -Existing (Get-PolValue -Key $base -ValueName "ExtensionSettings") -Id $ExtensionId -Entry ([PSCustomObject]$eintrag)
             Set-PolValue -Key $base -ValueName "ExtensionSettings" -Value ($esSettings | ConvertTo-Json -Compress -Depth 6) -Info $installMode
 
             # Alten Forcelist-Eintrag dieser Erweiterung entfernen (frueherer Script-Stand),
@@ -267,10 +279,14 @@ try {
             }
 
             # ExtensionSettings in der GPO mergen statt ueberschreiben
-            $ffSettings = Merge-ExtensionSettings -Existing (Get-PolValue -Key $ffBase -ValueName "ExtensionSettings") -Id $geckoId -Entry ([PSCustomObject]@{
+            $ffEintrag = [ordered]@{
                 installation_mode = $installMode
                 install_url       = $installUrl
-            })
+            }
+            if (-not $NichtAnheften) {
+                $ffEintrag["default_area"] = "navbar"   # Firefox >= 113, nur Vorgabe
+            }
+            $ffSettings = Merge-ExtensionSettings -Existing (Get-PolValue -Key $ffBase -ValueName "ExtensionSettings") -Id $geckoId -Entry ([PSCustomObject]$ffEintrag)
             Set-PolValue -Key $ffBase -ValueName "ExtensionSettings" -Value ($ffSettings | ConvertTo-Json -Compress -Depth 6) -Info $installMode
         }
 
@@ -285,6 +301,8 @@ try {
     Write-Host "  3. Pruefen: chrome://policy, edge://policy, brave://policy bzw. about:policies."
     Write-Host "  4. Die optionale Ticketsystem-Berechtigung bestaetigt jeder Nutzer einmal in den Optionen."
     Write-Host ("  Installationsmodus: " + $installMode + $(if ($installMode -eq "normal_installed") { " (Nutzer duerfen die Erweiterung deaktivieren)" } else { " (Nutzer koennen nichts aendern)" }))
+    Write-Host ("  Symbolleiste: " + $(if ($NichtAnheften) { "keine Vorgabe" } else { "angeheftet (Chrome/Brave/Edge erzwungen, Firefox Vorgabe)" }))
+    Write-Host "  Browser nach der Richtlinienaenderung KOMPLETT beenden (auch Hintergrundprozesse) - sonst zeigt die Erweiterungsseite den alten Zustand."
     Write-Host "  Vorgaben aendern: Datei anpassen, Script erneut ausfuehren (ueberschreibt defaultsJson)."
 }
 catch {

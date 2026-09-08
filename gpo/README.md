@@ -19,7 +19,9 @@ direkt über das GroupPolicy-Modul (Computerkonfiguration → Richtlinien-Regist
 installiert, **Nutzer dürfen deaktivieren/entfernen**; `-Erzwingen` =
 `force_installed`) + `defaultsJson` für Chrome, Edge, Brave und Firefox. Eine
 bestehende `ExtensionSettings`-Richtlinie in der GPO wird zusammengeführt, alte
-Forcelist-Einträge der klToolbox werden entfernt.
+Forcelist-Einträge der klToolbox werden entfernt. Das Symbol wird in der
+Symbolleiste angeheftet (Chrome/Brave `toolbar_pin`, Edge `toolbar_state`,
+Firefox `default_area` als Vorgabe); `-NichtAnheften` lässt das weg.
 
 ```powershell
 .\New-KlToolboxGpo.ps1 -GpoName "klToolbox" -DefaultsPath "\\pfad\zur\defaults.json" -ExtensionId "<Store-ID>" -CreateGpo
