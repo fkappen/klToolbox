@@ -1,5 +1,5 @@
 // Version
-// version = "1.20.0"  (Modul Ticket-Termin, klToolbox)
+// version = "1.20.1"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -2880,6 +2880,28 @@
         };
     }
 
+    // Zuletzt bekannter M365-Status: Damit baut sich das Termin-Panel sofort in
+    // der richtigen Form auf (Kalenderspalte, Knoepfe), statt erst neutral und
+    // nach dem Aufwachen des Hintergrund-Dienstes umzuspringen.
+    let m365StatusCache = null;
+    function ladeM365Status(cb) {
+        try {
+            chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
+                if (!chrome.runtime.lastError && st && st.ok) {
+                    m365StatusCache = st;
+                }
+                if (cb) {
+                    cb(chrome.runtime.lastError ? null : st);
+                }
+            });
+        } catch (err) {
+            console.warn("Ticket-Termin: M365-Status nicht abrufbar:", err);
+            if (cb) {
+                cb(null);
+            }
+        }
+    }
+
     function openPanel(anchor) {
         closePanel();
         panelOpen = true;
@@ -3520,18 +3542,26 @@
             positionPanel(panel, anchor);
         }
 
+        function statusKern(st) {
+            return st && st.ok
+                ? [st.identity, st.configured, st.permission, st.connected, st.account && st.account.upn].join("|")
+                : "";
+        }
         function refreshM365State(done) {
-            try {
-                chrome.runtime.sendMessage({ type: "m365Status" }, (st) => {
-                    applyM365State(chrome.runtime.lastError ? null : st);
-                    if (done) {
-                        done();
-                    }
-                });
-            } catch (err) {
-                console.warn("Ticket-Termin: M365-Status nicht abrufbar:", err);
-                applyM365State(null);
-            }
+            const vorher = statusKern(m365);
+            ladeM365Status((st) => {
+                // Nur neu aufbauen, wenn sich etwas geaendert hat - sonst
+                // wuerde der Kalender bei jedem Bestaetigen neu laden
+                if (statusKern(st) !== vorher || !m365) {
+                    applyM365State(st);
+                }
+                if (done) {
+                    done();
+                }
+            });
+        }
+        if (m365StatusCache) {
+            applyM365State(m365StatusCache);   // sofort, noch vor dem ersten Zeichnen
         }
         refreshM365State();
 
@@ -3817,6 +3847,7 @@
     }
 
     function init() {
+        ladeM365Status();
         chrome.storage.local.get({ modTicket: true }, (items) => {
             moduleEnabled = items.modTicket !== false;
             if (moduleEnabled) {
@@ -3828,6 +3859,9 @@
             }
         });
         chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === "local" && (changes.m365Auth || changes.m365Tenant || changes.m365ClientId)) {
+                ladeM365Status();
+            }
             if (area === "local" && changes.modTicket) {
                 moduleEnabled = changes.modTicket.newValue !== false;
                 if (moduleEnabled) {
