@@ -1,5 +1,5 @@
 // Version
-// version = "1.23.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.23.2"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -3457,6 +3457,25 @@
         mailRow.appendChild(mailLabel);
         mailRow.appendChild(mailWrap);
         left.appendChild(mailRow);
+
+        // Kopplung (Felix): Teams-Termin -> Ansprechpartner einladen (die
+        // Einladung traegt den Teams-Link); Einladung gesetzt -> Bestaetigung
+        // aus, sie waere doppelt. Beides bleibt von Hand aenderbar.
+        const invCheckEl = document.getElementById("tt_inv");
+        function koppleEinladung() {
+            if (invCheckEl.checked) {
+                mailCheck.checked = false;
+            }
+        }
+        invCheckEl.addEventListener("change", koppleEinladung);
+        function koppleTeams() {
+            if (artSelect.value === "teams" && data.email && !invCheckEl.checked) {
+                invCheckEl.checked = true;
+                koppleEinladung();
+            }
+        }
+        artSelect.addEventListener("change", koppleTeams);
+        koppleTeams();
 
         // Bestaetigung nach dem Anlegen verschicken; cbText(zusatz) fuer die Abschlussmeldung
         function bestaetigungNachAnlage(d, startDt, durMin, artText, teamsLink, cbText) {
