@@ -24,7 +24,7 @@ param(
 )
 
 #Version
-$version = "2.0.1"
+$version = "2.0.2"
 $datum = "2026-08-14"
 $autor = "FK"
 
@@ -108,7 +108,9 @@ try {
 
         # Aktuellste signierte xpi aus der updates.json des Repos ermitteln
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $updates = (Invoke-WebRequest -Uri ($repoRawBase + "updates.json") -UseBasicParsing).Content | ConvertFrom-Json
+        # updates.json kommt mit UTF-8-BOM - ConvertFrom-Json unter PS 5.1 stolpert darueber
+        $updatesRaw = [string](Invoke-WebRequest -Uri ($repoRawBase + "updates.json") -UseBasicParsing).Content
+        $updates = $updatesRaw.TrimStart([char]0xFEFF) | ConvertFrom-Json
         $entries = @($updates.addons.$geckoId.updates)
         if ($entries.Count -eq 0) {
             throw "Keine signierte Firefox-Version in updates.json gefunden."

@@ -22,7 +22,7 @@ param(
 )
 
 #Version
-$version = "1.0.0"
+$version = "1.0.1"
 $datum = "2026-08-14"
 $autor = "FK"
 
@@ -43,7 +43,9 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $ffSettingsJson = ""
     try {
-        $updates = (Invoke-WebRequest -Uri $updatesUrl -UseBasicParsing).Content | ConvertFrom-Json
+        # updates.json kommt mit UTF-8-BOM - ConvertFrom-Json unter PS 5.1 stolpert darueber
+        $updatesRaw = [string](Invoke-WebRequest -Uri $updatesUrl -UseBasicParsing).Content
+        $updates = $updatesRaw.TrimStart([char]0xFEFF) | ConvertFrom-Json
         $entries = @($updates.addons.$geckoId.updates)
         if ($entries.Count -gt 0) {
             $latest = $entries | Sort-Object { [version]$_.version } | Select-Object -Last 1

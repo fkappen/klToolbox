@@ -33,7 +33,7 @@ param(
 )
 
 #Version
-$version = "1.0.1"
+$version = "1.0.2"
 $datum = "2026-09-08"
 $autor = "FK"
 
@@ -119,6 +119,8 @@ function Get-PolValue {
 
 try {
     # ------------------------------------------- Vorgaben laden
+    # Anfuehrungszeichen aus der interaktiven Abfrage entfernen (werden dort Teil des Pfads)
+    $DefaultsPath = $DefaultsPath.Trim().Trim('"').Trim("'")
     if (-not (Test-Path -LiteralPath $DefaultsPath)) {
         throw "Vorgabe-Datei nicht gefunden: $DefaultsPath"
     }
@@ -210,7 +212,10 @@ try {
             $installUrl = $FirefoxInstallUrl
             if ([string]::IsNullOrWhiteSpace($installUrl)) {
                 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-                $updates = (Invoke-WebRequest -Uri $updatesUrl -UseBasicParsing -ErrorAction Stop).Content | ConvertFrom-Json
+                # updates.json kommt mit UTF-8-BOM - ConvertFrom-Json unter PS 5.1 stolpert
+                # darueber ("Ungueltiger JSON-Primitiv") -> BOM abschneiden
+                $updatesRaw = [string](Invoke-WebRequest -Uri $updatesUrl -UseBasicParsing -ErrorAction Stop).Content
+                $updates = $updatesRaw.TrimStart([char]0xFEFF) | ConvertFrom-Json
                 $entries = @($updates.addons.$geckoId.updates)
                 if ($entries.Count -eq 0) {
                     throw "Keine signierte Firefox-Version in updates.json gefunden - -FirefoxInstallUrl angeben oder -SkipForceInstall."
