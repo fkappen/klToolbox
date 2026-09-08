@@ -1,5 +1,5 @@
 // Version
-// version = "2.4.1"
+// version = "2.5.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -173,7 +173,9 @@ const M365_DEFAULTS = {
     m365Kategorie: "",
     m365ErinnerungMin: 15,
     m365Kollegen: "",
-    m365VerzeichnisScope: false
+    m365VerzeichnisScope: false,
+    m365MailScope: false,
+    m365Rufnummer: ""
 };
 
 function saveM365() {
@@ -185,6 +187,8 @@ function saveM365() {
         m365ErinnerungMin: (isFinite(erinnerung) && erinnerung >= 0) ? erinnerung : M365_DEFAULTS.m365ErinnerungMin,
         m365Kollegen: document.getElementById("m365Kollegen").value.trim(),
         m365VerzeichnisScope: document.getElementById("m365VerzeichnisScope").checked,
+        m365MailScope: document.getElementById("m365MailScope").checked,
+        m365Rufnummer: document.getElementById("m365Rufnummer").value.trim(),
         // Pflegeliste geaendert -> Kollegen-Cache verwerfen
         m365KollegenCache: null
     }, () => {
@@ -322,6 +326,9 @@ function renderM365State() {
             if (!st.scopeShared) {
                 el.textContent += " · ✗ Calendars.ReadWrite.Shared fehlt im Token - „Trennen“ und „Verbinden“.";
             }
+            if (st.mailGewuenscht && !st.scopeMail) {
+                el.textContent += " · ✗ Mail-Berechtigung (Mail.Send) FEHLT im Token: erst im Tenant freigeben (Script mit -MitMail), dann „Trennen“ und „Verbinden“.";
+            }
         }
     });
 }
@@ -341,6 +348,8 @@ function m365Connect() {
         m365ErinnerungMin: (isFinite(erinnerung) && erinnerung >= 0) ? erinnerung : M365_DEFAULTS.m365ErinnerungMin,
         m365Kollegen: document.getElementById("m365Kollegen").value.trim(),
         m365VerzeichnisScope: document.getElementById("m365VerzeichnisScope").checked,
+        m365MailScope: document.getElementById("m365MailScope").checked,
+        m365Rufnummer: document.getElementById("m365Rufnummer").value.trim(),
         m365KollegenCache: null
     }, () => m365ConnectWeiter(btn));
 }
@@ -503,6 +512,10 @@ const TERMIN_DEFAULTS = {
     autoStatus: true,
     nichtErreichtText: "Nicht erreicht.",
     terminEintragText: "Termin vereinbart: %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%)",
+    terminMailBetreff: "Terminbestätigung: Ticket %TICKETNR% - %KUNDE%",
+    terminMailText: "Guten Tag %ANSPRECHPARTNER%,\n\nhiermit bestätigen wir Ihren Termin am %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%).\n%MELDUNG%\n\nTicket %TICKETNR%: %BEZEICHNUNG%\n\nMit freundlichen Grüßen",
+    terminMailWeg: "mailto",
+    terminMailStandard: false,
     firmenAdresse: "",
     defaultTerminart: "telefon",
     kiBewertungAutor: "",
@@ -621,6 +634,10 @@ function loadAll() {
         document.getElementById("autoStatus").checked = items.autoStatus !== false;
         document.getElementById("nichtErreichtText").value = items.nichtErreichtText;
         document.getElementById("terminEintragText").value = items.terminEintragText;
+        document.getElementById("terminMailBetreff").value = items.terminMailBetreff || TERMIN_DEFAULTS.terminMailBetreff;
+        document.getElementById("terminMailText").value = items.terminMailText || TERMIN_DEFAULTS.terminMailText;
+        document.getElementById("terminMailWeg").value = items.terminMailWeg || "mailto";
+        document.getElementById("terminMailStandard").checked = items.terminMailStandard === true;
         document.getElementById("firmenAdresse").value = items.firmenAdresse;
         document.getElementById("defaultTerminart").value = items.defaultTerminart;
         document.getElementById("kiBewertungAutor").value = items.kiBewertungAutor || "";
@@ -1116,6 +1133,10 @@ function saveTermin() {
         autoStatus: document.getElementById("autoStatus").checked,
         nichtErreichtText: document.getElementById("nichtErreichtText").value.trim() || TERMIN_DEFAULTS.nichtErreichtText,
         terminEintragText: document.getElementById("terminEintragText").value.trim(),
+        terminMailBetreff: document.getElementById("terminMailBetreff").value.trim() || TERMIN_DEFAULTS.terminMailBetreff,
+        terminMailText: document.getElementById("terminMailText").value || TERMIN_DEFAULTS.terminMailText,
+        terminMailWeg: document.getElementById("terminMailWeg").value,
+        terminMailStandard: document.getElementById("terminMailStandard").checked,
         firmenAdresse: document.getElementById("firmenAdresse").value.trim(),
         defaultTerminart: document.getElementById("defaultTerminart").value,
         kiBewertungAutor: document.getElementById("kiBewertungAutor").value.trim(),

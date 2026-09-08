@@ -89,7 +89,12 @@ vollständig inaktiv, solange sie nicht eingerichtet ist.
   jeweiligen Kollegen anlegen; ohne Freigabe kein Zugriff). Optional und
   standardmäßig aus: `User.ReadBasic.All` (Namen und E-Mail-Adressen der
   Nutzer des eigenen Tenants lesen, um freigegebene Kollegen-Kalender zu
-  finden) — nur, wenn der Nutzer es in den Einstellungen einschaltet. Für die Verfügbarkeitsanzeige von Kollegen wird die
+  finden) sowie `Mail.Send` (eine Terminbestätigung im Namen des Nutzers an
+  den im Ticket genannten Ansprechpartner senden; Inhalt = die vom Nutzer
+  gepflegte Vorlage mit Termin- und Ticketangaben, landet in dessen
+  „Gesendete Elemente“) — beide nur, wenn der Nutzer sie in den
+  Einstellungen einschaltet; ohne Mail-Berechtigung wird die Bestätigung im
+  Mailprogramm des Nutzers geöffnet und von ihm selbst gesendet. Für die Verfügbarkeitsanzeige von Kollegen wird die
   Frei/Belegt-Auskunft genutzt, die Microsoft 365 innerhalb einer Organisation
   ohnehin bereitstellt (`getSchedule`); es werden keine fremden Kalender
   gelesen oder verändert.

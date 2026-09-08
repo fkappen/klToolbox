@@ -1,5 +1,5 @@
 // Version
-// version = "1.9.1"
+// version = "1.10.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1347,10 +1347,15 @@ const M365_SCOPES = "openid profile offline_access https://graph.microsoft.com/C
 // Tenants lesen, um alle Kollegen-Kalender pruefen zu koennen. Nur anfordern,
 // wenn im Tenant konsentiert - sonst scheitert jede Token-Erneuerung.
 const M365_SCOPE_VERZEICHNIS = "https://graph.microsoft.com/User.ReadBasic.All";
+// Optional (Optionen -> "Terminbestaetigung direkt senden"): Mail im Namen
+// des Nutzers verschicken (Terminbestaetigung an den Ansprechpartner).
+const M365_SCOPE_MAIL = "https://graph.microsoft.com/Mail.Send";
 
 async function m365Scopes() {
-    const s = await m365Storage({ m365VerzeichnisScope: false });
-    return M365_SCOPES + (s.m365VerzeichnisScope === true ? " " + M365_SCOPE_VERZEICHNIS : "");
+    const s = await m365Storage({ m365VerzeichnisScope: false, m365MailScope: false });
+    return M365_SCOPES +
+        (s.m365VerzeichnisScope === true ? " " + M365_SCOPE_VERZEICHNIS : "") +
+        (s.m365MailScope === true ? " " + M365_SCOPE_MAIL : "");
 }
 
 // Pfadpraefix: eigener Kalender oder (freigegebener) Kalender eines Kollegen
@@ -1570,7 +1575,8 @@ async function m365AccessToken(allowInteractive) {
     const wollen = await m365Scopes();
     const hatScope = (name) => new RegExp("\\b" + name.replace(/\./g, "\\.") + "\\b").test(String(auth.scope || ""));
     const scopeFehlt = !hatScope("Calendars.ReadWrite.Shared") ||
-        (wollen.indexOf(M365_SCOPE_VERZEICHNIS) !== -1 && !hatScope("User.ReadBasic.All"));
+        (wollen.indexOf(M365_SCOPE_VERZEICHNIS) !== -1 && !hatScope("User.ReadBasic.All")) ||
+        (wollen.indexOf(M365_SCOPE_MAIL) !== -1 && !hatScope("Mail.Send"));
     // je angefordertem Scope-Satz nur EINMAL erneuern (sonst Schleife, wenn
     // der Tenant den Scope nicht kennt)
     const erneuern = scopeFehlt && auth.scopeGeprueft !== wollen;
@@ -1826,7 +1832,7 @@ async function m365Verzeichnis() {
     const auth = (await m365Storage({ m365Auth: null })).m365Auth || {};
     const me = String(auth.account && auth.account.upn ? auth.account.upn : "").toLowerCase();
     const out = [];
-    let url = "/users?$select=displayName,mail,userPrincipalName,accountEnabled&$top=200";
+    let url = "/users?$select=displayName,mail,userPrincipalName,accountEnabled,businessPhones,mobilePhone&$top=200";
     for (let seite = 0; seite < 10 && url; seite++) {
         const data = await m365Graph(url, "GET", null, false);
         for (const u of (Array.isArray(data.value) ? data.value : [])) {
@@ -1834,7 +1840,7 @@ async function m365Verzeichnis() {
             if (!mail || u.accountEnabled === false || mail.toLowerCase() === me || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
                 continue;
             }
-            out.push({ name: String(u.displayName || mail), mail: mail });
+            out.push({ name: String(u.displayName || mail), mail: mail, phone: m365Phone(u) });
         }
         const next = String(data["@odata.nextLink"] || "");
         url = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
@@ -1850,14 +1856,19 @@ function m365ParseKollegen(text) {
         if (!t) {
             continue;
         }
-        const m = /^(.*?)\s*=\s*([^\s@=]+@[^\s@=]+)$/.exec(t);
+        const m = /^(.*?)\s*=\s*([^\s@=]+@[^\s@=]+)(?:\s*=\s*(.+))?$/.exec(t);
         if (m) {
-            out.push({ name: m[1].trim() || m[2], mail: m[2] });
+            out.push({ name: m[1].trim() || m[2], mail: m[2], phone: (m[3] || "").trim() });
         } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) {
-            out.push({ name: t, mail: t });
+            out.push({ name: t, mail: t, phone: "" });
         }
     }
     return out;
+}
+
+function m365Phone(u) {
+    const b = Array.isArray(u && u.businessPhones) ? u.businessPhones.filter((x) => x) : [];
+    return String(b[0] || (u && u.mobilePhone) || "").trim();
 }
 
 // Gesamtliste der Kollegen-Kalender fuer Termin-Panel UND Optionen:
@@ -1870,10 +1881,10 @@ async function m365Kollegen(q) {
     const st = await m365Storage({ m365Kollegen: "", m365KollegenCache: null, m365VerzeichnisScope: false });
     const cache = st.m365KollegenCache;
     if (!erzwingen && cache && Array.isArray(cache.items) && (Date.now() - Number(cache.ts)) < 12 * 3600000) {
-        return { items: cache.items, ts: cache.ts, cached: true, stats: cache.stats || null };
+        return { items: cache.items, ts: cache.ts, cached: true, stats: cache.stats || null, mePhone: cache.mePhone || "" };
     }
     const kollegen = m365ParseKollegen(st.m365Kollegen)
-        .map((k) => ({ name: k.name, mail: k.mail, canEdit: false, readable: false, quelle: "liste" }));
+        .map((k) => ({ name: k.name, mail: k.mail, phone: k.phone || "", canEdit: false, readable: false, quelle: "liste" }));
     // Diagnose je Quelle (Optionen zeigen sie an - "warum nur 3 von 20?")
     const stats = { liste: kollegen.length, freigaben: 0, berechtigte: 0, berechtigteRoh: [], verzeichnis: -1, geprueft: 0, mitZugriff: 0, fehler: [] };
     const finde = (mail) => kollegen.find((k) => k.mail.toLowerCase() === String(mail).toLowerCase());
@@ -1886,11 +1897,15 @@ async function m365Kollegen(q) {
             if (c.name && v.name === v.mail) {
                 v.name = c.name;
             }
+            if (c.phone && !v.phone) {
+                v.phone = c.phone;
+            }
         } else if (!nurWennVorhanden) {
-            kollegen.push({ name: c.name || c.mail, mail: c.mail, canEdit: c.canEdit === true,
+            kollegen.push({ name: c.name || c.mail, mail: c.mail, phone: c.phone || "", canEdit: c.canEdit === true,
                 readable: c.readable === true || c.canEdit === true, quelle: quelle });
         }
     };
+    let mePhone = "";
     try {
         for (const c of (await m365Calendars()).shared) {
             stats.freigaben++;
@@ -1919,9 +1934,24 @@ async function m365Kollegen(q) {
             const vz = await m365Verzeichnis();
             stats.verzeichnis = vz.personen.length;
             for (const p of vz.personen) {
-                if (!finde(p.mail) && !kandidaten.some((k) => k.mail.toLowerCase() === p.mail.toLowerCase())) {
-                    kandidaten.push({ name: p.name, mail: p.mail, liste: false });
+                const v = finde(p.mail);
+                if (v) {
+                    if (p.phone && !v.phone) {
+                        v.phone = p.phone;
+                    }
+                } else if (!kandidaten.some((k) => k.mail.toLowerCase() === p.mail.toLowerCase())) {
+                    kandidaten.push({ name: p.name, mail: p.mail, phone: p.phone, liste: false });
                 }
+            }
+            // eigene Rufnummer (fuer "%RUFNUMMER%" in der Terminbestaetigung)
+            try {
+                const auth = (await m365Storage({ m365Auth: null })).m365Auth || {};
+                const upn = auth.account && auth.account.upn ? auth.account.upn : "";
+                if (upn) {
+                    mePhone = m365Phone(await m365Graph(m365UserPath(upn) + "?$select=businessPhones,mobilePhone", "GET", null, false));
+                }
+            } catch (err) {
+                console.warn("klToolbox M365: eigene Rufnummer nicht lesbar:", err && err.message);
             }
         } catch (err) {
             console.warn("klToolbox M365: Verzeichnis nicht abrufbar:", err);
@@ -1950,17 +1980,40 @@ async function m365Kollegen(q) {
                 stats.fehler.push({ quelle: "pruefung", mail: k.mail, msg: String(pr.fehler || "kein Zugriff").slice(0, 160) });
             }
             // Ohne Zugriff nur behalten, wer in der Pflegeliste steht
-            merge({ mail: k.mail, name: pr.name || k.name, readable: pr.readable, canEdit: pr.canEdit }, "geprueft",
+            merge({ mail: k.mail, name: pr.name || k.name, phone: k.phone || "", readable: pr.readable, canEdit: pr.canEdit }, "geprueft",
                 !(pr.readable || pr.canEdit || k.liste));
         }));
     }
     const items = kollegen
-        .map((k) => ({ mail: k.mail, name: k.name, canEdit: k.canEdit === true, readable: k.readable === true, quelle: k.quelle }))
+        .map((k) => ({ mail: k.mail, name: k.name, phone: k.phone || "", canEdit: k.canEdit === true, readable: k.readable === true, quelle: k.quelle }))
         .sort((a, b) => a.name.localeCompare(b.name, "de"));
     const ts = Date.now();
     console.info("klToolbox M365: Kollegen ermittelt", stats);
-    await m365StorageSet({ m365KollegenCache: { ts: ts, items: items, stats: stats } });
-    return { items: items, ts: ts, cached: false, stats: stats };
+    await m365StorageSet({ m365KollegenCache: { ts: ts, items: items, stats: stats, mePhone: mePhone } });
+    return { items: items, ts: ts, cached: false, stats: stats, mePhone: mePhone };
+}
+
+// Terminbestaetigung im Namen des Nutzers senden (Mail.Send, landet in
+// "Gesendete Elemente"). Nur Text, ein Empfaenger.
+async function m365SendMail(q) {
+    const to = String((q && q.to) || "").trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        throw new Error("Ungültige Empfängeradresse.");
+    }
+    const subject = String((q && q.subject) || "").trim();
+    const text = String((q && q.text) || "");
+    if (!subject || !text.trim()) {
+        throw new Error("Betreff oder Text fehlt.");
+    }
+    await m365Graph("/me/sendMail", "POST", {
+        message: {
+            subject: subject,
+            body: { contentType: "Text", content: text },
+            toRecipients: [{ emailAddress: { address: to, name: String((q && q.name) || to) } }]
+        },
+        saveToSentItems: true
+    }, true);
+    return { gesendet: true };
 }
 
 // Zugriff auf den Standardkalender eines bestimmten Kollegen pruefen
@@ -1991,6 +2044,8 @@ async function m365Status() {
         scopeShared: !!(auth && /\bCalendars\.ReadWrite\.Shared\b/.test(String(auth.scope || ""))),
         scopeVerzeichnis: !!(auth && /\bUser\.ReadBasic\.All\b/.test(String(auth.scope || ""))),
         verzeichnisGewuenscht: (await m365Storage({ m365VerzeichnisScope: false })).m365VerzeichnisScope === true,
+        scopeMail: !!(auth && /\bMail\.Send\b/.test(String(auth.scope || ""))),
+        mailGewuenscht: (await m365Storage({ m365MailScope: false })).m365MailScope === true,
         // Nur Kurznamen der Graph-Scopes, keine Token
         tokenScopes: String(auth && auth.scope || "").split(/\s+/).filter((x) => x).map((x) => x.replace(/^https:\/\/graph\.microsoft\.com\//, "")).join(", "),
         seit: auth && auth.seit ? auth.seit : "",
@@ -2033,6 +2088,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 sendResponse(Object.assign({ ok: true }, await m365CalendarPermissions()));
             } else if (msg.type === "m365Kollegen") {
                 sendResponse(Object.assign({ ok: true }, await m365Kollegen(msg)));
+            } else if (msg.type === "m365SendMail") {
+                sendResponse(Object.assign({ ok: true }, await m365SendMail(msg)));
             } else if (msg.type === "m365ProbeCalendar") {
                 sendResponse(Object.assign({ ok: true }, await m365ProbeCalendar(msg)));
             } else if (msg.type === "m365UpdateEvent") {

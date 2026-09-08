@@ -290,6 +290,23 @@
     <input type="text" id="terminEintragText" placeholder="Termin vereinbart: %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%)">
     <div class="hint">Wird zusammen mit dem Statuswechsel gespeichert, damit im Ticket steht, wann der Termin ist. Platzhalter: <code>%DATUM%</code>, <code>%ZEIT%</code>, <code>%ART%</code> (Telefon/Teams/Vor Ort), <code>%DAUER%</code>. Leer lassen, um nur den Status zu setzen.</div>
 
+    <label for="terminMailBetreff">Terminbestätigung an den Kunden — Betreff</label>
+    <input type="text" id="terminMailBetreff" placeholder="Terminbestätigung: Ticket %TICKETNR% - %KUNDE%">
+
+    <label for="terminMailText">Terminbestätigung — Text</label>
+    <textarea id="terminMailText" style="min-height:150px"></textarea>
+    <div class="hint">Wird im Termin-Fenster per Haken „Bestätigung“ an die E-Mail-Adresse des Ansprechpartners geschickt — ohne Kalendereinladung. Zusätzliche Platzhalter: <code>%DATUM%</code>, <code>%ZEIT%</code>, <code>%DAUER%</code>, <code>%ART%</code>, <code>%TECHNIKER%</code> (gewählter Kollege, sonst du), <code>%RUFNUMMER%</code> (dessen Rufnummer aus Verzeichnis/Pflegeliste, sonst deine aus „Microsoft 365“), <code>%MELDUNG%</code> (fertiger Satz „… meldet sich bei Ihnen unter …“), <code>%TEAMSLINK%</code>.</div>
+
+    <label for="terminMailWeg">Terminbestätigung — Versandweg</label>
+    <select id="terminMailWeg">
+        <option value="mailto">Im Mailprogramm öffnen (Outlook Desktop) — zum Prüfen vor dem Senden</option>
+        <option value="owa">In Outlook Web öffnen</option>
+        <option value="graph">Direkt senden (Microsoft 365, benötigt Mail-Berechtigung)</option>
+    </select>
+    <label style="font-weight:400; display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <input type="checkbox" id="terminMailStandard" style="width:auto;"> Haken „Bestätigung“ im Termin-Fenster standardmäßig gesetzt
+    </label>
+
     <label for="firmenAdresse">Firmenadresse (Startpunkt für „Anfahrt planen")</label>
     <input type="text" id="firmenAdresse" placeholder="Straße Nr, PLZ Ort">
     <div class="hint">Kommt normalerweise per Settings-Import.</div>
@@ -337,6 +354,15 @@
         <input type="checkbox" id="m365VerzeichnisScope" style="width:auto;"> Kollegen aus dem Verzeichnis ermitteln (alle Nutzer des Tenants einzeln auf Kalenderzugriff prüfen)
     </label>
     <div class="hint">Benötigt in der App-Registrierung zusätzlich die delegierte Berechtigung <code>User.ReadBasic.All</code> mit Admin-Consent (Script <code>M365_klToolbox_Create-App.ps1 -MitVerzeichnis</code>). <b>Erst dort freigeben, dann hier anhaken</b> — sonst scheitert die Anmeldung. Nach dem Speichern „Trennen“ und „Verbinden“.</div>
+
+    <label style="font-weight:400; display:flex; align-items:center; gap:8px; margin-top:10px;">
+        <input type="checkbox" id="m365MailScope" style="width:auto;"> Terminbestätigung direkt aus der Erweiterung senden (Versandweg „Direkt senden“)
+    </label>
+    <div class="hint">Benötigt zusätzlich die delegierte Berechtigung <code>Mail.Send</code> (Script mit <code>-MitMail</code>). Die Mail geht als du und liegt in „Gesendete Elemente“. Ohne diesen Schalter bleiben „Im Mailprogramm öffnen“ und „Outlook Web“.</div>
+
+    <label for="m365Rufnummer">Eigene Rufnummer für die Terminbestätigung</label>
+    <input type="text" id="m365Rufnummer" placeholder="z. B. 0261 12345-67">
+    <div class="hint">Wird für <code>%RUFNUMMER%</code> verwendet, wenn kein Kollege gewählt ist; bei eingeschaltetem Verzeichnis kommt sie automatisch aus deinem Profil.</div>
 
     <label>Kollegen-Kalender (automatisch ermittelt)</label>
     <div id="m365KolListe" class="hint">–</div>

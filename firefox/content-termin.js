@@ -1,5 +1,5 @@
 // Version
-// version = "1.20.1"  (Modul Ticket-Termin, klToolbox)
+// version = "1.21.0"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -60,6 +60,16 @@
         m365Kollegen: "",
         terminVerschobenText: "Termin verschoben auf %DATUM% um %ZEIT% Uhr (%DAUER%)",
         terminAbgesagtText: "Termin abgesagt.",
+        // Terminbestaetigung an den Ansprechpartner (ohne Kalendereinladung).
+        // Platzhalter wie Betreff/Text + %DATUM% %ZEIT% %DAUER% %ART%
+        // %TECHNIKER% %RUFNUMMER% %MELDUNG% (fertiger Satz) %TEAMSLINK%
+        terminMailBetreff: "Terminbestätigung: Ticket %TICKETNR% - %KUNDE%",
+        terminMailText: "Guten Tag %ANSPRECHPARTNER%,\n\nhiermit bestätigen wir Ihren Termin am %DATUM% um %ZEIT% Uhr (%ART%, %DAUER%).\n%MELDUNG%\n\nTicket %TICKETNR%: %BEZEICHNUNG%\n\nMit freundlichen Grüßen",
+        // Versandweg: mailto (Outlook Desktop) | owa (Outlook Web) | graph (direkt, Mail.Send)
+        terminMailWeg: "mailto",
+        terminMailStandard: false,
+        // eigene Rufnummer fuer %RUFNUMMER%, wenn kein Kollege gewaehlt ist
+        m365Rufnummer: "",
         // Suchvorlage der DATEV Wissensplattform (fuer Fehlercode-Links)
         datevSearchTemplate: "",
         // Ampel-Schwellwerte (Optionen -> Wartezeit-Ampel). Vier Stufen:
@@ -2021,6 +2031,59 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }
 
+    // Terminbestaetigung: Vorlage fuellen. techniker = {name, phone} oder null
+    function baueBestaetigung(d, startDt, durMin, artText, techniker, teamsLink) {
+        const name = techniker && techniker.name ? techniker.name : "";
+        const phone = techniker && techniker.phone ? techniker.phone : "";
+        const meldung = name
+            ? (name + " meldet sich bei Ihnen" + (phone ? " unter " + phone : "") + ".")
+            : (phone ? "Sie erreichen uns unter " + phone + "." : "");
+        const fuellen = (tpl) => fillTemplate(String(tpl || ""), d)
+            .replace(/%DATUM%/g, startDt.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }))
+            .replace(/%ZEIT%/g, pad(startDt.getHours()) + ":" + pad(startDt.getMinutes()))
+            .replace(/%DAUER%/g, fmtDauer(durMin))
+            .replace(/%ART%/g, artText || "")
+            .replace(/%TECHNIKER%/g, name)
+            .replace(/%RUFNUMMER%/g, phone)
+            .replace(/%MELDUNG%/g, meldung)
+            .replace(/%TEAMSLINK%/g, teamsLink || "")
+            .replace(/\s*\(\s*\)/g, "")
+            .replace(/[ \t]{2,}/g, " ");
+        let text = fuellen(settings.terminMailText || DEFAULTS.terminMailText).replace(/\n{3,}/g, "\n\n").trim();
+        if (teamsLink && !/%TEAMSLINK%/.test(settings.terminMailText || DEFAULTS.terminMailText)) {
+            text += "\n\nTeams-Besprechung: " + teamsLink;
+        }
+        return { subject: fuellen(settings.terminMailBetreff || DEFAULTS.terminMailBetreff).trim(), text: text };
+    }
+
+    // Versand je Weg. cb(fehlerText|"") - bei mailto/owa gibt es keine
+    // Rueckmeldung, dort gilt "uebergeben" als Erfolg.
+    function sendeBestaetigung(weg, to, name, mail, cb) {
+        if (weg === "graph") {
+            chrome.runtime.sendMessage({ type: "m365SendMail", to: to, name: name, subject: mail.subject, text: mail.text }, (res) => {
+                cb(chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.ok ? "" : ((res && res.error) || "keine Antwort")));
+            });
+            return;
+        }
+        if (weg === "owa") {
+            const url = "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) +
+                "&subject=" + encodeURIComponent(mail.subject) + "&body=" + encodeURIComponent(mail.text.replace(/\r?\n/g, "\r\n"));
+            const w = window.open(url, "_blank");
+            cb(w ? "" : "Outlook Web wurde vom Popup-Blocker verhindert.");
+            return;
+        }
+        // mailto: oeffnet das Standard-Mailprogramm (Outlook Desktop), ohne die Seite zu verlassen
+        const href = "mailto:" + encodeURIComponent(to) + "?subject=" + encodeURIComponent(mail.subject) +
+            "&body=" + encodeURIComponent(mail.text.replace(/\r?\n/g, "\r\n"));
+        const a = document.createElement("a");
+        a.href = href;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 1000);
+        cb(href.length > 1900 ? "Hinweis: Der Text ist lang - manche Mailprogramme kürzen mailto-Inhalte." : "");
+    }
+
     // Graph erwartet lokale Zeit ohne Offset; die Zeitzone geht separat mit.
     function toGraphLocal(dt) {
         return dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate()) +
@@ -2296,11 +2359,11 @@
             if (!t) {
                 continue;
             }
-            const m = /^(.*?)\s*=\s*([^\s@=]+@[^\s@=]+)$/.exec(t);
+            const m = /^(.*?)\s*=\s*([^\s@=]+@[^\s@=]+)(?:\s*=\s*(.+))?$/.exec(t);
             if (m) {
-                out.push({ name: m[1].trim() || m[2], mail: m[2] });
+                out.push({ name: m[1].trim() || m[2], mail: m[2], phone: (m[3] || "").trim() });
             } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) {
-                out.push({ name: t, mail: t });
+                out.push({ name: t, mail: t, phone: "" });
             }
         }
         return out;
@@ -2391,6 +2454,7 @@
             .map((k) => Object.assign({ canEdit: false, readable: false, quelle: "liste" }, k));
         let kollegenGeladen = false;
         let pendingSelect = "";
+        let mePhone = "";
 
         container.className = "tt-cal";
         container.style.display = "none";
@@ -2473,6 +2537,7 @@
                             kollegen = (res.items || [])
                                 .filter((k) => k && k.mail && !hidden.has(String(k.mail).toLowerCase()))
                                 .map((k) => Object.assign({}, k));
+                            mePhone = String(res.mePhone || "");
                         } else {
                             console.warn("Ticket-Termin: Kollegenliste nicht abrufbar:",
                                 chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.error));
@@ -2872,6 +2937,9 @@
             getKollege: function () {
                 return kollege;
             },
+            getMePhone: function () {
+                return mePhone;
+            },
             refresh: function () {
                 if (enabled) {
                     render();
@@ -3130,10 +3198,31 @@
         anfRow.appendChild(anfWrap);
         left.appendChild(anfRow);
 
+        // Teams: Besprechungslink optional (nur Microsoft 365 erzeugt ihn)
+        const teamsRow = document.createElement("div");
+        teamsRow.className = "tt-row";
+        const teamsLabel = document.createElement("label");
+        teamsLabel.textContent = "Teams";
+        teamsLabel.setAttribute("for", "tt_teams");
+        const teamsWrap = document.createElement("div");
+        teamsWrap.className = "tt-time-wrap";
+        const teamsCheck = document.createElement("input");
+        teamsCheck.type = "checkbox";
+        teamsCheck.id = "tt_teams";
+        teamsCheck.checked = true;
+        const teamsText = document.createElement("span");
+        teamsText.textContent = "Teams-Besprechung mit Einwahllink erzeugen (nur Microsoft 365)";
+        teamsWrap.appendChild(teamsCheck);
+        teamsWrap.appendChild(teamsText);
+        teamsRow.appendChild(teamsLabel);
+        teamsRow.appendChild(teamsWrap);
+        left.appendChild(teamsRow);
+
         const syncAddrRow = () => {
             const vorort = (artSelect.value === "vorort");
             addrRow.style.display = vorort ? "" : "none";
             anfRow.style.display = vorort ? "" : "none";
+            teamsRow.style.display = (artSelect.value === "teams") ? "" : "none";
         };
         syncAddrRow();
         artSelect.addEventListener("change", syncAddrRow);
@@ -3181,6 +3270,66 @@
         invRow.appendChild(invLabel);
         invRow.appendChild(invWrap);
         left.appendChild(invRow);
+
+        // Terminbestaetigung per E-Mail (ohne Kalendereinladung)
+        const mailRow = document.createElement("div");
+        mailRow.className = "tt-row";
+        const mailLabel = document.createElement("label");
+        mailLabel.textContent = "Bestätigung";
+        mailLabel.setAttribute("for", "tt_mailbest");
+        const mailWrap = document.createElement("div");
+        mailWrap.className = "tt-time-wrap";
+        const mailCheck = document.createElement("input");
+        mailCheck.type = "checkbox";
+        mailCheck.id = "tt_mailbest";
+        mailCheck.checked = settings.terminMailStandard === true && !!data.email;
+        mailCheck.disabled = !data.email;
+        const mailText = document.createElement("span");
+        mailText.textContent = data.email
+            ? "Terminbestätigung per E-Mail an den Ansprechpartner"
+            : "Terminbestätigung nicht möglich - keine E-Mail-Adresse";
+        const mailWeg = document.createElement("select");
+        mailWeg.id = "tt_mailweg";
+        mailWeg.style.cssText = "flex:0 0 auto; width:auto;";
+        for (const [v, l] of [["mailto", "per Outlook"], ["owa", "per Outlook Web"], ["graph", "direkt senden"]]) {
+            const o = document.createElement("option");
+            o.value = v;
+            o.textContent = l;
+            mailWeg.appendChild(o);
+        }
+        mailWeg.value = settings.terminMailWeg || "mailto";
+        mailWrap.appendChild(mailCheck);
+        mailWrap.appendChild(mailText);
+        mailWrap.appendChild(mailWeg);
+        mailRow.appendChild(mailLabel);
+        mailRow.appendChild(mailWrap);
+        left.appendChild(mailRow);
+
+        // Bestaetigung nach dem Anlegen verschicken; cbText(zusatz) fuer die Abschlussmeldung
+        function bestaetigungNachAnlage(d, startDt, durMin, artText, teamsLink, cbText) {
+            if (!mailCheck.checked || !d.email) {
+                cbText("");
+                return;
+            }
+            let weg = mailWeg.value;
+            if (weg === "graph" && !(m365 && m365.scopeMail)) {
+                weg = "mailto";
+            }
+            const kol = calendar.getKollege();
+            const techniker = kol
+                ? { name: kol.name, phone: kol.phone || "" }
+                : { name: (m365 && m365.account && m365.account.name) || "", phone: (settings.m365Rufnummer || "").trim() || calendar.getMePhone() };
+            const mail = baueBestaetigung(d, startDt, durMin, artText, techniker, teamsLink);
+            sendeBestaetigung(weg, d.email, d.ansprechpartner || d.email, mail, (err) => {
+                if (err && weg === "graph") {
+                    cbText(" · Bestätigung NICHT gesendet: " + err);
+                } else if (err) {
+                    cbText(" · Bestätigung: " + err);
+                } else {
+                    cbText(weg === "graph" ? " · Bestätigung an " + d.email + " gesendet" : " · Bestätigung im Mailprogramm geöffnet");
+                }
+            });
+        }
 
         // Kollege aus der Kalenderansicht als Teilnehmer (Einladung in dessen
         // Kalender - der Termin selbst entsteht immer im eigenen)
@@ -3532,6 +3681,14 @@
                 : "Termin direkt im eigenen Outlook-Kalender anlegen (Microsoft 365)";
             moreBtn.style.display = ready ? "" : "none";
             showAlternatives(!ready);
+            const graphOpt = Array.from(mailWeg.options).find((o) => o.value === "graph");
+            if (graphOpt) {
+                graphOpt.disabled = !(ready && st.scopeMail);
+                graphOpt.textContent = (ready && st.scopeMail) ? "direkt senden" : "direkt senden (nicht freigegeben)";
+                if (graphOpt.disabled && mailWeg.value === "graph") {
+                    mailWeg.value = "mailto";
+                }
+            }
             if (ready) {
                 panel.classList.add("tt-wide");
                 calendar.enable();
@@ -3723,7 +3880,7 @@
                     start: toGraphLocal(startDt),
                     end: toGraphLocal(endDt),
                     location: ort,
-                    teams: art === "teams",
+                    teams: art === "teams" && document.getElementById("tt_teams").checked,
                     attendees: attendees
                 }, basis);
                 const buttons = Array.from(bar.querySelectorAll("button"));
@@ -3757,10 +3914,12 @@
                         if (settings.autoStatus !== false) {
                             setStatusTerminVereinbart(startDt, artText, durMin, res.joinUrl || "", kol ? kol.name : "");
                         }
-                        zeigeFertig("Termin angelegt: " + fmtTerminKurz(startDt, durMin) +
-                            (owner ? " im Kalender von " + kol.name : "") +
-                            (attendees.length > 0 ? " · Einladung an " + attendees.map((a) => a.name).join(", ") : "") +
-                            (res.joinUrl ? " · Teams-Link im Ticket-Eintrag" : "") + zusatz, rec.webLink);
+                        bestaetigungNachAnlage(d, startDt, durMin, artText, res.joinUrl || "", (mailZusatz) => {
+                            zeigeFertig("Termin angelegt: " + fmtTerminKurz(startDt, durMin) +
+                                (owner ? " im Kalender von " + kol.name : "") +
+                                (attendees.length > 0 ? " · Einladung an " + attendees.map((a) => a.name).join(", ") : "") +
+                                (res.joinUrl ? " · Teams-Link im Ticket-Eintrag" : "") + zusatz + mailZusatz, rec.webLink);
+                        });
                     };
                     if (anfahrt) {
                         const anfEv = Object.assign({
@@ -3824,10 +3983,17 @@
                     return; // Panel bleibt fuer den zweiten Schritt offen
                 }
             }
-            closePanel();
             if (settings.autoStatus !== false) {
                 setStatusTerminVereinbart(startDt, artText, durMin);
             }
+            // Bestaetigung auch ohne Microsoft 365 (mailto / Outlook Web / direkt)
+            bestaetigungNachAnlage(d, startDt, durMin, artText, "", (mailZusatz) => {
+                if (mailZusatz && /NICHT|Popup/.test(mailZusatz)) {
+                    showNote("Termin erstellt." + mailZusatz, "", null);
+                    return;
+                }
+                closePanel();
+            });
         }
     }
 
