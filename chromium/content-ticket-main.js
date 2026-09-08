@@ -1,5 +1,5 @@
 // Version
-// version = "1.1.0"  (Modul Ticket-Datenhook, klToolbox)
+// version = "1.2.0"  (Modul Ticket-Datenhook, klToolbox)
 // datum   = "2026-09-08"
 // autor   = "FK"
 //
@@ -88,6 +88,11 @@
     }
 
     // ------------------------------------------------------------ fetch
+    // KEIN Klon der Antwort: Die Seite bricht den Request per AbortSignal ab,
+    // sobald sie ihre Daten hat - ein parallel gelesener Klon endet dann mit
+    // AbortError (Praxistest 2026-09-08). Stattdessen werden text()/json()
+    // der zurueckgegebenen Response umhuellt: Wir sehen exakt das, was die
+    // Seite selbst liest, ohne zweiten Stream.
     const origFetch = window.fetch;
     if (typeof origFetch === "function") {
         window.fetch = function (...args) {
@@ -98,36 +103,66 @@
                 if (!istGraphql(url)) {
                     return p;
                 }
-                // Body: aus init.body (String) oder aus einem Request-Objekt (Klon lesen)
-                let bodyPromise;
+                let opsPromise;
                 if (args[1] && typeof args[1].body === "string") {
-                    bodyPromise = Promise.resolve(args[1].body);
+                    opsPromise = Promise.resolve(parseOps(args[1].body));
                 } else if (input && typeof input.clone === "function" && typeof input.text === "function") {
-                    bodyPromise = input.clone().text();
+                    opsPromise = input.clone().text().then(parseOps).catch(() => null);
                 } else {
                     return p;
                 }
-                bodyPromise.then((body) => {
-                    const ops = body ? parseOps(body) : null;
-                    if (!ops || !ops.some((o) => OPS.has(o.op))) {
-                        return;
+                return p.then((res) => {
+                    try {
+                        huelleResponse(res, opsPromise);
+                    } catch (err) {
+                        console.info("[klToolbox] Antwort-Huelle fehlgeschlagen", err);
                     }
-                    p.then((res) => {
-                        try {
-                            res.clone().json()
-                                .then((json) => weiterreichen(ops, json))
-                                .catch((err) => console.info("[klToolbox] GraphQL-Antwort nicht lesbar", err));
-                        } catch (err) {
-                            console.info("[klToolbox] Antwort-Klon fehlgeschlagen", err);
-                        }
-                    }).catch(() => null);
-                }).catch((err) => console.info("[klToolbox] Request-Body nicht lesbar", err));
-                return p;
+                    return res;
+                });
             } catch (err) {
                 console.info("[klToolbox] fetch-Hook uebersprungen", err);
                 return p;
             }
         };
+    }
+
+    function verarbeiteText(text, opsPromise) {
+        opsPromise.then((ops) => {
+            if (!ops || !ops.some((o) => OPS.has(o.op))) {
+                return;
+            }
+            try {
+                weiterreichen(ops, JSON.parse(text));
+            } catch (err) {
+                console.info("[klToolbox] GraphQL-Antwort kein JSON", err);
+            }
+        }).catch(() => null);
+    }
+
+    function huelleResponse(res, opsPromise) {
+        if (!res || typeof res.text !== "function") {
+            return;
+        }
+        const origText = res.text.bind(res);
+        const origJson = typeof res.json === "function" ? res.json.bind(res) : null;
+        res.text = function () {
+            return origText().then((t) => {
+                verarbeiteText(t, opsPromise);
+                return t;
+            });
+        };
+        if (origJson) {
+            res.json = function () {
+                return origJson().then((j) => {
+                    opsPromise.then((ops) => {
+                        if (ops && ops.some((o) => OPS.has(o.op))) {
+                            weiterreichen(ops, j);
+                        }
+                    }).catch(() => null);
+                    return j;
+                });
+            };
+        }
     }
 
     // ------------------------------------------------------------ XMLHttpRequest
