@@ -1,5 +1,5 @@
 // Version
-// version = "1.23.2"  (Modul Ticket-Termin, klToolbox)
+// version = "1.23.3"  (Modul Ticket-Termin, klToolbox)
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -3461,7 +3461,7 @@
         // Kopplung (Felix): Teams-Termin -> Ansprechpartner einladen (die
         // Einladung traegt den Teams-Link); Einladung gesetzt -> Bestaetigung
         // aus, sie waere doppelt. Beides bleibt von Hand aenderbar.
-        const invCheckEl = document.getElementById("tt_inv");
+        const invCheckEl = invCheck;   // Panel haengt hier noch nicht im DOM - getElementById waere null
         function koppleEinladung() {
             if (invCheckEl.checked) {
                 mailCheck.checked = false;
