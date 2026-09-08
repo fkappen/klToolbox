@@ -58,13 +58,16 @@ Firefox öffnen. Updates kommen danach automatisch über dieses Repo
 
 Zentrale Verteilung per Gruppenrichtlinie (Force-Install + Vorgaben): siehe [`gpo/`](gpo/).
 
+Microsoft-365-Kalenderanbindung (Termine direkt in Outlook): App-Registrierung im eigenen Tenant per [`setup/New-KlToolboxEntraApp.ps1`](setup/New-KlToolboxEntraApp.ps1) anlegen (Single-Page Application, delegierte Kalender-Berechtigungen, Admin-Consent; optional `-MitVerzeichnis` fuer die Kollegenliste und `-MitMail` fuer Terminbestaetigungen), Tenant- und Client-ID in die Vorgabe-Datei uebernehmen, dann in den Optionen unter „Microsoft 365“ verbinden.
+
 ## Repo-Struktur
 
 ```
 chromium/     Quellcode + Manifest fuer Chrome/Brave/Edge (fuehrende Variante)
 firefox/      generierte Firefox-Variante (Build-Script, eigenes Manifest)
 releases/     Verteil-Artefakte: chromium-ZIP, signierte Firefox-.xpi, updates.json
-gpo/          GPO-Verteilung: Force-Install + Vorgaben via Managed Storage
+gpo/          GPO-Verteilung: Force-Install + Vorgaben via Managed Storage (New-KlToolboxGpo.ps1 legt die GPO direkt an)
+setup/        New-KlToolboxEntraApp.ps1: Entra-App-Registrierung fuer die Microsoft-365-Kalenderanbindung
 Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
 ```
 

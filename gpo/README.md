@@ -11,7 +11,23 @@ Einstellungen → Registrierung) mit den Werten unten reichen vollständig aus.
 Die Vorgabe-Datei (Defaults-JSON mit internen Links/Branding) wird **intern**
 verteilt und liegt bewusst nicht in diesem Repo.
 
-## Variante A: Script
+## Variante 0: GPO direkt anlegen (empfohlen mit RSAT)
+
+[`New-KlToolboxGpo.ps1`](New-KlToolboxGpo.ps1) legt die GPO an bzw. befüllt sie
+direkt über das GroupPolicy-Modul (Computerkonfiguration → Richtlinien-Registry):
+Force-Install + `defaultsJson` für Chrome, Edge, Brave und Firefox. Vorhandene
+Forcelist-Nummern und eine bestehende Firefox-`ExtensionSettings`-Richtlinie in
+der GPO werden zusammengeführt.
+
+```powershell
+.\New-KlToolboxGpo.ps1 -GpoName "klToolbox" -DefaultsPath "\\pfad\zur\defaults.json" -ExtensionId "<Store-ID>" -CreateGpo
+```
+
+`-WhatIf` zeigt die Änderungen vorab, `-SkipForceInstall` schreibt nur die
+Vorgaben, `-Browsers Firefox` beschränkt auf einzelne Browser. Danach die GPO mit
+der Computer-OU verknüpfen.
+
+## Variante A: Script (lokale Registry)
 
 [`Deploy-KlToolboxPolicies.ps1`](Deploy-KlToolboxPolicies.ps1) setzt alle Werte
 (als Admin ausführen; per GPO-Startskript, RMM oder manuell):

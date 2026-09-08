@@ -368,7 +368,7 @@ function m365ConnectWeiter(btn) {
             if (err) {
                 alert("Anmeldung fehlgeschlagen:\n\n" + err +
                     (/consent|AADSTS65001|AADSTS90008|admin approval/i.test(err)
-                        ? "\n\nHinweis: Eine angeforderte Berechtigung ist im Tenant nicht freigegeben. Bei eingeschaltetem Verzeichnis-Schalter das Script M365_klToolbox_Create-App.ps1 mit -MitVerzeichnis ausführen oder den Schalter abwählen."
+                        ? "\n\nHinweis: Eine angeforderte Berechtigung ist im Tenant nicht freigegeben. Bei eingeschaltetem Verzeichnis-Schalter das Script New-KlToolboxEntraApp.ps1 mit -MitVerzeichnis ausführen oder den Schalter abwählen."
                         : ""));
             } else {
                 flashStatus("statusM365");
