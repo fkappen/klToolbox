@@ -1,6 +1,6 @@
 // Version
-// version = "1.23.3"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-09-07"
+// version = "1.24.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-09-09"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
@@ -2481,7 +2481,7 @@
     // M365-Verbindung steht - sonst bleibt das Fenster wie bisher.
     const CAL_START_H = 6;
     const CAL_END_H = 22;
-    const CAL_HOUR_PX = 24;
+    const CAL_HOUR_PX = 28;   // 7 px je 15-Minuten-Schritt
     const CAL_TAGE = ["Mo", "Di", "Mi", "Do", "Fr"];
 
     function localTz() {
@@ -2807,6 +2807,14 @@
             return b;
         }
 
+        function fmtMin(min) {
+            return pad(Math.floor(min / 60)) + ":" + pad(min % 60);
+        }
+
+        function fmtSpan(fromMin, toMin) {
+            return fmtMin(fromMin) + "–" + fmtMin(toMin);
+        }
+
         function isoWeek(d) {
             const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
             const dayNum = x.getUTCDay() || 7;
@@ -2815,16 +2823,51 @@
             return Math.ceil(((x - yearStart) / 86400000 + 1) / 7);
         }
 
-        // Ziehen im Tagesraster: Start = Mausdruck, Dauer = Zugweite (15-min-Raster)
+        // Ziehen im Tagesraster (15-Minuten-Raster):
+        //  - Mausdruck auf freier Flaeche + Ziehen nach unten ODER oben zieht
+        //    einen neuen Termin auf (Zellen-Logik: die Zelle unter der Maus
+        //    zaehlt mit), ein Klick setzt nur den Beginn
+        //  - Mausdruck auf dem geplanten Block (oder seiner Anfahrt) verschiebt
+        //    ihn mit gleicher Dauer, auch in eine andere Tagesspalte
+        //  - Esc bricht ab; im Block laeuft die Uhrzeit mit
         let drag = null;
-        function minutesAt(body, clientY) {
+        let dayBodies = [];
+        function minutesRaw(body, clientY) {
             const rect = body.getBoundingClientRect();
-            let min = CAL_START_H * 60 + (clientY - rect.top) / CAL_HOUR_PX * 60;
-            return Math.max(CAL_START_H * 60, Math.min(CAL_END_H * 60, Math.round(min / 15) * 15));
+            return CAL_START_H * 60 + (clientY - rect.top) / CAL_HOUR_PX * 60;
+        }
+
+        function clampMin(min) {
+            return Math.max(CAL_START_H * 60, Math.min(CAL_END_H * 60, min));
+        }
+
+        // Zelle (Viertelstunde), in der die Maus steht: 14:07 -> 14:00
+        function cellAt(body, clientY) {
+            return clampMin(Math.floor(minutesRaw(body, clientY) / 15) * 15);
+        }
+
+        function bodyAtX(clientX) {
+            for (const e of dayBodies) {
+                const r = e.body.getBoundingClientRect();
+                if (clientX >= r.left && clientX <= r.right) {
+                    return e;
+                }
+            }
+            return null;
+        }
+
+        function ghostSetzen(d, body, startMin, endMin) {
+            if (d.ghost.parentNode !== body) {
+                body.appendChild(d.ghost);
+            }
+            d.ghost.style.top = minutesToTop(startMin) + "px";
+            d.ghost.style.height = Math.max(6, (endMin - startMin) / 60 * CAL_HOUR_PX - 1) + "px";
+            d.ghost.textContent = fmtSpan(startMin, endMin);
         }
 
         function render() {
             grid.textContent = "";
+            dayBodies = [];
             if (!weekMonday) {
                 return;
             }
@@ -2893,10 +2936,10 @@
                 const body = document.createElement("div");
                 body.className = "tt-cal-daybody";
                 body.style.height = bodyH + "px";
-                for (let h = CAL_START_H + 1; h < CAL_END_H; h++) {
+                for (let m = CAL_START_H * 60 + 30; m < CAL_END_H * 60; m += 30) {
                     const line = document.createElement("div");
-                    line.className = "tt-cal-hline";
-                    line.style.top = minutesToTop(h * 60) + "px";
+                    line.className = "tt-cal-hline" + (m % 60 ? " tt-cal-half" : "");
+                    line.style.top = minutesToTop(m) + "px";
                     body.appendChild(line);
                 }
                 for (const ev of events) {
@@ -2920,7 +2963,9 @@
                     }
                 }
                 if (sel && dk === dateKey(sel)) {
-                    const b = block("tt-cal-sel", minOfDay(sel), minOfDay(selEnd) || CAL_END_H * 60, "", "Geplanter Termin (" + fmtDauer(dur) + ")");
+                    const b = block("tt-cal-sel", minOfDay(sel), minOfDay(selEnd) || CAL_END_H * 60,
+                        fmtSpan(minOfDay(sel), minOfDay(selEnd) || CAL_END_H * 60),
+                        "Geplanter Termin (" + fmtDauer(dur) + ") – zum Verschieben ziehen");
                     if (b) {
                         body.appendChild(b);
                     }
@@ -2934,19 +2979,33 @@
                         body.appendChild(line);
                     }
                 }
-                // Klick = Start setzen, Ziehen = Start + Dauer
+                // Klick = Start setzen, Ziehen = Start + Dauer, Ziehen am
+                // geplanten Block = Verschieben
                 body.addEventListener("mousedown", (evt) => {
                     if (evt.button !== 0 || evt.target.classList.contains("tt-cal-ev")) {
                         return;
                     }
                     evt.preventDefault();
-                    const startMin = minutesAt(body, evt.clientY);
-                    const ghost = block("tt-cal-drag", startMin, startMin + 15, "", "");
-                    body.appendChild(ghost);
-                    drag = { day: day, body: body, startMin: startMin, endMin: startMin + 15, ghost: ghost, moved: false };
+                    const ghost = document.createElement("div");
+                    ghost.className = "tt-cal-drag";
+                    const amBlock = evt.target.classList.contains("tt-cal-sel") || evt.target.classList.contains("tt-cal-anf");
+                    if (amBlock && sel && selEnd && dk === dateKey(sel)) {
+                        const s = minOfDay(sel);
+                        const e = Math.min(minOfDay(selEnd) || CAL_END_H * 60, CAL_END_H * 60);
+                        drag = { mode: "move", day: day, body: body, startMin: s, endMin: e, dauer: e - s,
+                            griff: minutesRaw(body, evt.clientY) - s, ghost: ghost, moved: false };
+                        evt.target.classList.add("tt-cal-moving");
+                        drag.orig = evt.target;
+                    } else {
+                        const a = Math.min(cellAt(body, evt.clientY), CAL_END_H * 60 - 15);
+                        drag = { mode: "neu", day: day, body: body, anker: a, startMin: a, endMin: a + 15, ghost: ghost, moved: false };
+                    }
+                    grid.classList.add("tt-cal-dragging");
+                    ghostSetzen(drag, body, drag.startMin, drag.endMin);
                 });
                 col.appendChild(body);
                 grid.appendChild(col);
+                dayBodies.push({ day: day, body: body });
             }
         }
 
@@ -2954,28 +3013,67 @@
             if (!drag) {
                 return;
             }
-            const m = minutesAt(drag.body, evt.clientY);
-            if (m > drag.startMin) {
-                drag.endMin = m;
-                drag.moved = true;
-                drag.ghost.style.height = Math.max(6, (drag.endMin - drag.startMin) / 60 * CAL_HOUR_PX - 1) + "px";
+            const d = drag;
+            if (d.mode === "move") {
+                const ziel = bodyAtX(evt.clientX) || { day: d.day, body: d.body };
+                let s = Math.round((minutesRaw(ziel.body, evt.clientY) - d.griff) / 15) * 15;
+                s = Math.max(CAL_START_H * 60, Math.min(CAL_END_H * 60 - d.dauer, s));
+                if (s !== d.startMin || ziel.body !== d.body) {
+                    d.moved = true;
+                }
+                d.day = ziel.day;
+                d.body = ziel.body;
+                d.startMin = s;
+                d.endMin = s + d.dauer;
+            } else {
+                const c = Math.min(cellAt(d.body, evt.clientY), CAL_END_H * 60 - 15);
+                const s = Math.min(d.anker, c);
+                const e = Math.max(d.anker, c) + 15;
+                if (s !== d.startMin || e !== d.endMin) {
+                    d.moved = true;
+                }
+                d.startMin = s;
+                d.endMin = e;
             }
+            ghostSetzen(d, d.body, d.startMin, d.endMin);
         });
+
+        function dragAufraeumen(d) {
+            drag = null;
+            grid.classList.remove("tt-cal-dragging");
+            if (d.orig) {
+                d.orig.classList.remove("tt-cal-moving");
+            }
+            if (d.ghost.parentNode) {
+                d.ghost.parentNode.removeChild(d.ghost);
+            }
+        }
+
         function endDrag() {
             if (!drag) {
                 return;
             }
             const d = drag;
-            drag = null;
+            dragAufraeumen(d);
+            if (d.mode === "move" && !d.moved) {
+                return;
+            }
             const startMin = Math.min(d.startMin, CAL_END_H * 60 - 15);
             cb.onPick(new Date(d.day.getFullYear(), d.day.getMonth(), d.day.getDate(), Math.floor(startMin / 60), startMin % 60, 0));
-            if (d.moved && d.endMin - d.startMin >= 15) {
+            if (d.mode === "neu" && d.moved && d.endMin - d.startMin >= 15) {
                 cb.onDuration(d.endMin - d.startMin);
             }
             render();
         }
         container.addEventListener("mouseup", endDrag);
         container.addEventListener("mouseleave", endDrag);
+        document.addEventListener("keydown", (evt) => {
+            if (drag && evt.key === "Escape") {
+                evt.preventDefault();
+                evt.stopPropagation();
+                dragAufraeumen(drag);
+            }
+        }, true);
 
         function load() {
             const key = cacheKey();
