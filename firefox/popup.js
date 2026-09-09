@@ -1,5 +1,5 @@
 // Version
-// version = "2.2.0"  (Modul Popup, klToolbox)
+// version = "2.2.1"  (Modul Popup, klToolbox)
 // datum   = "2026-08-13"
 // autor   = "FK"
 //
@@ -165,6 +165,19 @@ let hasDatevDoc = true;
 const DATEV_DOC_DEFAULT = "https://wissensplattform.apps.datev.de/help/document/%DOKNR%";
 const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "KI" };
 const PROVIDER_LABELS = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure KI" };
+
+// GPO-Vorgaben ggf. nachziehen (erster Start nach Richtlinien-Installation);
+// kommen sie dabei an, wird das Popup einmal neu aufgebaut
+try {
+    chrome.runtime.sendMessage({ type: "managedDefaultsCheck" }, () => { void chrome.runtime.lastError; });
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "local" && changes.managedDefaultsApplied) {
+            location.reload();
+        }
+    });
+} catch (err) {
+    console.warn("klToolbox: Vorgaben-Pruefung nicht angestossen:", err);
+}
 
 function classifyQuery(value) {
     // Ticket-/Kunden-Erkennung nur, wenn das jeweilige Linkziel auch

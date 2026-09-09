@@ -1,5 +1,5 @@
 // Version
-// version = "1.12.0"
+// version = "1.13.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -487,6 +487,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
 });
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg && msg.type === "managedDefaultsCheck") {
+        // Popup/Optionen geoeffnet: Vorgaben ggf. jetzt uebernehmen
+        managedRetryIdx = 0;
+        applyManagedDefaults();
+        sendResponse({ ok: true });
+        return false;
+    }
     if (msg && msg.type === "syncTicketScripts") {
         syncTicketContentScripts().then(() => sendResponse({ ok: true }));
         return true;
@@ -634,6 +641,16 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // danach darf der Benutzer weiter anpassen, bis der Admin eine neue
 // Version der Vorgaben verteilt (Verhalten wie der Settings-Import).
 
+// Beim allerersten Start nach einer Richtlinien-Installation liefert
+// storage.managed oft noch NICHTS - der Browser laedt die 3rdparty-Richtlinie
+// fuer die frisch registrierte Erweiterung erst kurz danach, und ein
+// onChanged("managed") kommt dafuer nicht zuverlaessig. Folge (Praxis
+// 2026-09-09): Popup zeigt neutrale Defaults, bis der Hintergrund-Dienst das
+// naechste Mal startet. Deshalb: bei leerem Ergebnis gestaffelt nachfragen,
+// und Popup/Optionen stossen die Pruefung beim Oeffnen zusaetzlich an.
+const MANAGED_RETRY_MS = [2000, 8000, 30000, 120000];
+let managedRetryIdx = 0;
+
 function applyManagedDefaults() {
     if (!chrome.storage.managed) {
         return;
@@ -645,8 +662,12 @@ function applyManagedDefaults() {
         }
         const raw = items && items.defaultsJson;
         if (!raw || typeof raw !== "string") {
+            if (managedRetryIdx < MANAGED_RETRY_MS.length) {
+                setTimeout(applyManagedDefaults, MANAGED_RETRY_MS[managedRetryIdx++]);
+            }
             return;
         }
+        managedRetryIdx = MANAGED_RETRY_MS.length;
         let parsed = null;
         try {
             parsed = JSON.parse(raw);

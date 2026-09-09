@@ -1,5 +1,5 @@
 // Version
-// version = "2.6.0"
+// version = "2.6.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -556,6 +556,11 @@ let entryTemplates = [];
 // ---------------------------------------------------------------- Laden
 
 function loadAll() {
+    try {
+        chrome.runtime.sendMessage({ type: "managedDefaultsCheck" }, () => { void chrome.runtime.lastError; });
+    } catch (err) {
+        console.warn("klToolbox: Vorgaben-Pruefung nicht angestossen:", err);
+    }
     chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, NAMEN_DEFAULTS, M365_DEFAULTS, {
         sidebarMode: false,
         defaultSearch: "datev",
