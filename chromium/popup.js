@@ -1,5 +1,5 @@
 // Version
-// version = "2.3.0"  (Modul Popup, klToolbox)
+// version = "2.3.1"  (Modul Popup, klToolbox)
 // datum   = "2026-09-17"
 // autor   = "FK"
 //
@@ -141,6 +141,15 @@ function render() {
             d.className = "empty";
             d.textContent = "Noch keine Bereiche – in den Optionen anlegen oder Einstellungen importieren.";
             host.appendChild(d);
+        }
+
+        // Popups sind auf 600 px Hoehe gedeckelt und duerfen nicht scrollen:
+        // passt der Inhalt nicht, Kacheln und Abstaende verdichten
+        if (!document.body.classList.contains("panel")) {
+            document.body.classList.remove("dense");
+            if (document.body.scrollHeight > 600) {
+                document.body.classList.add("dense");
+            }
         }
 
         document.getElementById("startBtn").addEventListener("click", () => {
@@ -409,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Fenster geoeffnet wurde (erfordert "Im Inkognito-Modus zulassen").
     chrome.windows.getCurrent((w) => {
         if (w && w.incognito) {
-            document.getElementById("resetIncognito").style.display = "flex";
+            document.getElementById("resetIncognito").style.display = "inline-flex";
         }
     });
     document.getElementById("resetIncognito").addEventListener("click", (e) => {

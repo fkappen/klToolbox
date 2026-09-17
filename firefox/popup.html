@@ -87,8 +87,10 @@
         /* Feste Breite NUR fuers Popup - kein max-width/vw hier! Firefox
            misst das Popup anfangs winzig und klemmt den Body sonst darauf
            fest (30px-Streifen). Panel-Modus überschreibt via body.panel. */
+        html, body { overflow: hidden; }
         body {
             width: 380px;
+            max-height: 600px;
             margin: 0;
             padding: 0;
             display: flex;
@@ -114,39 +116,45 @@
         }
 
         /* 2. Inhalt */
-        .content { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 14px; }
+        .content { padding: 10px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
         #sectionsHost { display: contents; }
-        .section { display: flex; flex-direction: column; gap: 8px; }
-        .block { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-hairline); }
+        .section { display: flex; flex-direction: column; gap: 6px; }
+        .block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line-hairline); }
 
         h2 { display: flex; align-items: baseline; gap: 8px; margin: 0; font: 600 11px/1.3 var(--font-core); letter-spacing: .12em; text-transform: uppercase; color: var(--text-heading); }
         h2 .note { font: 400 11px/1.3 var(--font-core); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
         .empty { color: var(--text-muted); font-size: 12px; }
 
         /* Primary / Secondary (Pill, Small) */
-        .btn-primary { display: flex; width: 100%; height: 32px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: var(--surface-accent); color: var(--text-on-accent); border: 1px solid transparent; border-radius: 999px; font: 600 13px/1 var(--font-core); }
+        .btn-primary { display: flex; width: 100%; height: 30px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: var(--surface-accent); color: var(--text-on-accent); border: 1px solid transparent; border-radius: 999px; font: 600 13px/1 var(--font-core); }
         .btn-primary:hover { background: var(--surface-accent-hover); }
         .btn-primary:active { background: var(--surface-accent-active); }
-        .btn-secondary { display: flex; width: 100%; height: 32px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; color: var(--text-link); border: 1px solid currentColor; border-radius: 999px; font: 600 13px/1 var(--font-core); }
+        .btn-secondary { display: flex; width: 100%; height: 30px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; color: var(--text-link); border: 1px solid currentColor; border-radius: 999px; font: 600 13px/1 var(--font-core); }
         .btn-secondary:hover { background: var(--surface-accent-soft); }
 
         /* 2.2 Raster + 2.3 Kachel */
         .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-        .tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 9px 4px 7px; min-width: 0; background: var(--surface-card); border: 1px solid var(--line-default); border-radius: 8px; color: var(--text-body); font: 500 11px/1.2 var(--font-core); }
+        .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 5px; min-width: 0; background: var(--surface-card); border: 1px solid var(--line-default); border-radius: 8px; color: var(--text-body); font: 500 11px/1.2 var(--font-core); }
         .tile:hover { border-color: var(--line-accent); background: var(--surface-tint); }
-        .tile img { width: 22px; height: 22px; border-radius: 4px; }
-        .tile .letter { width: 22px; height: 22px; border-radius: 4px; background: var(--surface-accent); color: var(--text-on-accent); display: flex; align-items: center; justify-content: center; font: 700 12px/1 var(--font-core); }
+        .tile img { width: 20px; height: 20px; border-radius: 4px; }
+        .tile .letter { width: 20px; height: 20px; border-radius: 4px; background: var(--surface-accent); color: var(--text-on-accent); display: flex; align-items: center; justify-content: center; font: 700 11px/1 var(--font-core); }
+        /* Verdichtung (JS setzt body.dense, wenn der Inhalt das 600-px-Budget
+           sprengt, z. B. drei Kachelzeilen im ersten Bereich) */
+        body.dense .grid { gap: 4px; }
+        body.dense .tile { padding: 5px 4px 4px; gap: 3px; }
+        body.dense .content { gap: 8px; }
+        body.dense .section { gap: 4px; }
         .tile > span:not(.letter) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tile.private { border-style: dashed; }
 
         /* 2.4 Suche */
         .field { position: relative; }
         .field .ico { position: absolute; left: 12px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-        #searchInput { display: block; width: 100%; height: 40px; padding: 0 12px 0 38px; box-sizing: border-box; font: 400 17px var(--font-core); color: var(--text-body); background: var(--surface-field); border: 1px solid var(--line-default); border-radius: 5px; box-shadow: var(--shadow-inset-field); transition: var(--transition-control); }
+        #searchInput { display: block; width: 100%; height: 36px; padding: 0 12px 0 38px; box-sizing: border-box; font: 400 16px var(--font-core); color: var(--text-body); background: var(--surface-field); border: 1px solid var(--line-default); border-radius: 5px; box-shadow: var(--shadow-inset-field); transition: var(--transition-control); }
         #searchInput::placeholder { color: var(--text-subtle); }
         #searchInput:focus { border-color: var(--line-field-focus); box-shadow: var(--ring-focus); outline: none; }
         .search-btns { display: flex; gap: 6px; }
-        .search-btns button { flex: 1; height: 30px; padding: 0 8px; border-radius: 999px; font: 600 12.5px/1 var(--font-core); background: transparent; color: var(--text-body); border: 1px solid var(--line-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .search-btns button { flex: 1; height: 28px; padding: 0 8px; border-radius: 999px; font: 600 12.5px/1 var(--font-core); background: transparent; color: var(--text-body); border: 1px solid var(--line-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .search-btns button:hover { background: var(--surface-accent-soft); }
         .search-btns button.default { border-color: var(--line-accent); background: var(--surface-accent-soft); color: var(--text-link); }
         #searchGo { display: none; min-width: 78px; }
@@ -155,26 +163,22 @@
         #hint { font-size: 12px; color: var(--state-danger); margin-top: -4px; }
         #hint:empty { display: none; }
 
-        /* 2.5 Werkzeuge */
-        .toolrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding-top: 12px; border-top: 1px solid var(--line-hairline); }
-        .toolbtn { display: flex; align-items: center; justify-content: center; height: 30px; padding: 0 8px; gap: 6px; border-radius: 999px; border: 1px solid var(--line-default); background: transparent; color: var(--text-link); font: 600 12px/1 var(--font-core); white-space: nowrap; min-width: 0; }
-        .toolbtn:hover { background: var(--surface-accent-soft); border-color: var(--line-accent); }
-        .toolbtn .ico { width: 14px; height: 14px; }
-
-        /* 3. Balken (Marke): Optionen + Hilfe */
-        .bar { margin-top: auto; background: var(--bar-fill); border-top: 4px solid var(--bar-strip-fill); height: 36px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px; }
-        .bar button { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; gap: 5px; border-radius: 999px; border: 0; background: transparent; color: #fff; font: 600 12px/1 var(--font-core); }
+        /* 3. Balken (Marke): Werkzeuge links als Icons, Optionen + Hilfe rechts */
+        .bar { margin-top: auto; flex: none; background: var(--bar-fill); border-top: 4px solid var(--bar-strip-fill); height: 36px; display: flex; align-items: center; gap: 2px; padding: 0 10px; }
+        .bar .spacer { flex: 1; }
+        .bar button { display: inline-flex; align-items: center; justify-content: center; height: 26px; padding: 0 10px; gap: 5px; border-radius: 999px; border: 0; background: transparent; color: #fff; font: 600 12px/1 var(--font-core); }
         .bar button:hover { background: var(--bar-hover); }
         .bar .ico { width: 14px; height: 14px; }
+        .bar .toolbtn { width: 28px; padding: 0; }
+        .bar .toolbtn .ico { width: 16px; height: 16px; }
 
         /* Seitenleisten-Modus (popup.html?panel=1): volle Breite nutzen,
            Kacheln fuellen den Platz, KI-Chat fuellt den unteren Bereich */
         #chatFrame { display: none; }
-        body.panel { width: auto; max-width: none; box-sizing: border-box; height: 100vh; overflow-y: auto; }
+        body.panel { width: auto; max-width: none; max-height: none; box-sizing: border-box; height: 100vh; overflow-y: auto; }
         body.panel .grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
         body.panel #chatFrame { display: block; flex: 1; min-height: 280px; width: 100%; border: 0; border-top: 1px solid var(--line-hairline); }
         body.panel #openChat { display: none !important; }
-        body.panel .toolrow { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
     </style>
 </head>
 <body>
@@ -193,7 +197,6 @@
         <div id="sectionsHost"></div>
 
         <div class="block">
-            <h2>Suche</h2>
             <div class="field">
                 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
                 <input type="text" id="searchInput" placeholder="Suchbegriff, Ticket- oder Kundennummer" autofocus>
@@ -207,29 +210,24 @@
             <div id="hint"></div>
         </div>
 
-        <div class="toolrow">
-            <button class="toolbtn" id="openChat" title="KI-Chat öffnen">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                KI-Chat
-            </button>
-            <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
-                Clipper
-            </button>
-            <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
-                Browserdaten
-            </button>
-            <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
-                Inkognito
-            </button>
-        </div>
     </div>
 
     <iframe id="chatFrame" title="KI-Chat"></iframe>
 
     <div class="bar">
+        <button class="toolbtn" id="openChat" title="KI-Chat öffnen" aria-label="KI-Chat öffnen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+        </button>
+        <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren" aria-label="Clipper">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+        </button>
+        <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen" aria-label="Browserdaten löschen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
+        </button>
+        <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)" aria-label="Inkognito-Sitzung zurücksetzen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+        </button>
+        <span class="spacer"></span>
         <button id="openOptions" title="Einstellungen öffnen">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
             Optionen
