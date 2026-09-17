@@ -1,5 +1,5 @@
 // Version
-// version = "2.6.1"
+// version = "2.6.2"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -426,7 +426,7 @@ function resetAmpel() {
 
 // Branding (Name + zwei Farben) kommt per Settings-Import; ohne Import
 // bleibt der neutrale Look. Dunkle Variante wird automatisch abgeleitet.
-const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "" };
+const BRAND_DEFAULTS = { brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "", brandIconDark: "" };
 
 function shadeColor(hex, pct) {
     const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());

@@ -3,101 +3,242 @@
 <head>
     <meta charset="utf-8">
     <style>
-        /* Neutrale Grundfarben - Firmen-Branding (brandName/brandPrimary/
-           brandAccent) kommt erst per Settings-Import und setzt die Variablen. */
+        /* Hausschrift Dosis (OFL), self-hosted - kein Netzwerkzugriff */
+        @font-face { font-family: "Dosis"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("dosis-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Dosis"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("dosis-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+        /* Design-Tokens. Die Markenfarben (--brand-*) sind neutral vorbelegt;
+           Firmen-Branding (brandPrimary/brandAccent/brandIcon) kommt per
+           Settings-Import und setzt nur die --brand-*-Variablen - hell und
+           dunkel leiten sich daraus ab. Dark Mode folgt dem System. */
         :root {
-            --kl-blau: #46626F;
-            --kl-blau-dunkel: #35505C;
-            --kl-gruen: #7D939E;
-            --kl-gruen-dunkel: #5F7683;
+            color-scheme: light dark;
+            --brand-p: #46626F;
+            --brand-p-100: #edf0f1;
+            --brand-p-300: #b5c0c5;
+            --brand-p-600: #3c535e;
+            --brand-p-700: #31454e;
+            --brand-a: #7D939E;
+            --brand-a-600: #6b7e88;
+
+            --font-core: "Dosis", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+
+            --text-heading: var(--brand-p);
+            --text-body: #3d3d3d;
+            --text-muted: #929292;
+            --text-subtle: #a8a8a8;
+            --text-link: var(--brand-p);
+            --text-on-accent: #fff;
+            --surface-page: #fff;
+            --surface-card: #fff;
+            --surface-tint: #f1f6f9;
+            --surface-field: #fff;
+            --surface-accent: var(--brand-p);
+            --surface-accent-hover: var(--brand-p-600);
+            --surface-accent-active: var(--brand-p-700);
+            --surface-accent-soft: var(--brand-p-100);
+            --surface-kunde: var(--brand-a-600);
+            --line-hairline: #e4e4e4;
+            --line-default: #bfbfbf;
+            --line-accent: var(--brand-p);
+            --line-field-focus: var(--brand-p);
+            --state-danger: #c0392b;
+            --bar-fill: var(--brand-p);
+            --bar-strip-fill: var(--brand-a);
+            --bar-hover: rgba(255, 255, 255, .14);
+            --shadow-inset-field: inset 0 1px 2px rgb(0 42 57 / .06);
+            --ring-focus: 0 0 0 3px color-mix(in srgb, var(--brand-a) 55%, transparent);
+
+            --duration: 180ms;
+            --ease: cubic-bezier(.4, 0, .2, 1);
+            --transition-control: background-color var(--duration) var(--ease), color var(--duration) var(--ease), border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
         }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Akzentfarbe wird Ueberschriften-/Linienfarbe; die Primaerfarbe
+                   dient nur als Flaeche unter weissem Text, nie als Schrift */
+                --text-heading: var(--brand-a);
+                --text-body: #f1f6f9;
+                --text-muted: #9aa9b2;
+                --text-subtle: #6f8290;
+                --text-link: var(--brand-p-300);
+                --surface-page: #1b2830;
+                --surface-card: #28353c;
+                --surface-tint: #222f36;
+                --surface-field: #12191f;
+                --surface-accent: var(--brand-p-600);
+                --surface-accent-hover: var(--brand-p);
+                --surface-accent-active: var(--brand-p-700);
+                --surface-accent-soft: color-mix(in srgb, var(--brand-p) 14%, #12191f);
+                --line-hairline: #1a252d;
+                --line-default: #33424b;
+                --line-accent: var(--brand-a);
+                --line-field-focus: var(--brand-p-300);
+                --state-danger: #d9544a;
+                --bar-fill: #12191f;
+                --shadow-inset-field: inset 0 1px 2px rgb(0 0 0 / .30);
+                --ring-focus: 0 0 0 3px color-mix(in srgb, var(--brand-a) 42%, transparent);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            :root { --duration: 0ms; }
+        }
+
         /* Feste Breite NUR fuers Popup - kein max-width/vw hier! Firefox
            misst das Popup anfangs winzig und klemmt den Body sonst darauf
            fest (30px-Streifen). Panel-Modus überschreibt via body.panel. */
-        body { font: 13px/1.4 system-ui, sans-serif; width: 372px; margin: 0; padding: 0 12px 10px; color: #26323a; background: #fafcfd; }
+        body {
+            width: 380px;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            font: 400 14px/1.35 var(--font-core);
+            color: var(--text-body);
+            background: var(--surface-page);
+            -webkit-font-smoothing: antialiased;
+        }
+        button { font-family: var(--font-core); cursor: pointer; transition: var(--transition-control); }
+        button:focus-visible, input:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+        .ico { width: 16px; height: 16px; flex: none; }
 
-        .brand { display: flex; align-items: center; gap: 8px; padding: 8px 2px 6px; margin-bottom: 6px; border-bottom: 2px solid var(--kl-gruen); }
-        .brand img { width: 22px; height: 22px; }
-        .brand b { font-size: 14px; color: var(--kl-blau-dunkel); font-weight: 700; letter-spacing: .01em; }
-        .brand span { color: #9aa7b0; font-size: 11px; margin-top: 2px; }
+        /* 1. Kopf */
+        .brand { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; border-bottom: 1px solid var(--line-hairline); }
+        .brand-mark { width: 22px; height: 22px; object-fit: contain; flex: none; }
+        .brand-dark { display: none; }
+        .brand b { font-size: 17px; font-weight: 600; color: var(--text-heading); letter-spacing: .01em; white-space: nowrap; }
+        .brand span { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        @media (prefers-color-scheme: dark) {
+            .brand-light { display: none; }
+            .brand-dark { display: block; }
+        }
 
-        h2 { font-size: 11px; margin: 10px 0 5px; color: var(--kl-blau); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-        .row { display: flex; gap: 6px; }
-        input { flex: 1; padding: 6px 10px; border: 1px solid #d5dde2; border-radius: 8px; font: inherit; box-sizing: border-box; background: #fff; }
-        input:focus { outline: 2px solid var(--kl-blau); outline-offset: -1px; border-color: var(--kl-blau); }
-        button { background: var(--kl-blau); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; font: inherit; font-weight: 600; }
-        button:hover { background: var(--kl-blau-dunkel); }
-        #hint { color: #b3261e; font-size: 12px; margin-top: 4px; min-height: 14px; }
+        /* 2. Inhalt */
+        .content { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 14px; }
+        #sectionsHost { display: contents; }
+        .section { display: flex; flex-direction: column; gap: 8px; }
+        .block { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-hairline); }
 
-        #startBar { display: flex; margin-bottom: 4px; }
-        #startBtn { width: 100%; background: linear-gradient(135deg, var(--kl-gruen), var(--kl-gruen-dunkel)); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
-        #startBtn:hover { filter: brightness(1.05); }
+        h2 { display: flex; align-items: baseline; gap: 8px; margin: 0; font: 600 11px/1.3 var(--font-core); letter-spacing: .12em; text-transform: uppercase; color: var(--text-heading); }
+        h2 .note { font: 400 11px/1.3 var(--font-core); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+        .empty { color: var(--text-muted); font-size: 12px; }
 
-        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
-        .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 2px 5px; border-radius: 10px; cursor: pointer; background: #fff; border: 1px solid #e3eaef; color: #26323a; font: 10.5px/1.2 system-ui, sans-serif; transition: box-shadow .12s, transform .12s, border-color .12s; }
-        .tile:hover { border-color: var(--kl-blau); box-shadow: 0 3px 10px rgba(0, 0, 0, .14); transform: translateY(-1px); background: #fff; }
-        .tile img { width: 22px; height: 22px; border-radius: 5px; }
-        .tile span { max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Primary / Secondary (Pill, Small) */
+        .btn-primary { display: flex; width: 100%; height: 32px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: var(--surface-accent); color: var(--text-on-accent); border: 1px solid transparent; border-radius: 999px; font: 600 13px/1 var(--font-core); }
+        .btn-primary:hover { background: var(--surface-accent-hover); }
+        .btn-primary:active { background: var(--surface-accent-active); }
+        .btn-secondary { display: flex; width: 100%; height: 32px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; color: var(--text-link); border: 1px solid currentColor; border-radius: 999px; font: 600 13px/1 var(--font-core); }
+        .btn-secondary:hover { background: var(--surface-accent-soft); }
+
+        /* 2.2 Raster + 2.3 Kachel */
+        .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+        .tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 9px 4px 7px; min-width: 0; background: var(--surface-card); border: 1px solid var(--line-default); border-radius: 8px; color: var(--text-body); font: 500 11px/1.2 var(--font-core); }
+        .tile:hover { border-color: var(--line-accent); background: var(--surface-tint); }
+        .tile img { width: 22px; height: 22px; border-radius: 4px; }
+        .tile .letter { width: 22px; height: 22px; border-radius: 4px; background: var(--surface-accent); color: var(--text-on-accent); display: flex; align-items: center; justify-content: center; font: 700 12px/1 var(--font-core); }
+        .tile > span:not(.letter) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tile.private { border-style: dashed; }
-        .tile.private span { color: var(--kl-blau-dunkel); }
 
-        .search-btns button { flex: 1; padding: 6px 4px; font-size: 12px; background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; }
-        .search-btns button:hover { background: var(--kl-blau); color: #fff; border-color: var(--kl-blau); }
-        .search-btns button.default { border-color: var(--kl-blau); box-shadow: inset 0 0 0 1px var(--kl-blau); font-weight: 700; }
-
-        #hint { min-height: 0; }
+        /* 2.4 Suche */
+        .field { position: relative; }
+        .field .ico { position: absolute; left: 12px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        #searchInput { display: block; width: 100%; height: 40px; padding: 0 12px 0 38px; box-sizing: border-box; font: 400 17px var(--font-core); color: var(--text-body); background: var(--surface-field); border: 1px solid var(--line-default); border-radius: 5px; box-shadow: var(--shadow-inset-field); transition: var(--transition-control); }
+        #searchInput::placeholder { color: var(--text-subtle); }
+        #searchInput:focus { border-color: var(--line-field-focus); box-shadow: var(--ring-focus); outline: none; }
+        .search-btns { display: flex; gap: 6px; }
+        .search-btns button { flex: 1; height: 30px; padding: 0 8px; border-radius: 999px; font: 600 12.5px/1 var(--font-core); background: transparent; color: var(--text-body); border: 1px solid var(--line-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .search-btns button:hover { background: var(--surface-accent-soft); }
+        .search-btns button.default { border-color: var(--line-accent); background: var(--surface-accent-soft); color: var(--text-link); }
+        #searchGo { display: none; min-width: 78px; }
+        #searchGo.kunde { background: var(--surface-kunde); color: #fff; }
+        #searchGo.kunde:hover { background: var(--brand-a); }
+        #hint { font-size: 12px; color: var(--state-danger); margin-top: -4px; }
         #hint:empty { display: none; }
 
-        /* Dynamischer Such-Button: Farbe je nach erkanntem Ziel */
-        #searchGo { min-width: 78px; }
-        #searchGo.kunde { background: var(--kl-gruen-dunkel); }
-        #searchGo.kunde:hover { background: var(--kl-gruen); }
-        #searchGo.web { background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; }
-        #searchGo.web:hover { background: var(--kl-blau); color: #fff; }
+        /* 2.5 Werkzeuge */
+        .toolrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding-top: 12px; border-top: 1px solid var(--line-hairline); }
+        .toolbtn { display: flex; align-items: center; justify-content: center; height: 30px; padding: 0 8px; gap: 6px; border-radius: 999px; border: 1px solid var(--line-default); background: transparent; color: var(--text-link); font: 600 12px/1 var(--font-core); white-space: nowrap; min-width: 0; }
+        .toolbtn:hover { background: var(--surface-accent-soft); border-color: var(--line-accent); }
+        .toolbtn .ico { width: 14px; height: 14px; }
 
-        /* Werkzeug-Buttons unten: schlanke Pills im Stil der Suchbuttons */
-        .toolrow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e3eaef; }
-        .toolbtn { flex: 1 1 30%; display: flex; align-items: center; justify-content: center; gap: 5px; background: #fff; color: var(--kl-blau-dunkel); border: 1px solid #d5dde2; border-radius: 8px; padding: 6px 6px; font: 11.5px/1.2 system-ui, sans-serif; font-weight: 600; cursor: pointer; white-space: nowrap; }
-        .toolbtn:hover { background: var(--kl-blau); color: #fff; border-color: var(--kl-blau); }
+        /* 3. Balken (Marke): Optionen + Hilfe */
+        .bar { margin-top: auto; background: var(--bar-fill); border-top: 4px solid var(--bar-strip-fill); height: 36px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px; }
+        .bar button { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; gap: 5px; border-radius: 999px; border: 0; background: transparent; color: #fff; font: 600 12px/1 var(--font-core); }
+        .bar button:hover { background: var(--bar-hover); }
+        .bar .ico { width: 14px; height: 14px; }
 
         /* Seitenleisten-Modus (popup.html?panel=1): volle Breite nutzen,
            Kacheln fuellen den Platz, KI-Chat fuellt den unteren Bereich */
         #chatFrame { display: none; }
-        body.panel { width: auto; max-width: none; box-sizing: border-box; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
+        body.panel { width: auto; max-width: none; box-sizing: border-box; height: 100vh; overflow-y: auto; }
         body.panel .grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
-        body.panel .tile span { max-width: none; }
-        body.panel #chatFrame { display: block; flex: 1; min-height: 280px; width: 100%; border: 0; border-top: 2px solid var(--kl-gruen); margin-top: 10px; }
+        body.panel #chatFrame { display: block; flex: 1; min-height: 280px; width: 100%; border: 0; border-top: 1px solid var(--line-hairline); }
         body.panel #openChat { display: none !important; }
         body.panel .toolrow { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
     </style>
 </head>
 <body>
-    <div class="brand"><img src="icon32.png" alt=""><b id="brandName">klToolbox</b><span id="brandSub"></span></div>
-    <div id="startBar"><button id="startBtn">▶ Start – alle öffnen</button></div>
-
-    <div id="sectionsHost"></div>
-
-    <h2>Suche</h2>
-    <div class="row" style="margin-bottom:6px;">
-        <input type="text" id="searchInput" placeholder="Suchbegriff, Ticket- oder Kundennummer" autofocus>
-        <button id="searchGo">Suchen</button>
+    <div class="brand">
+        <img class="brand-mark brand-light" src="icon32.png" alt="">
+        <img class="brand-mark brand-dark" src="icon32.png" alt="">
+        <b id="brandName">klToolbox</b><span id="brandSub"></span>
     </div>
-    <div class="row search-btns">
-        <button id="sDatev" title="DATEV Wissensplattform">DATEV</button>
-        <button id="sGoogle" title="Google-Suche">Google</button>
-        <button id="sInno" title="InnoGPT">InnoGPT</button>
-    </div>
-    <div id="hint"></div>
 
-    <div class="toolrow">
-        <button class="toolbtn" id="openChat" title="KI-Chat öffnen">🤖 KI-Chat</button>
-        <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren">✂ Clipper</button>
-        <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen">🧹 Browserdaten</button>
-        <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)">🕶 Inkognito</button>
-        <button class="toolbtn" id="openOptions" title="Einstellungen öffnen">⚙ Optionen</button>
-        <button class="toolbtn" id="openHelp" title="Hilfe öffnen">❓ Hilfe</button>
+    <div class="content">
+        <button id="startBtn" class="btn-primary" title="Alle als Start markierten Links öffnen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
+            Start – alle öffnen
+        </button>
+
+        <div id="sectionsHost"></div>
+
+        <div class="block">
+            <h2>Suche</h2>
+            <div class="field">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+                <input type="text" id="searchInput" placeholder="Suchbegriff, Ticket- oder Kundennummer" autofocus>
+            </div>
+            <div class="search-btns">
+                <button id="sDatev" title="DATEV Wissensplattform">DATEV</button>
+                <button id="sGoogle" title="Google-Suche">Google</button>
+                <button id="sInno" title="InnoGPT">InnoGPT</button>
+            </div>
+            <button id="searchGo" class="btn-primary">Suchen</button>
+            <div id="hint"></div>
+        </div>
+
+        <div class="toolrow">
+            <button class="toolbtn" id="openChat" title="KI-Chat öffnen">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                KI-Chat
+            </button>
+            <button class="toolbtn" id="clipPage" title="Aktuelle Seite als bereinigten Artikel exportieren">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+                Clipper
+            </button>
+            <button class="toolbtn" id="clearData" title="Browser-Dialog „Browserdaten löschen“ öffnen">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
+                Browserdaten
+            </button>
+            <button class="toolbtn" id="resetIncognito" style="display:none;" title="Private Sitzung zurücksetzen (Fenster werden neu geöffnet)">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+                Inkognito
+            </button>
+        </div>
     </div>
+
     <iframe id="chatFrame" title="KI-Chat"></iframe>
+
+    <div class="bar">
+        <button id="openOptions" title="Einstellungen öffnen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+            Optionen
+        </button>
+        <button id="openHelp" title="Hilfe öffnen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+            Hilfe
+        </button>
+    </div>
     <script src="popup.js"></script>
 </body>
 </html>

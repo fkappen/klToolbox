@@ -1,6 +1,6 @@
 // Version
-// version = "2.2.1"  (Modul Popup, klToolbox)
-// datum   = "2026-08-13"
+// version = "2.3.0"  (Modul Popup, klToolbox)
+// datum   = "2026-09-17"
 // autor   = "FK"
 //
 // Popup am Extension-Icon: Start-Leiste, Schnellzugriffe (Favicons via Web),
@@ -44,9 +44,8 @@ function attachIcon(btn, url, name) {
     let stage = 0;
     const letterTile = () => {
         const span = document.createElement("span");
+        span.className = "letter";
         span.textContent = (name || "?").charAt(0).toUpperCase();
-        span.style.cssText = "width:24px;height:24px;border-radius:4px;background:#2b579a;color:#fff;" +
-            "display:flex;align-items:center;justify-content:center;font:700 13px/1 system-ui;";
         btn.replaceChild(span, img);
     };
     img.addEventListener("error", () => {
@@ -113,15 +112,17 @@ function render() {
                 continue;
             }
             anyLink = true;
+            const section = document.createElement("div");
+            section.className = "section";
             const h = document.createElement("h2");
             h.textContent = sec.name;
             if (links.some((l) => l.privat === true)) {
                 const note = document.createElement("span");
-                note.style.cssText = "color:#9aa7b0; text-transform:none;";
-                note.textContent = " (gestrichelt = privates Fenster)";
+                note.className = "note";
+                note.textContent = "gestrichelt = privates Fenster";
                 h.appendChild(note);
             }
-            host.appendChild(h);
+            section.appendChild(h);
 
             const grid = document.createElement("div");
             grid.className = "grid";
@@ -131,12 +132,13 @@ function render() {
                     startLinks.push(link);
                 }
             }
-            host.appendChild(grid);
+            section.appendChild(grid);
+            host.appendChild(section);
         }
 
         if (!anyLink) {
             const d = document.createElement("div");
-            d.style.cssText = "color:#9aa7b0; font-size:12px; padding:8px 2px;";
+            d.className = "empty";
             d.textContent = "Noch keine Bereiche – in den Optionen anlegen oder Einstellungen importieren.";
             host.appendChild(d);
         }
@@ -164,6 +166,24 @@ let hasKundenUrl = false;
 let hasDatevDoc = true;
 const DATEV_DOC_DEFAULT = "https://wissensplattform.apps.datev.de/help/document/%DOKNR%";
 const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "KI" };
+
+// Lucide-Icons (ISC) fuer den dynamischen Such-Button - inline, kein CDN
+const SVG_HEAD = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+const ICONS = {
+    ticket: SVG_HEAD + '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>',
+    user: SVG_HEAD + '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    "file-text": SVG_HEAD + '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>'
+};
+
+function setButtonContent(btn, icon, label) {
+    btn.textContent = "";
+    if (icon && ICONS[icon]) {
+        const t = document.createElement("template");
+        t.innerHTML = ICONS[icon];
+        btn.appendChild(t.content.firstChild);
+    }
+    btn.appendChild(document.createTextNode(label));
+}
 const PROVIDER_LABELS = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure KI" };
 
 // GPO-Vorgaben ggf. nachziehen (erster Start nach Richtlinien-Installation);
@@ -202,17 +222,17 @@ function updateSearchGo() {
     const engines = document.querySelector(".search-btns");
     if (mode === "ticket" || mode === "kunde" || mode === "datevdoc") {
         // Nummer erkannt: farbiger Aktions-Button, Suchziele ausblenden
-        btn.style.display = "block";
+        btn.style.display = "flex";
         engines.style.display = "none";
         if (mode === "ticket") {
-            btn.className = "";
-            btn.textContent = "🎫 Ticket";
+            btn.className = "btn-primary";
+            setButtonContent(btn, "ticket", "Ticket öffnen");
         } else if (mode === "kunde") {
-            btn.className = "kunde";
-            btn.textContent = "👤 Kunde";
+            btn.className = "btn-primary kunde";
+            setButtonContent(btn, "user", "Kunde öffnen");
         } else {
-            btn.className = "web";
-            btn.textContent = "📄 Dok.";
+            btn.className = "btn-secondary web";
+            setButtonContent(btn, "file-text", "Dokument öffnen");
         }
     } else {
         // Freitext/leer: nur die drei Suchziele (Enter = Standard-Ziel)
@@ -273,19 +293,38 @@ function shadeColor(hex, pct) {
     return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
 }
 
+// Aufhellen Richtung Weiss (0..1) - fuer die hellen Stufen der Primaerfarbe
+function tintColor(hex, pct) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) {
+        return hex;
+    }
+    const n = parseInt(m[1], 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(v + (255 - v) * pct)));
+    const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+    return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+}
+
 function applyBrand() {
-    chrome.storage.local.get({ brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "" }, (items) => {
+    chrome.storage.local.get({ brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "", brandIconDark: "" }, (items) => {
         const root = document.documentElement;
         if (items.brandIcon) {
-            document.querySelector(".brand img").src = items.brandIcon;
+            // Marke fuer hell und dunkel; brandIconDark (optional) nur im Dark Mode
+            document.querySelector(".brand-light").src = items.brandIcon;
+            document.querySelector(".brand-dark").src = items.brandIconDark || items.brandIcon;
         }
         if (items.brandPrimary) {
-            root.style.setProperty("--kl-blau", items.brandPrimary);
-            root.style.setProperty("--kl-blau-dunkel", shadeColor(items.brandPrimary, -0.2));
+            // Nur die Basis-Variablen setzen - hell/dunkel leiten die
+            // Rollen (Flaeche, Text, Linie) im Stylesheet selbst ab
+            root.style.setProperty("--brand-p", items.brandPrimary);
+            root.style.setProperty("--brand-p-100", tintColor(items.brandPrimary, 0.9));
+            root.style.setProperty("--brand-p-300", tintColor(items.brandPrimary, 0.4));
+            root.style.setProperty("--brand-p-600", shadeColor(items.brandPrimary, -0.15));
+            root.style.setProperty("--brand-p-700", shadeColor(items.brandPrimary, -0.3));
         }
         if (items.brandAccent) {
-            root.style.setProperty("--kl-gruen", items.brandAccent);
-            root.style.setProperty("--kl-gruen-dunkel", shadeColor(items.brandAccent, -0.2));
+            root.style.setProperty("--brand-a", items.brandAccent);
+            root.style.setProperty("--brand-a-600", shadeColor(items.brandAccent, -0.14));
         }
         if (items.brandName) {
             const parts = items.brandName.split(" ");
