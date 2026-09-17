@@ -1,5 +1,5 @@
 // Version
-// version = "2.6.2"
+// version = "2.7.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -564,6 +564,7 @@ function loadAll() {
     chrome.storage.local.get(Object.assign({}, KI_DEFAULTS, TERMIN_DEFAULTS, MODULE_DEFAULTS, BRAND_DEFAULTS, FT_DEFAULTS, AMPEL_DEFAULTS, NAMEN_DEFAULTS, M365_DEFAULTS, {
         sidebarMode: false,
         defaultSearch: "datev",
+        theme: "auto",
         templates: [],
         entryTemplates: [],
         sections: null,
@@ -603,6 +604,7 @@ function loadAll() {
         }
         document.getElementById("sidebarMode").checked = items.sidebarMode === true;
         document.getElementById("defaultSearch").value = ["datev", "google", "innogpt"].includes(items.defaultSearch) ? items.defaultSearch : "datev";
+        document.getElementById("theme").value = ["auto", "light", "dark"].includes(items.theme) ? items.theme : "auto";
         // Cleaner-Whitelist (Array -> eine Zeile pro Eintrag)
         document.getElementById("cleanerWhitelist").value =
             (Array.isArray(items.cleanerWhitelist) ? items.cleanerWhitelist : []).join("\n");
@@ -1629,6 +1631,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("defaultSearch").addEventListener("change", (e) => {
         chrome.storage.local.set({ defaultSearch: e.target.value }, () => flashStatus("statusView"));
+    });
+    document.getElementById("theme").addEventListener("change", (e) => {
+        chrome.storage.local.set({ theme: e.target.value }, () => flashStatus("statusView"));
     });
     document.getElementById("entryTplAdd").addEventListener("click", () => {
         entryTemplates.push({ name: "", text: "" });

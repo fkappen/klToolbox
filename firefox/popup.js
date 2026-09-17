@@ -1,5 +1,5 @@
 // Version
-// version = "2.3.1"  (Modul Popup, klToolbox)
+// version = "2.4.0"  (Modul Popup, klToolbox)
 // datum   = "2026-09-17"
 // autor   = "FK"
 //
@@ -194,6 +194,28 @@ function setButtonContent(btn, icon, label) {
     btn.appendChild(document.createTextNode(label));
 }
 const PROVIDER_LABELS = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure KI" };
+
+// Farbschema: "auto" (System), "light", "dark" - Optionen -> Darstellung.
+// Wirkt ueber html[data-theme] auf color-scheme, die Tokens sind
+// light-dark()-Paare. Aenderungen in den Optionen greifen sofort.
+function applyTheme(theme) {
+    const root = document.documentElement;
+    if (theme === "light" || theme === "dark") {
+        root.dataset.theme = theme;
+    } else {
+        delete root.dataset.theme;
+    }
+}
+try {
+    chrome.storage.local.get({ theme: "auto" }, (s) => applyTheme(s.theme));
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "local" && changes.theme) {
+            applyTheme(changes.theme.newValue);
+        }
+    });
+} catch (err) {
+    console.warn("klToolbox: Farbschema nicht gesetzt:", err);
+}
 
 // GPO-Vorgaben ggf. nachziehen (erster Start nach Richtlinien-Installation);
 // kommen sie dabei an, wird das Popup einmal neu aufgebaut

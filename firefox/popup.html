@@ -10,7 +10,10 @@
         /* Design-Tokens. Die Markenfarben (--brand-*) sind neutral vorbelegt;
            Firmen-Branding (brandPrimary/brandAccent/brandIcon) kommt per
            Settings-Import und setzt nur die --brand-*-Variablen - hell und
-           dunkel leiten sich daraus ab. Dark Mode folgt dem System. */
+           dunkel leiten sich daraus ab. Hell/Dunkel steht in jedem Token als
+           light-dark()-Paar; welches gilt, entscheidet color-scheme:
+           "light dark" = System (Automatisch), sonst erzwungen ueber
+           html[data-theme] (Optionen -> Darstellung -> Farbschema). */
         :root {
             color-scheme: light dark;
             --brand-p: #46626F;
@@ -23,63 +26,40 @@
 
             --font-core: "Dosis", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
 
-            --text-heading: var(--brand-p);
-            --text-body: #3d3d3d;
-            --text-muted: #929292;
-            --text-subtle: #a8a8a8;
-            --text-link: var(--brand-p);
+            /* Dark Mode: Akzentfarbe wird Ueberschriften-/Linienfarbe; die
+               Primaerfarbe dient nur als Flaeche unter weissem Text, nie als Schrift */
+            --text-heading: light-dark(var(--brand-p), var(--brand-a));
+            --text-body: light-dark(#3d3d3d, #f1f6f9);
+            --text-muted: light-dark(#929292, #9aa9b2);
+            --text-subtle: light-dark(#a8a8a8, #6f8290);
+            --text-link: light-dark(var(--brand-p), var(--brand-p-300));
             --text-on-accent: #fff;
-            --surface-page: #fff;
-            --surface-card: #fff;
-            --surface-tint: #f1f6f9;
-            --surface-field: #fff;
-            --surface-accent: var(--brand-p);
-            --surface-accent-hover: var(--brand-p-600);
+            --surface-page: light-dark(#fff, #1b2830);
+            --surface-card: light-dark(#fff, #28353c);
+            --surface-tint: light-dark(#f1f6f9, #222f36);
+            --surface-field: light-dark(#fff, #12191f);
+            --surface-accent: light-dark(var(--brand-p), var(--brand-p-600));
+            --surface-accent-hover: light-dark(var(--brand-p-600), var(--brand-p));
             --surface-accent-active: var(--brand-p-700);
-            --surface-accent-soft: var(--brand-p-100);
+            --surface-accent-soft: light-dark(var(--brand-p-100), color-mix(in srgb, var(--brand-p) 14%, #12191f));
             --surface-kunde: var(--brand-a-600);
-            --line-hairline: #e4e4e4;
-            --line-default: #bfbfbf;
-            --line-accent: var(--brand-p);
-            --line-field-focus: var(--brand-p);
-            --state-danger: #c0392b;
-            --bar-fill: var(--brand-p);
+            --line-hairline: light-dark(#e4e4e4, #1a252d);
+            --line-default: light-dark(#bfbfbf, #33424b);
+            --line-accent: light-dark(var(--brand-p), var(--brand-a));
+            --line-field-focus: light-dark(var(--brand-p), var(--brand-p-300));
+            --state-danger: light-dark(#c0392b, #d9544a);
+            --bar-fill: light-dark(var(--brand-p), #12191f);
             --bar-strip-fill: var(--brand-a);
             --bar-hover: rgba(255, 255, 255, .14);
-            --shadow-inset-field: inset 0 1px 2px rgb(0 42 57 / .06);
-            --ring-focus: 0 0 0 3px color-mix(in srgb, var(--brand-a) 55%, transparent);
+            --shadow-inset-field: inset 0 1px 2px light-dark(rgb(0 42 57 / .06), rgb(0 0 0 / .30));
+            --ring-focus: 0 0 0 3px light-dark(color-mix(in srgb, var(--brand-a) 55%, transparent), color-mix(in srgb, var(--brand-a) 42%, transparent));
 
             --duration: 180ms;
             --ease: cubic-bezier(.4, 0, .2, 1);
             --transition-control: background-color var(--duration) var(--ease), color var(--duration) var(--ease), border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                /* Akzentfarbe wird Ueberschriften-/Linienfarbe; die Primaerfarbe
-                   dient nur als Flaeche unter weissem Text, nie als Schrift */
-                --text-heading: var(--brand-a);
-                --text-body: #f1f6f9;
-                --text-muted: #9aa9b2;
-                --text-subtle: #6f8290;
-                --text-link: var(--brand-p-300);
-                --surface-page: #1b2830;
-                --surface-card: #28353c;
-                --surface-tint: #222f36;
-                --surface-field: #12191f;
-                --surface-accent: var(--brand-p-600);
-                --surface-accent-hover: var(--brand-p);
-                --surface-accent-active: var(--brand-p-700);
-                --surface-accent-soft: color-mix(in srgb, var(--brand-p) 14%, #12191f);
-                --line-hairline: #1a252d;
-                --line-default: #33424b;
-                --line-accent: var(--brand-a);
-                --line-field-focus: var(--brand-p-300);
-                --state-danger: #d9544a;
-                --bar-fill: #12191f;
-                --shadow-inset-field: inset 0 1px 2px rgb(0 0 0 / .30);
-                --ring-focus: 0 0 0 3px color-mix(in srgb, var(--brand-a) 42%, transparent);
-            }
-        }
+        :root[data-theme="light"] { color-scheme: light; }
+        :root[data-theme="dark"] { color-scheme: dark; }
         @media (prefers-reduced-motion: reduce) {
             :root { --duration: 0ms; }
         }
@@ -111,9 +91,11 @@
         .brand b { font-size: 17px; font-weight: 600; color: var(--text-heading); letter-spacing: .01em; white-space: nowrap; }
         .brand span { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (prefers-color-scheme: dark) {
-            .brand-light { display: none; }
-            .brand-dark { display: block; }
+            :root:not([data-theme="light"]) .brand-light { display: none; }
+            :root:not([data-theme="light"]) .brand-dark { display: block; }
         }
+        :root[data-theme="dark"] .brand-light { display: none; }
+        :root[data-theme="dark"] .brand-dark { display: block; }
 
         /* 2. Inhalt */
         .content { padding: 10px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
