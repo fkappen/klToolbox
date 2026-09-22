@@ -1,5 +1,5 @@
 // Version
-// version = "1.13.0"
+// version = "1.14.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1366,6 +1366,14 @@ function m365StorageSet(obj) {
     return new Promise((resolve) => chrome.storage.local.set(obj, resolve));
 }
 
+// Letzter Grund, warum die Erneuerung nicht klappte - erscheint im Status
+// der Optionen. Enthaelt nur die Fehlermeldung von Microsoft, keine Tokens.
+async function m365MerkeFehler(text) {
+    await m365StorageSet({
+        m365LetzterFehler: text ? { text: String(text).slice(0, 300), zeit: new Date().toISOString() } : null
+    });
+}
+
 function m365RedirectUrl() {
     if (!chrome.identity || typeof chrome.identity.getRedirectURL !== "function") {
         return "";
@@ -1447,8 +1455,10 @@ function m365ParseIdToken(idToken) {
     }
 }
 
-async function m365TokenRequest(cfg, params) {
-    const body = new URLSearchParams(Object.assign({ client_id: cfg.clientId, scope: await m365Scopes() }, params));
+// scopeOverride: nur fuer den Rueckfall auf die Basis-Berechtigungen, wenn
+// eine optionale Berechtigung die Erneuerung kippt.
+async function m365TokenRequest(cfg, params, scopeOverride) {
+    const body = new URLSearchParams(Object.assign({ client_id: cfg.clientId, scope: scopeOverride || await m365Scopes() }, params));
     const res = await fetch("https://login.microsoftonline.com/" + encodeURIComponent(cfg.tenant) + "/oauth2/v2.0/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1575,25 +1585,90 @@ async function m365AccessToken(allowInteractive) {
         await m365StorageSet({ m365Auth: auth });
     }
     const hint = auth.account && auth.account.upn ? auth.account.upn : "";
+    let grund = "";
     if (auth.refreshToken) {
         try {
             auth = await m365TokenRequest(cfg, { grant_type: "refresh_token", refresh_token: auth.refreshToken });
+            await m365MerkeFehler("");
             return auth.accessToken;
         } catch (err) {
-            console.warn("klToolbox M365: Token-Refresh fehlgeschlagen (" + err.message + ") - stille Neuanmeldung.");
+            grund = err.message;
+            console.warn("klToolbox M365: Token-Refresh fehlgeschlagen (" + err.message + ").");
+            // Eine optionale Berechtigung (Verzeichnis/Mail), die der Tenant
+            // nicht (mehr) freigibt, laesst JEDE Erneuerung scheitern. Dann
+            // einmal nur mit den Basis-Berechtigungen erneuern, damit
+            // Kalender und Terminanlage weiterlaufen.
+            if (wollen !== M365_SCOPES) {
+                try {
+                    auth = await m365TokenRequest(cfg, { grant_type: "refresh_token", refresh_token: auth.refreshToken }, M365_SCOPES);
+                    await m365MerkeFehler("Erneuerung nur mit den Basis-Berechtigungen möglich (" + err.message +
+                        ") - optionale Berechtigungen im Tenant prüfen.");
+                    return auth.accessToken;
+                } catch (err2) {
+                    console.warn("klToolbox M365: Erneuerung auch mit Basis-Berechtigungen fehlgeschlagen (" + err2.message + ").");
+                }
+            }
         }
     }
     try {
         auth = await m365Authorize(cfg, false, hint, false);
+        await m365MerkeFehler("");
         return auth.accessToken;
     } catch (err) {
         console.warn("klToolbox M365: stille Anmeldung fehlgeschlagen (" + err.message + ").");
+        await m365MerkeFehler((grund || err.message) + " (stille Anmeldung: " + err.message + ")");
         if (!allowInteractive) {
-            throw new Error("Anmeldung abgelaufen - in den Optionen → Microsoft 365 erneut „Verbinden“ klicken.");
+            const e = new Error("Anmeldung abgelaufen - bitte neu anmelden.");
+            e.m365Expired = true;
+            throw e;
         }
     }
     auth = await m365Authorize(cfg, true, hint, false);
+    await m365MerkeFehler("");
     return auth.accessToken;
+}
+
+// Vorab-Erneuerung: Microsoft gibt Single-Page-Anwendungen nur 24 h lange
+// Erneuerungs-Tokens; danach ist eine neue Anmeldung noetig. Laeuft der
+// Browser, holt dieser Wecker die Erneuerung im Hintergrund - solange die
+// Microsoft-Sitzung im Browser steht, klappt sie ohne Zutun, und der
+// Kalender ist beim Oeffnen des Termin-Fensters sofort da.
+const M365_ALARM = "m365Refresh";
+
+async function m365Voraberneuerung() {
+    try {
+        const cfg = await m365Config();
+        if (!cfg.tenant || !cfg.clientId || !(await m365HostPermission())) {
+            return;
+        }
+        const auth = (await m365Storage({ m365Auth: null })).m365Auth;
+        if (!auth || !auth.refreshToken) {
+            return;
+        }
+        // Nur kurz vor Ablauf erneuern - ein gueltiges Token bleibt gueltig
+        if (Number(auth.expiresAt) - Date.now() > 20 * 60000) {
+            return;
+        }
+        await m365AccessToken(false);
+        console.info("klToolbox M365: Anmeldung im Hintergrund erneuert.");
+    } catch (err) {
+        console.info("klToolbox M365: Vorab-Erneuerung nicht möglich:", err && err.message ? err.message : err);
+    }
+}
+
+if (chrome.alarms) {
+    // Nicht bei jedem Start des Hintergrund-Dienstes neu anlegen - das wuerde
+    // den Zeitgeber immer wieder zuruecksetzen und er kaeme nie zum Zug.
+    chrome.alarms.get(M365_ALARM, (a) => {
+        if (!a) {
+            chrome.alarms.create(M365_ALARM, { periodInMinutes: 30 });
+        }
+    });
+    chrome.alarms.onAlarm.addListener((a) => {
+        if (a && a.name === M365_ALARM) {
+            m365Voraberneuerung();
+        }
+    });
 }
 
 async function m365Graph(path, method, body, allowInteractive, extraHeaders) {
@@ -2036,6 +2111,7 @@ async function m365Status() {
         // Nur Kurznamen der Graph-Scopes, keine Token
         tokenScopes: String(auth && auth.scope || "").split(/\s+/).filter((x) => x).map((x) => x.replace(/^https:\/\/graph\.microsoft\.com\//, "")).join(", "),
         seit: auth && auth.seit ? auth.seit : "",
+        letzterFehler: (await m365Storage({ m365LetzterFehler: null })).m365LetzterFehler || null,
         redirectUrl: m365RedirectUrl(),
         identity: !!(chrome.identity && typeof chrome.identity.launchWebAuthFlow === "function")
     };
@@ -2060,6 +2136,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 await m365StorageSet({ m365Auth: null });
                 const auth = await m365Authorize(cfg, true, "", true);
                 sendResponse({ ok: true, account: auth.account });
+            } else if (msg.type === "m365Reauth") {
+                // Neuanmeldung nach Ablauf: bekanntes Konto, KEINE erzwungene
+                // Kontoauswahl und die bestehende Anmeldung bleibt bis zum
+                // Erfolg stehen. Mit aktiver Microsoft-Sitzung im Browser
+                // laeuft das Fenster ohne Klick wieder zu.
+                const cfg = await m365Config();
+                if (!cfg.tenant || !cfg.clientId) {
+                    throw new Error("Microsoft 365 ist nicht eingerichtet (Optionen → Microsoft 365).");
+                }
+                if (!(await m365HostPermission())) {
+                    throw new Error("Zugriff auf login.microsoftonline.com und graph.microsoft.com wurde nicht erteilt.");
+                }
+                const alt = (await m365Storage({ m365Auth: null })).m365Auth;
+                const neu = await m365Authorize(cfg, true, (alt && alt.account && alt.account.upn) ? alt.account.upn : "", false);
+                await m365MerkeFehler("");
+                sendResponse({ ok: true, account: neu.account });
             } else if (msg.type === "m365Logout") {
                 await chrome.storage.local.remove("m365Auth");
                 sendResponse({ ok: true });
@@ -2093,7 +2185,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             }
         } catch (err) {
             console.warn("klToolbox M365 (" + msg.type + "):", err);
-            sendResponse({ ok: false, error: (err && err.message) ? err.message : String(err) });
+            sendResponse({
+                ok: false,
+                error: (err && err.message) ? err.message : String(err),
+                reauth: !!(err && err.m365Expired)
+            });
         }
     })();
     return true;

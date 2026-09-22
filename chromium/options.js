@@ -1,5 +1,5 @@
 // Version
-// version = "2.7.0"
+// version = "2.7.1"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -324,6 +324,10 @@ function renderM365State() {
             }
             if (!st.scopeShared) {
                 el.textContent += " · ✗ Calendars.ReadWrite.Shared fehlt im Token - „Trennen“ und „Verbinden“.";
+            }
+            if (st.letzterFehler && st.letzterFehler.text) {
+                el.textContent += " · Letzte Erneuerung: " + st.letzterFehler.text +
+                    " (" + new Date(st.letzterFehler.zeit).toLocaleString("de-DE") + ")";
             }
             if (st.mailGewuenscht && !st.scopeMail) {
                 el.textContent += " · ✗ Mail-Berechtigung (Mail.Send) FEHLT im Token: erst im Tenant freigeben (Script mit -MitMail), dann „Trennen“ und „Verbinden“.";
@@ -1414,6 +1418,7 @@ function exportAllSettings() {
         delete items.m365Termine;   // Termin-IDs je Ticket sind an den eigenen Kalender gebunden
         delete items.m365KollegenCache;   // Zugriffsrechte sind pro Nutzer verschieden
         delete items.m365KollegenAusgeblendet;
+        delete items.m365LetzterFehler;   // Diagnose der eigenen Anmeldung
         const payload = {
             _extension: "klToolbox",
             _exportiert: new Date().toISOString(),

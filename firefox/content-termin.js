@@ -1,6 +1,6 @@
 // Version
-// version = "1.24.0"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-09-09"
+// version = "1.25.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-09-22"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
@@ -101,6 +101,7 @@
 
     const TERMINARTEN = [
         { value: "telefon", label: "Telefon" },
+        { value: "fernwartung", label: "Fernwartung" },
         { value: "teams", label: "Teams" },
         { value: "vorort", label: "Vor Ort" }
     ];
@@ -3075,6 +3076,40 @@
             }
         }, true);
 
+        // Kalenderfehler anzeigen. Bei abgelaufener Anmeldung (Microsoft
+        // gibt SPA-Anwendungen nur 24 h lange Erneuerungs-Tokens) gleich hier
+        // eine Schaltflaeche anbieten - der Umweg ueber die Optionen war
+        // taeglich faellig und damit die haeufigste Klickstrecke.
+        function zeigeKalenderFehler(text, reauth) {
+            info.textContent = "";
+            info.classList.add("tt-cal-conflict");
+            info.appendChild(document.createTextNode("Kalender nicht abrufbar: " + text + " "));
+            if (!reauth) {
+                return;
+            }
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "tt-cal-relogin";
+            b.textContent = "Jetzt anmelden";
+            b.addEventListener("click", () => {
+                b.disabled = true;
+                b.textContent = "Anmeldung läuft…";
+                chrome.runtime.sendMessage({ type: "m365Reauth" }, (res) => {
+                    const fehler = chrome.runtime.lastError
+                        ? chrome.runtime.lastError.message
+                        : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
+                    if (fehler) {
+                        zeigeKalenderFehler("Anmeldung fehlgeschlagen: " + fehler, false);
+                        return;
+                    }
+                    info.classList.remove("tt-cal-conflict");
+                    ladeM365Status(() => null);
+                    load();
+                });
+            });
+            info.appendChild(b);
+        }
+
         function load() {
             const key = cacheKey();
             if (cache[key]) {
@@ -3097,7 +3132,7 @@
                         ? chrome.runtime.lastError.message
                         : (res && res.ok ? "" : ((res && res.error) || "keine Antwort"));
                     if (err) {
-                        info.textContent = "Kalender nicht abrufbar: " + err;
+                        zeigeKalenderFehler(err, !!(res && res.reauth));
                         return;
                     }
                     cache[key] = (res.events || [])
@@ -3113,7 +3148,7 @@
                     }
                 });
             } catch (err) {
-                info.textContent = "Kalender nicht abrufbar: " + err;
+                zeigeKalenderFehler(String(err), false);
             }
         }
 
@@ -4089,6 +4124,8 @@
                 ort = "Microsoft Teams";
             } else if (art === "telefon") {
                 ort = "Telefon";
+            } else if (art === "fernwartung") {
+                ort = "Fernwartung";
             }
 
             const vorbehalt = document.getElementById("tt_vb").checked;

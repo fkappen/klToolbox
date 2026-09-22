@@ -20,7 +20,8 @@
         "scripting",
         "activeTab",
         "clipboardWrite",
-        "identity"
+        "identity",
+        "alarms"
     ],
     "host_permissions": [
         "https://apiv2.deutschlandgpt.de/*",
