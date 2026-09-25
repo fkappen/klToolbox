@@ -121,10 +121,14 @@ vollständig inaktiv, solange sie nicht eingerichtet ist.
 ## 5. Weitere Netzwerkzugriffe
 
 - **Favicons:** Für die Link-Kacheln lädt die Erweiterung Website-Symbole —
-  zunächst direkt vom jeweiligen Ziel-Host (`/favicon.ico`), ersatzweise über
-  den Favicon-Dienst von Google (`www.google.com/s2/favicons`). Dabei wird dem
-  jeweiligen Dienst der **Hostname** des konfigurierten Links übermittelt,
-  keine weiteren Daten.
+  zunächst direkt vom jeweiligen Ziel-Host (`/favicon.ico`), dann aus dem
+  Favicon-Speicher des Browsers (Chromium, Berechtigung `favicon`, kein
+  Netzwerkzugriff) und nur als letzter Rückfall über den Favicon-Dienst von
+  Google (`www.google.com/s2/favicons`). Dabei wird dem jeweiligen Dienst der
+  **Hostname** des konfigurierten Links übermittelt, keine weiteren Daten. Der
+  Google-Rückfall lässt sich in den Optionen (Darstellung) abschalten; die
+  Erweiterung merkt sich je Host nur, welche Quelle zuletzt ein Symbol
+  lieferte.
 - **Updates (Firefox):** Die Firefox-Variante prüft auf neue Versionen über
   eine statische Datei auf GitHub (`raw.githubusercontent.com`); dabei werden
   keine Nutzerdaten übertragen.
@@ -181,8 +185,10 @@ feature: the selected text (or the user-initiated content) is sent directly
 from the user's browser to **one** AI provider (DeutschlandGPT, InnoGPT or Azure OpenAI)
 that the user has chosen and configured with **their own API key** — solely to
 produce the requested result, and only after a one-time explicit consent in
-the extension settings. Favicons are fetched from the link's host or Google's
-favicon service (hostname only). An **optional Microsoft 365 integration** lets the user create appointments in their **own** Outlook calendar: it is inactive until the user enters their organisation's Entra app registration and signs in through Microsoft's standard login (OAuth 2.0/PKCE via the `identity` API, delegated `Calendars.ReadWrite` and `Calendars.ReadWrite.Shared` only - own calendar and calendars explicitly shared with the user); appointment data is sent directly from the browser to the user's own Microsoft 365 account, calendar data is displayed only, and tokens stay in local storage. No data is sold or shared beyond this; use of
+the extension settings. Favicons are fetched from the link's host, then from the browser's own
+favicon cache (Chromium `favicon` permission, no network), and only as a last
+resort from Google's favicon service (hostname only; can be disabled in the
+options). An **optional Microsoft 365 integration** lets the user create appointments in their **own** Outlook calendar: it is inactive until the user enters their organisation's Entra app registration and signs in through Microsoft's standard login (OAuth 2.0/PKCE via the `identity` API, delegated `Calendars.ReadWrite` and `Calendars.ReadWrite.Shared` only - own calendar and calendars explicitly shared with the user); appointment data is sent directly from the browser to the user's own Microsoft 365 account, calendar data is displayed only, and tokens stay in local storage. No data is sold or shared beyond this; use of
 all handled data is limited to the extension's user-facing core functionality
 (Limited Use). All local data can be deleted at any time via the settings or
 by uninstalling the extension.

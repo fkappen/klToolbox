@@ -1,5 +1,5 @@
 // Version
-// version = "2.7.1"
+// version = "2.7.2"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -569,6 +569,7 @@ function loadAll() {
         sidebarMode: false,
         defaultSearch: "datev",
         theme: "auto",
+        faviconExtern: true,
         templates: [],
         entryTemplates: [],
         sections: null,
@@ -609,6 +610,7 @@ function loadAll() {
         document.getElementById("sidebarMode").checked = items.sidebarMode === true;
         document.getElementById("defaultSearch").value = ["datev", "google", "innogpt"].includes(items.defaultSearch) ? items.defaultSearch : "datev";
         document.getElementById("theme").value = ["auto", "light", "dark"].includes(items.theme) ? items.theme : "auto";
+        document.getElementById("faviconExtern").checked = items.faviconExtern !== false;
         // Cleaner-Whitelist (Array -> eine Zeile pro Eintrag)
         document.getElementById("cleanerWhitelist").value =
             (Array.isArray(items.cleanerWhitelist) ? items.cleanerWhitelist : []).join("\n");
@@ -1639,6 +1641,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("theme").addEventListener("change", (e) => {
         chrome.storage.local.set({ theme: e.target.value }, () => flashStatus("statusView"));
+    });
+    document.getElementById("faviconExtern").addEventListener("change", (e) => {
+        // Quellen-Gedaechtnis verwerfen, damit die Kette neu durchlaufen wird
+        chrome.storage.local.set({ faviconExtern: e.target.checked, faviconQuelle: {} }, () => flashStatus("statusView"));
     });
     document.getElementById("entryTplAdd").addEventListener("click", () => {
         entryTemplates.push({ name: "", text: "" });

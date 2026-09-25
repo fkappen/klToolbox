@@ -1,6 +1,6 @@
 // Version
-// version = "2.0.0"  (Modul KI-Chat, klToolbox)
-// datum   = "2026-08-17"
+// version = "2.1.0"  (Modul KI-Chat, klToolbox)
+// datum   = "2026-09-25"
 // autor   = "FK"
 //
 // Chat-Seite mit Unterhaltungs-Verlauf (wie ChatGPT): mehrere Chats in der
@@ -205,17 +205,65 @@ function ensureConvo(firstText) {
 }
 
 // ---------------------------------------------------------------- Meta/Branding
+// Farbschema und Marke wie im Popup: Tokens haengen an --brand-*, hell/
+// dunkel entscheidet color-scheme ueber html[data-theme].
+
+function shadeColor(hex, pct) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) {
+        return hex;
+    }
+    const n = parseInt(m[1], 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(v * (1 + pct))));
+    const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+    return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+}
+
+function tintColor(hex, pct) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) {
+        return hex;
+    }
+    const n = parseInt(m[1], 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(v + (255 - v) * pct)));
+    const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+    return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+}
+
+function applyTheme(theme) {
+    const root = document.documentElement;
+    if (theme === "light" || theme === "dark") {
+        root.dataset.theme = theme;
+    } else {
+        delete root.dataset.theme;
+    }
+}
+try {
+    chrome.storage.local.get({ theme: "auto" }, (s) => applyTheme(s.theme));
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "local" && changes.theme) {
+            applyTheme(changes.theme.newValue);
+        }
+    });
+} catch (err) {
+    console.warn("klToolbox: Farbschema nicht gesetzt:", err);
+}
 
 function updateMeta() {
     chrome.storage.local.get({
         provider: "dgpt", dgptModel: "claude-4.5-haiku",
         innogptModel: "gpt-5", azureDeployment: "",
-        brandPrimary: "", brandAccent: "", brandIcon: ""
+        brandPrimary: "", brandAccent: "", brandIcon: "", brandIconDark: ""
     }, (s) => {
+        const root = document.documentElement;
         if (s.brandIcon) {
-            const img = document.querySelector("header img");
-            if (img) {
-                img.src = s.brandIcon;
+            const light = document.querySelector(".brand-light");
+            const dark = document.querySelector(".brand-dark");
+            if (light) {
+                light.src = s.brandIcon;
+            }
+            if (dark) {
+                dark.src = s.brandIconDark || s.brandIcon;
             }
             const fav = document.querySelector("link[rel='icon']");
             if (fav) {
@@ -223,17 +271,15 @@ function updateMeta() {
             }
         }
         if (s.brandPrimary) {
-            const m = /^#?([0-9a-f]{6})$/i.exec(String(s.brandPrimary).trim());
-            document.documentElement.style.setProperty("--klt-p", s.brandPrimary);
-            if (m) {
-                const n = parseInt(m[1], 16);
-                const f = (v) => Math.max(0, Math.min(255, Math.round(v * 0.8)));
-                const d = ((f((n >> 16) & 255) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255));
-                document.documentElement.style.setProperty("--klt-pd", "#" + d.toString(16).padStart(6, "0"));
-            }
+            root.style.setProperty("--brand-p", s.brandPrimary);
+            root.style.setProperty("--brand-p-100", tintColor(s.brandPrimary, 0.9));
+            root.style.setProperty("--brand-p-300", tintColor(s.brandPrimary, 0.4));
+            root.style.setProperty("--brand-p-600", shadeColor(s.brandPrimary, -0.15));
+            root.style.setProperty("--brand-p-700", shadeColor(s.brandPrimary, -0.3));
         }
         if (s.brandAccent) {
-            document.documentElement.style.setProperty("--klt-a", s.brandAccent);
+            root.style.setProperty("--brand-a", s.brandAccent);
+            root.style.setProperty("--brand-a-600", shadeColor(s.brandAccent, -0.14));
         }
         const provider = providerOverride || s.provider;
         const model = provider === "innogpt" ? s.innogptModel

@@ -5,33 +5,76 @@
     <title>klToolbox – Hilfe</title>
     <link rel="icon" href="icon32.png">
     <style>
-        :root { --klt-p: #46626F; --klt-pd: #35505C; --klt-a: #7D939E; }
-        body { font: 14px/1.6 system-ui, sans-serif; max-width: 820px; margin: 40px auto; padding: 0 16px 60px; color: #26323a; background: #fafcfd; }
-        h1 { font-size: 24px; color: var(--klt-pd); display: flex; align-items: center; gap: 10px; }
-        h1 img { width: 30px; height: 30px; }
-        h2 { font-size: 18px; margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--klt-a); color: var(--klt-p); }
-        h3 { font-size: 15px; margin: 22px 0 6px; color: var(--klt-pd); }
-        code { background: #eef1f3; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
-        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-        th, td { border: 1px solid #dde4e8; padding: 7px 10px; text-align: left; vertical-align: top; }
-        th { background: #f0f3f5; }
-        .tip { background: #eef4f7; border-left: 4px solid var(--klt-p); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
-        ul { padding-left: 22px; }
-        a { color: var(--klt-p); }
+        /* Hausschrift Dosis (OFL), self-hosted - kein Netzwerkzugriff */
+        @font-face { font-family: "Dosis"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("dosis-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Dosis"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("dosis-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+        /* Design-Tokens - identisch mit popup.html (siehe dort) */
+        :root {
+            color-scheme: light dark;
+            --brand-p: #46626F;
+            --brand-p-100: #edf0f1;
+            --brand-p-300: #b5c0c5;
+            --brand-p-600: #3c535e;
+            --brand-p-700: #31454e;
+            --brand-a: #7D939E;
+            --brand-a-600: #6b7e88;
+            --font-core: "Dosis", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+            --font-mono: ui-monospace, "Consolas", "Liberation Mono", monospace;
+            --text-heading: light-dark(var(--brand-p), var(--brand-a));
+            --text-body: light-dark(#3d3d3d, #f1f6f9);
+            --text-muted: light-dark(#929292, #9aa9b2);
+            --text-link: light-dark(var(--brand-p), var(--brand-p-300));
+            --surface-page: light-dark(#fff, #1b2830);
+            --surface-card: light-dark(#fff, #28353c);
+            --surface-tint: light-dark(#f1f6f9, #222f36);
+            --surface-accent: light-dark(var(--brand-p), var(--brand-p-600));
+            --surface-accent-soft: light-dark(var(--brand-p-100), color-mix(in srgb, var(--brand-p) 14%, #12191f));
+            --surface-warn-soft: light-dark(#fdf3e0, #2e2711);
+            --line-hairline: light-dark(#e4e4e4, #1a252d);
+            --line-default: light-dark(#bfbfbf, #33424b);
+            --line-accent: light-dark(var(--brand-p), var(--brand-a));
+            --line-warn: light-dark(#d9922b, #f0d9a8);
+            --bar-strip-fill: var(--brand-a);
+        }
+        :root[data-theme="light"] { color-scheme: light; }
+        :root[data-theme="dark"] { color-scheme: dark; }
+
+        body { font: 400 16px/1.55 var(--font-core); max-width: 860px; margin: 40px auto; padding: 0 16px 60px; color: var(--text-body); background: var(--surface-page); -webkit-font-smoothing: antialiased; }
+        h1 { font-size: 26px; font-weight: 600; letter-spacing: .01em; color: var(--text-heading); display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+        .brand-mark { width: 30px; height: 30px; object-fit: contain; }
+        .brand-dark { display: none; }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) .brand-light { display: none; }
+            :root:not([data-theme="light"]) .brand-dark { display: block; }
+        }
+        :root[data-theme="dark"] .brand-light { display: none; }
+        :root[data-theme="dark"] .brand-dark { display: block; }
+        h2 { font-size: 20px; font-weight: 600; margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--bar-strip-fill); color: var(--text-heading); }
+        h3 { font-size: 16px; font-weight: 600; margin: 22px 0 6px; color: var(--text-heading); }
+        code { background: var(--surface-tint); padding: 1px 6px; border-radius: 4px; font: 13px/1.5 var(--font-mono); }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; background: var(--surface-card); }
+        th, td { border: 1px solid var(--line-hairline); padding: 7px 10px; text-align: left; vertical-align: top; }
+        th { background: var(--surface-tint); color: var(--text-heading); font-weight: 600; }
+        .tip { background: var(--surface-accent-soft); border-left: 4px solid var(--surface-accent); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+        .tip.warn { background: var(--surface-warn-soft); border-left-color: var(--line-warn); }
+        ul, ol { padding-left: 22px; }
+        a { color: var(--text-link); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+        a:hover { border-bottom-color: var(--bar-strip-fill); }
     </style>
 </head>
 <body>
-    <h1><img src="icon32.png" alt=""><span id="brandTitle">klToolbox – Hilfe</span></h1>
+    <h1><img class="brand-mark brand-light" src="icon32.png" alt=""><img class="brand-mark brand-dark" src="icon32.png" alt=""><span id="brandTitle">klToolbox – Hilfe</span></h1>
     <p>Alle Funktionen im Überblick. Die Einstellungen dazu findest du in den
     <a href="options.html" target="_blank">Optionen</a>; dort lassen sich alle Module abschalten —
     die Ticketsystem-Erweiterungen zusätzlich auch <b>einzeln</b> („Ticketsystem-Funktionen einzeln“),
     falls eine davon Probleme macht.</p>
 
     <h2 id="uebersicht">Funktionsübersicht</h2>
-    <div class="tip" style="border-left-color:#b58900; background:#fff8e6;">
+    <div class="tip warn">
         <b>📅 Termine direkt in Outlook — einmalig einrichten:</b> Damit der Knopf „Outlook (Microsoft 365)“ im Termin-Fenster erscheint, sind drei Schritte nötig:
         <ol style="margin:6px 0 4px 18px; padding:0;">
-            <li>Die aktuellen Einstellungen importieren (Optionen → Sicherung → „Importieren (aktualisieren)“) — sie enthalten Tenant und Client-ID. Wer die Datei nicht hat, fragt Felix.</li>
+            <li>Die aktuellen Einstellungen importieren (Optionen → Sicherung → „Importieren (aktualisieren)“) — sie enthalten Tenant und Client-ID. Wer die Datei nicht hat, fragt die IT-Administration.</li>
             <li>Optionen → <b>Microsoft 365</b> → <b>„Verbinden“</b> klicken und im Anmeldefenster das <b>eigene</b> Firmenkonto wählen (kein Admin-Zweitkonto).</li>
             <li>Ein offenes Ticket einmal neu laden (F5). Fertig — Termine landen ab jetzt ohne Datei und ohne neuen Tab im eigenen Kalender.</li>
         </ol>

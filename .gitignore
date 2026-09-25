@@ -1,1 +1,4 @@
 dist/
+# Pruef-Harness: Render-Ausgaben und private Einstellungen bleiben lokal
+dev/out/
+dev/local-settings.json

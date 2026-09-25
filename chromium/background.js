@@ -1,5 +1,5 @@
 // Version
-// version = "1.14.0"
+// version = "1.15.0"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -436,8 +436,7 @@ async function syncTicketContentScripts() {
         const desired = {
             id: TICKET_SCRIPT_ID,
             matches: [match],
-            // vornamen-data.js zuerst: stellt KL_VORNAMEN fuer die Anrede bereit
-            js: ["vornamen-data.js", "content-vorlagen.js", "content-termin.js"],
+            js: ["content-vorlagen.js", "content-termin.js"],
             css: ["content.css"],
             allFrames: true,
             runAt: "document_idle",
@@ -486,7 +485,29 @@ chrome.storage.onChanged.addListener((changes, area) => {
         syncTicketContentScripts();
     }
 });
+// Vornamensliste fuer die Anrede (vornamen.json im Paket, ~77 KB): erst bei
+// Bedarf aus dem Vorlagen-Modul angefordert, hier im Speicher gehalten.
+let vornamenCache = null;
+async function ladeVornamenDaten() {
+    if (!vornamenCache) {
+        const res = await fetch(chrome.runtime.getURL("vornamen.json"));
+        if (!res.ok) {
+            throw new Error("vornamen.json nicht ladbar (HTTP " + res.status + ")");
+        }
+        const d = await res.json();
+        vornamenCache = { w: String(d.w || ""), m: String(d.m || ""), n: String(d.n || "") };
+    }
+    return vornamenCache;
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg && msg.type === "vornamen") {
+        ladeVornamenDaten().then(
+            (daten) => sendResponse({ ok: true, daten: daten }),
+            (err) => sendResponse({ ok: false, error: String(err && err.message || err) })
+        );
+        return true;
+    }
     if (msg && msg.type === "managedDefaultsCheck") {
         // Popup/Optionen geoeffnet: Vorgaben ggf. jetzt uebernehmen
         managedRetryIdx = 0;

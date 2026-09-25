@@ -1,0 +1,45 @@
+{
+    "_hinweis": "Neutrale Beispieldaten fuer dev/Render-Popup.ps1. Eigene Einstellungen (z. B. den Firmen-Export) in dev/local-settings.json legen - die Datei bleibt lokal (.gitignore).",
+    "brandName": "klToolbox Musterfirma IT",
+    "theme": "auto",
+    "defaultSearch": "datev",
+    "linkTemplate": "https://tickets.example.test/ticket/%TICKETNR%",
+    "kundenLinkTemplate": "https://tickets.example.test/kunde/%KDNR%",
+    "provider": "dgpt",
+    "dgptApiKey": "demo",
+    "modChat": true,
+    "modClipper": true,
+    "sections": [
+        {
+            "name": "Schnellzugriffe",
+            "links": [
+                { "name": "Outlook", "url": "https://outlook.office.com", "start": true },
+                { "name": "Teams", "url": "https://teams.microsoft.com", "start": true },
+                { "name": "GitHub", "url": "https://github.com" },
+                { "name": "KeePass", "url": "https://keepass.info" },
+                { "name": "MS Learn", "url": "https://learn.microsoft.com" },
+                { "name": "Intranet", "url": "https://intranet.example.test" },
+                { "name": "Wiki", "url": "https://wiki.example.test" }
+            ]
+        },
+        {
+            "name": "M365 Admin",
+            "links": [
+                { "name": "M365 Admin", "url": "https://admin.microsoft.com", "privat": true },
+                { "name": "Entra", "url": "https://entra.microsoft.com", "privat": true },
+                { "name": "Exchange", "url": "https://admin.exchange.microsoft.com", "privat": true },
+                { "name": "Defender", "url": "https://security.microsoft.com", "privat": true }
+            ]
+        },
+        {
+            "name": "DATEV",
+            "links": [
+                { "name": "MyUpdates", "url": "https://apps.datev.de/myupdates" },
+                { "name": "Tickets", "url": "https://apps.datev.de/servicekontakt-online/contacts" },
+                { "name": "ServiceTAN", "url": "https://apps.datev.de/servicekontakt-online/service-tan" },
+                { "name": "MyPartner", "url": "https://apps.datev.de/xrm-mypartner/standorte" },
+                { "name": "PARTNERasp", "url": "https://secure11.datev.de/partneraspkundenportal/" }
+            ]
+        }
+    ]
+}

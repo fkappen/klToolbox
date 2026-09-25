@@ -82,7 +82,7 @@ Build-All.ps1 Build: firefox/ synchronisieren, ZIPs bauen, updates.json erzeugen
 
 ## Datenquellen der Anrede-Erkennung
 
-`chromium/vornamen-data.js` (rund 10.000 Vornamen mit Geschlechtszuordnung) ist aus amtlichen, offen lizenzierten Vornamen-Statistiken generiert. Ein Name gilt nur als weiblich bzw. maennlich, wenn er in den Quellen zu mindestens 92 % so vergeben wird; alle anderen werden bewusst neutral behandelt.
+`chromium/vornamen.json` (rund 10.000 Vornamen mit Geschlechtszuordnung, wird erst beim Öffnen des Vorlagen-Panels geladen) ist aus amtlichen, offen lizenzierten Vornamen-Statistiken generiert. Ein Name gilt nur als weiblich bzw. maennlich, wenn er in den Quellen zu mindestens 92 % so vergeben wird; alle anderen werden bewusst neutral behandelt.
 
 | Quelle | Datensatz | Lizenz |
 |---|---|---|

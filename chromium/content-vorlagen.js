@@ -1,6 +1,6 @@
 // Version
-// version = "1.11.0"
-// datum   = "2026-09-07"
+// version = "1.12.0"
+// datum   = "2026-09-25"
 // autor   = "FK"
 //
 // Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
@@ -204,21 +204,49 @@
 
     // ---------------------------------------------------------- Anrede
 
-    // Vornamen fuer die Anrede-Erkennung kommen aus vornamen-data.js
-    // (generiert aus amtlichen Statistiken, ~10.000 Namen in Normalform;
-    // wird vor diesem Script injiziert). Bewusst konservativ: Ist der
-    // Vorname nicht eindeutig zuzuordnen, wird NICHT geraten, sondern
-    // neutral der volle Name verwendet ("Guten Tag Jasmin Schneiss,").
-    const vornamenDaten = (typeof KL_VORNAMEN === "object" && KL_VORNAMEN !== null) ? KL_VORNAMEN : {};
-    if (!vornamenDaten.w) {
-        console.warn("klToolbox: vornamen-data.js fehlt - Anrede bleibt neutral (voller Name).");
-    }
-    const VORNAMEN_W = new Set(String(vornamenDaten.w || "").split(" ").filter(Boolean));
-    const VORNAMEN_M = new Set(String(vornamenDaten.m || "").split(" ").filter(Boolean));
+    // Vornamen fuer die Anrede-Erkennung (vornamen.json im Paket, generiert
+    // aus amtlichen Statistiken, ~10.000 Namen in Normalform). Die Liste
+    // wird ERST BEI BEDARF ueber den Hintergrund-Dienst geladen - beim
+    // Oeffnen des Vorlagen-Panels - statt auf jeder Ticketseite als 77-KB-
+    // Script zu laufen. Bewusst konservativ: Ist der Vorname nicht eindeutig
+    // zuzuordnen, wird NICHT geraten, sondern neutral der volle Name
+    // verwendet ("Guten Tag Jasmin Schneiss,").
+    let VORNAMEN_W = new Set();
+    let VORNAMEN_M = new Set();
     // Geschlechtsneutral gebrauchte Vornamen: hier wird BEWUSST nicht geraten,
     // sondern der volle Name verwendet ("Guten Tag Kim Berger,"). Eine falsche
     // Anrede ist deutlich unangenehmer als eine neutrale.
-    const VORNAMEN_UNISEX = new Set(String(vornamenDaten.n || "").split(" ").filter(Boolean));
+    let VORNAMEN_UNISEX = new Set();
+    let vornamenGeladen = false;
+    let vornamenPromise = null;
+
+    function ladeVornamen() {
+        if (vornamenPromise) {
+            return vornamenPromise;
+        }
+        vornamenPromise = new Promise((resolve) => {
+            const fertig = (d) => {
+                if (!d || !d.w) {
+                    console.warn("klToolbox: Vornamenliste nicht geladen - Anrede bleibt neutral (voller Name).");
+                    d = {};
+                }
+                VORNAMEN_W = new Set(String(d.w || "").split(" ").filter(Boolean));
+                VORNAMEN_M = new Set(String(d.m || "").split(" ").filter(Boolean));
+                VORNAMEN_UNISEX = new Set(String(d.n || "").split(" ").filter(Boolean));
+                vornamenGeladen = true;
+                resolve();
+            };
+            try {
+                chrome.runtime.sendMessage({ type: "vornamen" }, (res) => {
+                    fertig((!chrome.runtime.lastError && res && res.ok) ? res.daten : null);
+                });
+            } catch (err) {
+                console.warn("klToolbox: Vornamenliste nicht abrufbar:", err);
+                fertig(null);
+            }
+        });
+        return vornamenPromise;
+    }
 
     // Ersten Empfaenger aus dem An-Feld des Mail-Fensters lesen. Die
     // Empfaenger-Chips tragen den Text "Name <mail@domain>"; gesucht wird
@@ -274,7 +302,10 @@
             .replace(/þ/g, "th")
             .replace(/ð/g, "d");
         try {
-            out = out.normalize("NFD").replace(/[̀-ͯ]/g, "");
+            // Kombinierende Zeichen (U+0300-U+036F) nach NFD entfernen - als
+            // Escape geschrieben, damit die Quelle nicht an der Zeichenkodierung
+            // des Lesers haengt
+            out = out.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         } catch (err) {
             // aeltere Engines ohne normalize(): Umlaute sind oben schon abgedeckt
         }
@@ -335,6 +366,12 @@
     }
 
     function insertTemplate(rawText) {
+        // Vornamen noch unterwegs (erster Klick direkt nach dem Oeffnen):
+        // kurz warten, dann mit korrekter Anrede einfuegen
+        if (!vornamenGeladen) {
+            ladeVornamen().then(() => insertTemplate(rawText));
+            return;
+        }
         const isVisibleEl = (e) => {
             const r = e.getBoundingClientRect();
             return r.width > 0 && r.height > 0;
@@ -884,10 +921,12 @@
                 return;
             }
             // Anrede deterministisch selbst voranstellen (kein KI-Raten)
-            const anrede = buildAnrede(btn.__editor);
-            const greeting = anrede ? "Guten Tag " + anrede + "," : "Guten Tag,";
-            panelEditor = btn.__editor || null;
-            insertTemplate(greeting + "\n\n" + String(resp.text).trim());
+            ladeVornamen().then(() => {
+                const anrede = buildAnrede(btn.__editor);
+                const greeting = anrede ? "Guten Tag " + anrede + "," : "Guten Tag,";
+                panelEditor = btn.__editor || null;
+                insertTemplate(greeting + "\n\n" + String(resp.text).trim());
+            });
         });
     }
 
@@ -948,6 +987,7 @@
     function openPanel(anchor) {
         closePanel();
         panelOpen = true;
+        ladeVornamen();
 
         const panel = document.createElement("div");
         panel.id = "__vorlagen_panel";
