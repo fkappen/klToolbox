@@ -33,6 +33,10 @@
         {
           "update_link": "https://github.com/fkappen/klToolbox/releases/download/v3.41.0/kl-toolbox-firefox-v3.41.0.xpi",
           "version": "3.41.0"
+        },
+        {
+          "update_link": "https://github.com/fkappen/klToolbox/releases/download/v3.43.0/kl-toolbox-firefox-v3.43.0.xpi",
+          "version": "3.43.0"
         }
       ]
     }
