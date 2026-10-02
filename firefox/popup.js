@@ -1,6 +1,6 @@
 // Version
-// version = "2.5.0"  (Modul Popup, klToolbox)
-// datum   = "2026-09-25"
+// version = "2.6.0"  (Modul Popup, klToolbox)
+// datum   = "2026-10-02"
 // autor   = "FK"
 //
 // Popup am Extension-Icon: Start-Leiste, Schnellzugriffe (Favicons),
@@ -42,8 +42,8 @@ const POPUP_DEFAULTS = {
     dgptApiKey: "", innogptApiKey: "", azureApiKey: "",
     // Favicons: Google-Dienst als letzter Rueckfall erlauben (Optionen)
     faviconExtern: true,
-    // je Host die Quelle, die zuletzt klappte ({_ts, host: index})
-    faviconQuelle: {}
+    // je Host, was zuletzt ein Symbol lieferte: { host: [kennung, zeit] }
+    faviconMerk: {}
 };
 let settings = Object.assign({}, POPUP_DEFAULTS);
 
@@ -73,13 +73,22 @@ function setButtonContent(btn, icon, label) {
 }
 
 // ---------------------------------------------------------------- Favicons
-// Kette (je Host wird gemerkt, welche Quelle zuletzt klappte - beim
-// naechsten Oeffnen keine vergeblichen Abrufe mehr, die bei nicht
-// erreichbaren internen Hosts sekundenlang haengen koennen):
-//  1. /favicon.ico direkt vom Host (erreicht auch interne Seiten)
-//  2. Favicon-Cache des Browsers (chrome.favicon, nur Chromium; kein Netz)
-//  3. Google-Favicon-Dienst - nur wenn in den Optionen erlaubt
-//  4. Buchstaben-Kachel
+// WICHTIG fuer die Ladezeit: Chromium zeigt ein Popup erst, wenn die Seite
+// ihr erstes Laden beendet hat. Jeder Bildabruf, der VOR dem load-Ereignis
+// startet, haelt die Anzeige auf - auch per new Image(). Gemessen am
+// 2026-10-02: alle Hosts erreichbar = ~300 ms, EIN nicht erreichbarer Host
+// (kein VPN, Server in Wartung) = 21 s bis das Popup erscheint.
+//
+// Deshalb zweistufig:
+//  1. VOR load nur der Favicon-Speicher des Browsers (chrome.favicon, lokal,
+//     wenige ms; nur Chromium). Liefert er das Standard-Symbol (Seite nie
+//     besucht), zaehlt das als "nichts gefunden".
+//  2. NACH load - das Popup steht dann schon - das Netz: /favicon.ico vom
+//     Host, danach der Google-Dienst (nur wenn in den Optionen erlaubt),
+//     jeweils mit Zeitlimit. Bis dahin steht ein Platzhalter in der Kachel,
+//     am Ende notfalls der Buchstabe.
+// Je Host wird gemerkt, was zuletzt klappte ("f" lokal, "i" favicon.ico,
+// "g" Google, "x" nichts) - "x" spart 12 h lang die Netzversuche.
 const FAVICON_API = (() => {
     try {
         return (chrome.runtime.getManifest().permissions || []).indexOf("favicon") !== -1;
@@ -87,57 +96,118 @@ const FAVICON_API = (() => {
         return false;
     }
 })();
-const FAVICON_MERK_MS = 7 * 24 * 3600 * 1000;
-const quelleNeu = {};
-let quelleTimer = null;
+const LOKAL_TIMEOUT_MS = 1500;
+const NETZ_TIMEOUT_MS = 4000;
+const MERK_OK_MS = 7 * 24 * 3600 * 1000;
+const MERK_LEER_MS = 12 * 3600 * 1000;
+const merkNeu = {};
+let merkTimer = null;
 
-function faviconQuellen(url, origin, host) {
-    const q = [];
-    if (origin) {
-        q.push(origin + "/favicon.ico");
-    }
-    if (FAVICON_API) {
-        q.push(chrome.runtime.getURL("/_favicon/?pageUrl=" + encodeURIComponent(url) + "&size=32"));
-    }
-    if (settings.faviconExtern !== false && host) {
-        q.push("https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=32");
-    }
-    return q;
-}
-
-function gemerkteQuelle(host) {
-    const m = settings.faviconQuelle;
-    if (!m || typeof m !== "object" || !host) {
-        return 0;
-    }
-    if (Date.now() - Number(m._ts || 0) > FAVICON_MERK_MS) {
-        return 0;
-    }
-    return typeof m[host] === "number" ? m[host] : 0;
-}
-
-function merkeQuelle(host, idx) {
-    if (!host) {
+// Netzabrufe duerfen erst starten, wenn der Browser das Popup gezeigt hat
+let seiteGeladen = document.readyState === "complete";
+const nachLoadWartende = [];
+function gibNetzFrei() {
+    if (seiteGeladen) {
         return;
     }
-    quelleNeu[host] = idx;
-    clearTimeout(quelleTimer);
-    quelleTimer = setTimeout(() => {
-        const alt = settings.faviconQuelle;
-        const frisch = (alt && typeof alt === "object" && Date.now() - Number(alt._ts || 0) <= FAVICON_MERK_MS) ? alt : {};
-        const neu = Object.assign({}, frisch, quelleNeu, { _ts: Number(frisch._ts) || Date.now() });
-        settings.faviconQuelle = neu;
+    seiteGeladen = true;
+    for (const weiter of nachLoadWartende.splice(0)) {
+        weiter();
+    }
+}
+function nachDemLaden() {
+    return new Promise((resolve) => {
+        if (seiteGeladen) {
+            resolve();
+        } else {
+            nachLoadWartende.push(resolve);
+        }
+    });
+}
+// einen Takt nach load: erst soll der Browser das Popup zeichnen
+window.addEventListener("load", () => setTimeout(gibNetzFrei, 0));
+// Sicherheitsnetz, falls load ausbleibt
+setTimeout(gibNetzFrei, 5000);
+
+function ladeBild(url, timeoutMs) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        let fertig = false;
+        let timer = null;
+        const ende = (ok) => {
+            if (fertig) {
+                return;
+            }
+            fertig = true;
+            clearTimeout(timer);
+            resolve(ok && img.naturalWidth > 0 ? img : null);
+        };
+        timer = setTimeout(() => ende(false), timeoutMs);
+        img.addEventListener("load", () => ende(true));
+        img.addEventListener("error", () => ende(false));
+        img.alt = "";
+        img.src = url;
+    });
+}
+
+function faviconLokalUrl(pageUrl) {
+    return chrome.runtime.getURL("/_favicon/") + "?pageUrl=" + encodeURIComponent(pageUrl) + "&size=32";
+}
+
+// Kennung eines Bildes (16x16 abgetastet) - zum Erkennen des Standard-
+// Symbols. Bilder aus dem eigenen Paket-Ursprung lassen sich auslesen.
+function bildSignatur(img) {
+    try {
+        const c = document.createElement("canvas");
+        c.width = 16;
+        c.height = 16;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const d = ctx.getImageData(0, 0, 16, 16).data;
+        let h = 0;
+        for (let i = 0; i < d.length; i++) {
+            h = (h * 31 + d[i]) | 0;
+        }
+        return String(h);
+    } catch (err) {
+        return null;
+    }
+}
+
+// Standard-Symbol des Browsers fuer eine garantiert unbekannte Adresse
+const globusSignatur = FAVICON_API
+    ? ladeBild(faviconLokalUrl("https://kein-symbol.klt.invalid/"), LOKAL_TIMEOUT_MS).then((img) => (img ? bildSignatur(img) : null))
+    : Promise.resolve(null);
+
+function gemerkteQuelle(host) {
+    const m = settings.faviconMerk;
+    if (!m || typeof m !== "object" || !host || !Array.isArray(m[host])) {
+        return "";
+    }
+    const q = String(m[host][0] || "");
+    const alter = Date.now() - Number(m[host][1] || 0);
+    return alter <= (q === "x" ? MERK_LEER_MS : MERK_OK_MS) ? q : "";
+}
+
+function merkeQuelle(host, q) {
+    if (!host || gemerkteQuelle(host) === q) {
+        return;
+    }
+    merkNeu[host] = [q, Date.now()];
+    clearTimeout(merkTimer);
+    merkTimer = setTimeout(() => {
+        const alt = (settings.faviconMerk && typeof settings.faviconMerk === "object") ? settings.faviconMerk : {};
+        const neu = Object.assign({}, alt, merkNeu);
+        settings.faviconMerk = neu;
         try {
-            chrome.storage.local.set({ faviconQuelle: neu });
+            chrome.storage.local.set({ faviconMerk: neu });
         } catch (err) {
             console.warn("klToolbox: Favicon-Quellen nicht gespeichert:", err);
         }
-    }, 400);
+    }, 600);
 }
 
 function attachIcon(btn, url, name) {
-    const img = document.createElement("img");
-    img.alt = "";
     let origin = null;
     let host = "";
     try {
@@ -147,32 +217,73 @@ function attachIcon(btn, url, name) {
     } catch (err) {
         origin = null;
     }
-    const quellen = faviconQuellen(url, origin, host);
-    let i = Math.min(gemerkteQuelle(host), quellen.length);
 
-    const letterTile = () => {
+    // Platzhalter sofort - die Kachel hat damit von Anfang an ihre Groesse
+    let aktuell = document.createElement("span");
+    aktuell.className = "icon-ph";
+    btn.appendChild(aktuell);
+    const ersetze = (knoten) => {
+        if (aktuell.parentNode === btn) {
+            btn.replaceChild(knoten, aktuell);
+            aktuell = knoten;
+        }
+    };
+    const buchstabe = () => {
         const span = document.createElement("span");
         span.className = "letter";
         span.textContent = (name || "?").charAt(0).toUpperCase();
-        if (img.parentNode === btn) {
-            btn.replaceChild(span, img);
-        }
+        ersetze(span);
     };
-    const versuche = () => {
-        if (i >= quellen.length) {
-            letterTile();
-            merkeQuelle(host, quellen.length);
+
+    (async () => {
+        const gemerkt = gemerkteQuelle(host);
+
+        // 1. lokal (haelt die Anzeige nur Millisekunden auf)
+        if (FAVICON_API) {
+            const img = await ladeBild(faviconLokalUrl(url), LOKAL_TIMEOUT_MS);
+            if (img) {
+                const sig = bildSignatur(img);
+                const globus = await globusSignatur;
+                if (sig === null || globus === null || sig !== globus) {
+                    ersetze(img);
+                    merkeQuelle(host, "f");
+                    return;
+                }
+            }
+        }
+
+        // Zuletzt nichts gefunden: Buchstabe sofort, Netz erst nach Ablauf wieder
+        if (gemerkt === "x") {
+            buchstabe();
             return;
         }
-        img.src = quellen[i];
-    };
-    img.addEventListener("load", () => merkeQuelle(host, i));
-    img.addEventListener("error", () => {
-        i++;
-        versuche();
+
+        // 2. Netz - erst wenn das Popup steht
+        await nachDemLaden();
+        const netz = [];
+        if (origin) {
+            netz.push(["i", origin + "/favicon.ico"]);
+        }
+        if (settings.faviconExtern !== false && host) {
+            netz.push(["g", "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=32"]);
+        }
+        if (gemerkt === "g" && netz.length === 2) {
+            netz.reverse();
+        }
+        for (const [kennung, quelle] of netz) {
+            const img = await ladeBild(quelle, NETZ_TIMEOUT_MS);
+            if (img) {
+                ersetze(img);
+                merkeQuelle(host, kennung);
+                return;
+            }
+        }
+        buchstabe();
+        merkeQuelle(host, "x");
+    })().catch((err) => {
+        console.warn("klToolbox: Kachel-Symbol nicht ladbar:", err);
+        buchstabe();
     });
-    btn.appendChild(img);
-    versuche();
 }
 
 // ---------------------------------------------------------------- Kacheln
@@ -624,8 +735,17 @@ try {
             location.reload();
         }
     });
-    // GPO-Vorgaben ggf. nachziehen
-    chrome.runtime.sendMessage({ type: "managedDefaultsCheck" }, () => { void chrome.runtime.lastError; });
+    // GPO-Vorgaben ggf. nachziehen - weckt den Hintergrund-Dienst, deshalb
+    // erst wenn das Popup steht (teilt sich den Prozess mit dem Popup)
+    nachDemLaden().then(() => {
+        try {
+            chrome.runtime.sendMessage({ type: "managedDefaultsCheck" }, () => { void chrome.runtime.lastError; });
+            // Altlast aus 3.43.0 (anderes Format) entfernen
+            chrome.storage.local.remove("faviconQuelle");
+        } catch (err) {
+            console.warn("klToolbox: Vorgaben-Pruefung nicht angestossen:", err);
+        }
+    });
 } catch (err) {
     console.warn("klToolbox: Popup-Start fehlgeschlagen:", err);
 }

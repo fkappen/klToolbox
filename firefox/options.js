@@ -1,5 +1,5 @@
 // Version
-// version = "2.7.2"
+// version = "2.7.3"
 // datum   = "2026-09-07"
 // autor   = "FK"
 //
@@ -1421,6 +1421,8 @@ function exportAllSettings() {
         delete items.m365KollegenCache;   // Zugriffsrechte sind pro Nutzer verschieden
         delete items.m365KollegenAusgeblendet;
         delete items.m365LetzterFehler;   // Diagnose der eigenen Anmeldung
+        delete items.faviconMerk;         // Zwischenstand der Kachel-Symbole dieses Browsers
+        delete items.faviconQuelle;
         const payload = {
             _extension: "klToolbox",
             _exportiert: new Date().toISOString(),
@@ -1644,7 +1646,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("faviconExtern").addEventListener("change", (e) => {
         // Quellen-Gedaechtnis verwerfen, damit die Kette neu durchlaufen wird
-        chrome.storage.local.set({ faviconExtern: e.target.checked, faviconQuelle: {} }, () => flashStatus("statusView"));
+        chrome.storage.local.set({ faviconExtern: e.target.checked, faviconMerk: {} }, () => flashStatus("statusView"));
     });
     document.getElementById("entryTplAdd").addEventListener("click", () => {
         entryTemplates.push({ name: "", text: "" });

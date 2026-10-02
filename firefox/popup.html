@@ -119,6 +119,8 @@
         .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 5px; min-width: 0; background: var(--surface-card); border: 1px solid var(--line-default); border-radius: 8px; color: var(--text-body); font: 500 11px/1.2 var(--font-core); }
         .tile:hover { border-color: var(--line-accent); background: var(--surface-tint); }
         .tile img { width: 20px; height: 20px; border-radius: 4px; }
+        /* Platzhalter, bis das Symbol da ist (Netzabrufe starten erst nach dem Anzeigen) */
+        .tile .icon-ph { width: 20px; height: 20px; border-radius: 4px; background: var(--surface-tint); }
         .tile .letter { width: 20px; height: 20px; border-radius: 4px; background: var(--surface-accent); color: var(--text-on-accent); display: flex; align-items: center; justify-content: center; font: 700 11px/1 var(--font-core); }
         /* Verdichtung (JS setzt body.dense, wenn der Inhalt das 600-px-Budget
            sprengt, z. B. drei Kachelzeilen im ersten Bereich) */

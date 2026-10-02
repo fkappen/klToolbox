@@ -122,7 +122,7 @@
         <label style="font-weight:600; display:flex; align-items:center; gap:8px; margin-top:14px;">
             <input type="checkbox" id="faviconExtern" style="width:auto;"> Kachel-Symbole notfalls vom Google-Favicon-Dienst laden
         </label>
-        <div class="hint">Symbole kommen zuerst direkt von der Zielseite und aus dem Favicon-Speicher des Browsers. Nur wenn beides fehlt, wird der Hostname des Links an Google übermittelt — abschalten, wenn interne Hostnamen das Haus nicht verlassen sollen (dann erscheint ein Buchstaben-Symbol). Speichert sofort.</div>
+        <div class="hint">Symbole kommen zuerst aus dem Favicon-Speicher des Browsers (ohne Netzwerk), danach direkt von der Zielseite. Nur wenn beides fehlt, wird der Hostname des Links an Google übermittelt — abschalten, wenn interne Hostnamen das Haus nicht verlassen sollen (dann erscheint ein Buchstaben-Symbol). Speichert sofort.</div>
         <label for="defaultSearch" style="margin-top:14px;">Standard-Suche bei Enter (Popup-Suchfeld)</label>
         <select id="defaultSearch">
             <option value="datev">DATEV Wissensplattform</option>
