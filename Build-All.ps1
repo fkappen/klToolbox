@@ -6,8 +6,8 @@ param(
 )
 
 #Version
-$version = "2.1.3"
-$datum = "2026-09-07"
+$version = "2.2.0"
+$datum = "2026-10-02"
 $autor = "Felix Kappen"
 
 # Gesamt-Build der klToolbox:
@@ -119,6 +119,23 @@ try {
     # UTF-8 mit BOM, damit Umlaute im Manifest ueberall sauber gelesen werden
     [System.IO.File]::WriteAllText((Join-Path $firefoxDir "manifest.json"), $ffManifest, (New-Object System.Text.UTF8Encoding($true)))
     Write-Host "firefox/ synchronisiert (update_url -> releases/updates.json)"
+
+    # ------------------------------------------- 1b. docs/privacy.md (GitHub Pages)
+    # Die Datenschutzerklaerung wird als statische Seite ausgeliefert
+    # (https://<konto>.github.io/<repo>/privacy.html). Die Dateiansicht
+    # .../blob/main/PRIVACY.md ist fuer Store-Pruefroboter nicht verlaesslich
+    # erreichbar (Chrome Web Store 2026-10-02: "Link nicht erreichbar").
+    # Quelle bleibt PRIVACY.md - hier entsteht nur die Kopie mit Kopfzeilen.
+    $docsDir = Join-Path $root "docs"
+    if (-not (Test-Path $docsDir)) {
+        New-Item -ItemType Directory -Path $docsDir | Out-Null
+    }
+    $privacyText = Get-Content -LiteralPath (Join-Path $root "PRIVACY.md") -Raw -Encoding UTF8
+    $titel = "Datenschutzerkl" + [char]0xE4 + "rung"
+    $kopf = "---`ntitle: " + $titel + "`npermalink: /privacy.html`n---`n`n"
+    # ohne BOM: Jekyll erkennt die Kopfzeilen nur am Dateianfang
+    [System.IO.File]::WriteAllText((Join-Path $docsDir "privacy.md"), ($kopf + $privacyText.TrimStart([char]0xFEFF)), (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host "docs/privacy.md aus PRIVACY.md erzeugt (GitHub Pages)"
 
     # ------------------------------------------- 2. Chromium-ZIP (dist/)
     $chromiumZipName = "kl-toolbox-chromium-v" + $ver + ".zip"

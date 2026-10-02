@@ -38,7 +38,7 @@ klToolbox bündelt Alltagswerkzeuge für IT-Service-Teams in einer Erweiterung.
 
 **Weiteres** — Optionale Seitenleiste, frei bestückbare Schnellzugriffe, Links in privaten Fenstern, tägliche lokale Sicherung der Einstellungen mit Wiederherstellung sowie eine ausführliche eingebaute Hilfe.
 
-Die Erweiterung wird ohne Voreinstellungen ausgeliefert und erhebt keine Daten. Einstellungen kommen per Import oder über eine Unternehmensrichtlinie. Datenschutzerklärung: https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+Die Erweiterung wird ohne Voreinstellungen ausgeliefert und erhebt keine Daten. Einstellungen kommen per Import oder über eine Unternehmensrichtlinie. Datenschutzerklärung: https://fkappen.github.io/klToolbox/privacy.html
 
 ## Beschreibung (englische Fassung, falls ein EN-Listing gepflegt wird)
 
@@ -58,13 +58,13 @@ klToolbox bundles everyday tools for IT service teams in a single extension.
 
 **More** — An optional sidebar, freely arranged quick links, links in private windows, a daily local backup of your settings with restore, and comprehensive built-in help.
 
-The extension ships without preset configuration and collects no data. Settings arrive by import or through an enterprise policy. Privacy policy: https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+The extension ships without preset configuration and collects no data. Settings arrive by import or through an enterprise policy. Privacy policy: https://fkappen.github.io/klToolbox/privacy.html
 
 ## Datenschutz (WICHTIG — Ablehnungsgrund „Purple Nickel" 08/2026)
 
 **Datenschutzerklärungs-URL** (Devconsole → Datenschutz):
 ```
-https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+https://fkappen.github.io/klToolbox/privacy.html
 ```
 NICHT die Firmen-/Inhaberwebsite verlinken — CWS verlangt eine eigenständige,
 extension-spezifische Erklärung, auf die der Link DIREKT führt.
@@ -153,7 +153,7 @@ Ausführliche Fassung (Hintergrund, z. B. für Review-Rückfragen oder AMO-Notiz
 The extension ships "neutral" and works without any account or login.
 Settings are stored locally only (chrome.storage.local); enterprise
 defaults can come via managed storage. Privacy policy:
-https://github.com/fkappen/klToolbox/blob/main/PRIVACY.md
+https://fkappen.github.io/klToolbox/privacy.html
 
 1. AI features (context menu "KI: Text bearbeiten", AI chat, summarize/
    translate in the clipper) require the user's OWN API key (DeutschlandGPT,

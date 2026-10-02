@@ -1,3 +1,8 @@
+---
+title: Datenschutzerklärung
+permalink: /privacy.html
+---
+
 # Datenschutzerklärung — klToolbox (Browser-Erweiterung)
 
 *Privacy Policy for the klToolbox browser extension — English summary at the bottom.*

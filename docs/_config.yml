@@ -1,0 +1,7 @@
+# GitHub Pages (Quelle: main, Ordner /docs)
+# Zweck: die Datenschutzerklaerung als statische, fuer Store-Pruefroboter
+# verlaesslich erreichbare Seite ausliefern.
+title: klToolbox
+description: Browser-Erweiterung für IT-Service-Teams – Datenschutzerklärung
+lang: de
+theme: jekyll-theme-minimal
