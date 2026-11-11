@@ -6,8 +6,8 @@ param(
 )
 
 #Version
-$version = "1.0.0"
-$datum = "2026-09-25"
+$version = "1.0.1"
+$datum = "2026-11-11"
 $autor = "Felix Kappen"
 
 <#
@@ -102,7 +102,7 @@ try {
     }
 
     # ------------------------------------------------ Harness bauen
-    foreach ($f in @("popup.html", "popup.js", "icon32.png", "dosis-latin.woff2", "dosis-latin-ext.woff2")) {
+    foreach ($f in @("popup.html", "popup.js", "icons.js", "icon32.png", "dosis-latin.woff2", "dosis-latin-ext.woff2")) {
         Copy-Item -LiteralPath (Join-Path $chromium $f) -Destination $work
     }
     $vorlage = Get-Content -LiteralPath (Join-Path $devDir "fake-chrome.js") -Raw -Encoding UTF8

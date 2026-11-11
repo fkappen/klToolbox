@@ -5,6 +5,8 @@
     "defaultSearch": "datev",
     "linkTemplate": "https://tickets.example.test/ticket/%TICKETNR%",
     "kundenLinkTemplate": "https://tickets.example.test/kunde/%KDNR%",
+    "kundenZiele": "Doku = https://doku.example.test/?q={kundennr}\nWiki = https://wiki.example.test/{kunde}",
+    "demoKontext": { "kundennr": "12345", "kunde": "Muster GmbH & Co. KG", "ticketnr": "123456" },
     "provider": "dgpt",
     "dgptApiKey": "demo",
     "modChat": true,
@@ -18,8 +20,8 @@
                 { "name": "GitHub", "url": "https://github.com" },
                 { "name": "KeePass", "url": "https://keepass.info" },
                 { "name": "MS Learn", "url": "https://learn.microsoft.com" },
-                { "name": "Intranet", "url": "https://intranet.example.test" },
-                { "name": "Wiki", "url": "https://wiki.example.test" }
+                { "name": "Intranet", "url": "https://intranet.example.test", "icon": "building-2" },
+                { "name": "Wiki Wissensdatenbank", "url": "https://wiki.example.test", "icon": "book-open" }
             ]
         },
         {

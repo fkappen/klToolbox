@@ -1,6 +1,6 @@
 // Version
-// version = "2.6.0"  (Modul Popup, klToolbox)
-// datum   = "2026-10-02"
+// version = "2.8.0"  (Modul Popup, klToolbox)
+// datum   = "2026-11-11"
 // autor   = "FK"
 //
 // Popup am Extension-Icon: Start-Leiste, Schnellzugriffe (Favicons),
@@ -37,6 +37,8 @@ const POPUP_DEFAULTS = {
     brandName: "", brandPrimary: "", brandAccent: "", brandIcon: "", brandIconDark: "",
     sections: null,
     defaultSearch: "datev", linkTemplate: "", kundenLinkTemplate: "",
+    // Kundenkontext: "Name = URL" je Zeile mit {kundennr}/{kunde}
+    kundenZiele: "",
     datevDocTemplate: DATEV_DOC_DEFAULT, datevSearchTemplate: DATEV_SEARCH_DEFAULT,
     modChat: true, modClipper: true, provider: "dgpt",
     dgptApiKey: "", innogptApiKey: "", azureApiKey: "",
@@ -50,13 +52,7 @@ let settings = Object.assign({}, POPUP_DEFAULTS);
 const SEARCH_LABELS = { datev: "DATEV", google: "Google", innogpt: "KI" };
 const PROVIDER_LABELS = { dgpt: "DeutschlandGPT", innogpt: "InnoGPT", azure: "Azure KI" };
 
-// Lucide-Icons (ISC) fuer den dynamischen Such-Button - inline, kein CDN
-const SVG_HEAD = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
-const ICONS = {
-    ticket: SVG_HEAD + '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>',
-    user: SVG_HEAD + '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
-    "file-text": SVG_HEAD + '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>'
-};
+// Lucide-Icons (ISC) kommen aus icons.js (klIcon) - inline, kein CDN
 
 function $(id) {
     return document.getElementById(id);
@@ -64,10 +60,9 @@ function $(id) {
 
 function setButtonContent(btn, icon, label) {
     btn.textContent = "";
-    if (icon && ICONS[icon]) {
-        const t = document.createElement("template");
-        t.innerHTML = ICONS[icon];
-        btn.appendChild(t.content.firstChild);
+    const svg = icon ? klIcon(icon, 16) : null;
+    if (svg) {
+        btn.appendChild(svg);
     }
     btn.appendChild(document.createTextNode(label));
 }
@@ -290,13 +285,37 @@ function attachIcon(btn, url, name) {
 function makeTile(link, isPrivate) {
     const btn = document.createElement("button");
     btn.className = "tile" + (isPrivate ? " private" : "");
-    btn.title = link.url + (isPrivate ? " (privates Fenster)" : "");
+    btn.title = (link.name ? link.name + "\n" : "") + link.url + (isPrivate ? " (privates Fenster)" : "");
+    btn.dataset.name = String(link.name || "").toLowerCase();
 
-    attachIcon(btn, link.url, link.name);
+    // Reihenfolge: gewaehltes Symbol -> Favicon-Kette -> Buchstabe
+    const symbol = klIcon(link.icon, 20);
+    if (symbol) {
+        symbol.setAttribute("class", "sym");
+        btn.appendChild(symbol);
+    } else {
+        attachIcon(btn, link.url, link.name);
+    }
 
     const span = document.createElement("span");
-    span.textContent = link.name;
+    span.className = "label";
+    // Umbruchstellen an Wortfugen anbieten ("Support|Connect", "PARTNER|asp"),
+    // damit lange Namen nicht mitten im Wort mit einem Restbuchstaben umbrechen
+    const teile = String(link.name || "").split(/(?<=\p{Ll})(?=\p{Lu})|(?<=\p{Lu}{3})(?=\p{Ll}{2})/u);
+    teile.forEach((teil, i) => {
+        if (i > 0) {
+            span.appendChild(document.createElement("wbr"));
+        }
+        span.appendChild(document.createTextNode(teil));
+    });
     btn.appendChild(span);
+    if (isPrivate) {
+        const priv = klIcon("eye-off", 10);
+        if (priv) {
+            priv.setAttribute("class", "priv");
+            btn.appendChild(priv);
+        }
+    }
     btn.addEventListener("click", () => {
         if (isPrivate) {
             openPrivate(link.url);
@@ -340,7 +359,11 @@ function render(s) {
         if (links.some((l) => l.privat === true)) {
             const note = document.createElement("span");
             note.className = "note";
-            note.textContent = "gestrichelt = privates Fenster";
+            const auge = klIcon("eye-off", 10);
+            if (auge) {
+                note.appendChild(auge);
+            }
+            note.appendChild(document.createTextNode("privates Fenster"));
             h.appendChild(note);
         }
         section.appendChild(h);
@@ -364,6 +387,9 @@ function render(s) {
         host.appendChild(d);
     }
 
+    // Start sitzt als Pille im Kopf - ohne Start-Links ausgeblendet
+    $("startBtn").style.display = startLinks.length > 0 ? "flex" : "none";
+
     // Popups sind auf 600 px Hoehe gedeckelt und duerfen nicht scrollen:
     // passt der Inhalt nicht, Kacheln und Abstaende verdichten
     if (!document.body.classList.contains("panel")) {
@@ -383,6 +409,81 @@ function render(s) {
         }
         window.close();
     });
+}
+
+// ---------------------------------------------------------------- Kundenkontext
+// Ist der aktive Tab eine Ticketansicht, liefert das Content-Script Kunde und
+// Nummer (Nachricht "ticketKontext"). Das Popup zeigt sie ueber den Bereichen
+// mit je einem Knopf pro Ziel: Kundenlink-Vorlage + Liste "Kundenziele".
+// Laeuft erst, wenn das Popup steht - haelt die Anzeige nicht auf.
+function kundenZiele(s) {
+    const ziele = [];
+    if ((s.kundenLinkTemplate || "").trim()) {
+        ziele.push({ name: "Kunde", url: s.kundenLinkTemplate.trim() });
+    }
+    for (const zeile of String(s.kundenZiele || "").split(/\r?\n/)) {
+        const m = /^([^=]+)=(.+)$/.exec(zeile);
+        if (m && m[1].trim() && /^https?:\/\//i.test(m[2].trim())) {
+            ziele.push({ name: m[1].trim(), url: m[2].trim() });
+        }
+    }
+    return ziele;
+}
+
+function zeigeKontext(k) {
+    const host = $("kontext");
+    const ziele = kundenZiele(settings);
+    if (!k || !k.kundennr || ziele.length === 0) {
+        return;
+    }
+    host.textContent = "";
+    const kunde = document.createElement("div");
+    kunde.className = "kunde";
+    kunde.textContent = k.kundennr + (k.kunde ? " – " + k.kunde : "");
+    kunde.title = kunde.textContent + (k.ticketnr ? "\nTicket " + k.ticketnr : "");
+    host.appendChild(kunde);
+    const reihe = document.createElement("div");
+    reihe.className = "ziele";
+    for (const z of ziele) {
+        const b = document.createElement("button");
+        b.textContent = z.name;
+        const url = z.url
+            .replace(/%KDNR%|\{kundennr\}/gi, encodeURIComponent(k.kundennr))
+            .replace(/\{kunde\}/gi, encodeURIComponent(k.kunde || ""));
+        b.title = url;
+        b.addEventListener("click", () => {
+            chrome.tabs.create({ url: url });
+            window.close();
+        });
+        reihe.appendChild(b);
+    }
+    host.appendChild(reihe);
+    host.style.display = "flex";
+    if (!document.body.classList.contains("panel") && document.body.scrollHeight > 600) {
+        document.body.classList.add("dense");
+    }
+}
+
+function ladeKontext() {
+    try {
+        if (!chrome.tabs || typeof chrome.tabs.query !== "function") {
+            return;
+        }
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (chrome.runtime.lastError || !tabs || !tabs[0] || typeof tabs[0].id !== "number") {
+                return;
+            }
+            chrome.tabs.sendMessage(tabs[0].id, { type: "ticketKontext" }, (res) => {
+                // kein Ticket-Tab: kein Empfaenger - das ist der Normalfall
+                if (chrome.runtime.lastError || !res || !res.ok) {
+                    return;
+                }
+                zeigeKontext(res.kontext);
+            });
+        });
+    } catch (err) {
+        console.warn("klToolbox: Kundenkontext nicht abrufbar:", err);
+    }
 }
 
 // ---------------------------------------------------------------- Einheitliche Suche
@@ -411,23 +512,42 @@ function classifyQuery(value) {
     return "web";
 }
 
+// Tippen filtert die Kacheln: ohne erkannte Nummer treten alle Kacheln
+// zurueck, deren Name den Text nicht enthaelt. Liefert die passenden Kacheln
+// (leer bei leerem Feld oder erkannter Nummer - dann ist kein Filter aktiv).
+function filterTiles() {
+    const text = $("searchInput").value.trim().toLowerCase();
+    const aktiv = text.length > 0 && classifyQuery(text) === "web";
+    const treffer = [];
+    for (const tile of document.querySelectorAll("#sectionsHost .tile")) {
+        const passt = aktiv && (tile.dataset.name || "").indexOf(text) !== -1;
+        tile.classList.toggle("dim", aktiv && !passt);
+        if (passt) {
+            treffer.push(tile);
+        }
+    }
+    return treffer;
+}
+
 function updateSearchGo() {
-    const mode = classifyQuery($("searchInput").value);
+    const nummer = $("searchInput").value.trim();
+    const mode = classifyQuery(nummer);
     const btn = $("searchGo");
     const engines = document.querySelector(".search-btns");
+    filterTiles();
     if (mode === "ticket" || mode === "kunde" || mode === "datevdoc") {
         // Nummer erkannt: farbiger Aktions-Button, Suchziele ausblenden
         btn.style.display = "flex";
         engines.style.display = "none";
         if (mode === "ticket") {
             btn.className = "btn-primary";
-            setButtonContent(btn, "ticket", "Ticket öffnen");
+            setButtonContent(btn, "ticket", "Ticket " + nummer + " öffnen");
         } else if (mode === "kunde") {
             btn.className = "btn-primary kunde";
-            setButtonContent(btn, "user", "Kunde öffnen");
+            setButtonContent(btn, "user", "Kunde " + nummer + " öffnen");
         } else {
             btn.className = "btn-secondary web";
-            setButtonContent(btn, "file-text", "Dokument öffnen");
+            setButtonContent(btn, "file-text", "Dokument " + nummer + " öffnen");
         }
     } else {
         // Freitext/leer: nur die drei Suchziele (Enter = Standard-Ziel)
@@ -470,6 +590,20 @@ function runSearch() {
     doSearch(defaultSearch);
 }
 
+// Enter im Suchfeld: erkannte Nummer -> oeffnen; passt der Text auf genau
+// EINE Kachel -> diese oeffnen; sonst Standard-Suchziel.
+function runEnter() {
+    const value = $("searchInput").value.trim();
+    if (value && classifyQuery(value) === "web") {
+        const treffer = filterTiles();
+        if (treffer.length === 1) {
+            treffer[0].click();
+            return;
+        }
+    }
+    runSearch();
+}
+
 // Freitextsuche: ein Feld, drei Ziele (DATEV / Google / KI-Chat)
 function doSearch(target) {
     const term = $("searchInput").value.replace(/\s+/g, " ").trim();
@@ -502,9 +636,20 @@ function setupSearch(s) {
     input.addEventListener("input", updateSearchGo);
     input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-            runSearch();
+            runEnter();
         }
     });
+    // Fokusring erst nach der ersten Taste zulassen (siehe popup.html)
+    // - reine Umschalttasten zaehlen nicht (Bildschirmfoto-Kuerzel, Alt+Tab)
+    const nurUmschalter = ["Shift", "Control", "Alt", "AltGraph", "Meta", "OS", "PrintScreen"];
+    const merkeTaste = (e) => {
+        if (nurUmschalter.indexOf(e.key) !== -1) {
+            return;
+        }
+        document.body.classList.add("kbd");
+        document.removeEventListener("keydown", merkeTaste);
+    };
+    document.addEventListener("keydown", merkeTaste);
     $("searchGo").addEventListener("click", runSearch);
     $("sDatev").addEventListener("click", () => doSearch("datev"));
     $("sGoogle").addEventListener("click", () => doSearch("google"));
@@ -690,6 +835,16 @@ function applyBrand(items) {
         $("brandName").textContent = parts[0];
         $("brandSub").textContent = parts.slice(1).join(" ");
     }
+    // Ohne Namenszusatz steht die Versionsnummer in der Unterzeile
+    if (!$("brandSub").textContent.trim()) {
+        let ver = "";
+        try {
+            ver = chrome.runtime.getManifest().version || "";
+        } catch (err) {
+            console.warn("klToolbox: Version nicht lesbar:", err);
+        }
+        $("brandSub").textContent = ver ? "v" + ver : "";
+    }
 }
 
 // ---------------------------------------------------------------- Start
@@ -738,6 +893,7 @@ try {
     // GPO-Vorgaben ggf. nachziehen - weckt den Hintergrund-Dienst, deshalb
     // erst wenn das Popup steht (teilt sich den Prozess mit dem Popup)
     nachDemLaden().then(() => {
+        ladeKontext();
         try {
             chrome.runtime.sendMessage({ type: "managedDefaultsCheck" }, () => { void chrome.runtime.lastError; });
             // Altlast aus 3.43.0 (anderes Format) entfernen

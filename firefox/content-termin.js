@@ -1,6 +1,6 @@
 // Version
-// version = "1.25.0"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-09-22"
+// version = "1.26.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-11-11"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
@@ -82,13 +82,13 @@
         ampelNormalGelbTage: 3,
         ampelNormalRotTage: 10,
         ampelFarbeGruen: "#1a7f37",
-        ampelFarbeGelb: "#b58900",
-        ampelFarbeRot: "#b3261e",
+        ampelFarbeGelb: "#9d6613",
+        ampelFarbeRot: "#c0392b",
         ampelFarbeLila: "#7b2fbf",
         // Erledigte Tickets zaehlen nicht weiter: dann wird die BEARBEITUNGS-
         // DAUER (erstellt -> geaendert) neutral eingefaerbt angezeigt.
         erledigtStatus: "Erledigt",
-        ampelFarbeErledigt: "#6b7880",
+        ampelFarbeErledigt: "#757575",
         // Status, bei denen die Uhr NICHT fuer uns laeuft: zaehlt weiter,
         // wird aber neutral eingefaerbt (kein falscher Handlungsbedarf).
         neutralStatus: "Warten auf",
@@ -96,8 +96,62 @@
         // Bewusst KEIN Symbol fuer die Normalzustaende (Aufgenommen usw.):
         // steht es in fast jeder Zeile, traegt es nichts mehr, und die
         // Ausnahmen gehen darin unter.
-        statusSymbole: "Termin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳"
+        // Symbol = Schluesselwort (calendar, play, hourglass, dot oder ein
+        // anderer Icon-Name aus icons.js); aeltere Emoji-Werte gelten weiter.
+        statusSymbole: "Termin vereinbart = calendar\nIn Bearbeitung = play\nWarten auf = hourglass"
     };
+
+    // Bekannte Zeichen -> Lucide-Icon (icons.js); Unbekanntes bleibt Text
+    const SYMBOL_ICONS = {
+        "📅": "calendar", "▶": "play", "⏳": "hourglass", "⏱": "clock",
+        "✓": "check", "●": "dot"
+    };
+
+    // Knoten fuer ein Statussymbol: Inline-SVG, gefuellter Punkt oder Text
+    function symbolNode(sym, size) {
+        // Variantenwaehler (U+FE0F) hinter Emoji entfernen
+        const key = String(sym || "").split(String.fromCharCode(0xFE0F)).join("").trim();
+        if (!key) {
+            return null;
+        }
+        const name = Object.prototype.hasOwnProperty.call(SYMBOL_ICONS, key) ? SYMBOL_ICONS[key] : key;
+        if (name === "dot") {
+            const dot = document.createElement("span");
+            dot.className = "klt-dot";
+            dot.style.cssText = "display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;";
+            return dot;
+        }
+        const svg = klIcon(name, size);
+        if (svg) {
+            svg.setAttribute("class", "klt-ico");
+            return svg;
+        }
+        return document.createTextNode(key);
+    }
+
+    // Badge-Inhalt: Symbol + Text (nur aufrufen, wenn sich etwas aendert)
+    function setBadgeContent(el, sym, text, size) {
+        el.textContent = "";
+        const node = symbolNode(sym, size);
+        if (node) {
+            el.appendChild(node);
+        }
+        el.appendChild(document.createTextNode(text));
+    }
+
+    // Klartext fuer den Tooltip der Wartezeit-Anzeigen
+    function wartezeitTitel(ms, statusText, prio, erstelltText) {
+        const teile = ["Wartet seit " + formatAge(ms)];
+        const st = (statusText || "").replace(/\s+/g, " ").trim();
+        if (st) {
+            teile.push("Status: " + st);
+        }
+        teile.push("Priorität " + ((prio || "").trim() || "unbekannt"));
+        if (erstelltText) {
+            teile.push("erstellt " + erstelltText);
+        }
+        return teile.join(" · ");
+    }
 
     const TERMINARTEN = [
         { value: "telefon", label: "Telefon" },
@@ -799,6 +853,18 @@
         return lila;
     }
 
+    // Ampelstufe 1-4 als Zeichen (fuer Filter) - gleiche Logik wie badgeColor
+    function ampelStufe(ms, prio) {
+        const farbe = badgeColor(ms, prio);
+        const reihe = [
+            settings.ampelFarbeGruen || DEFAULTS.ampelFarbeGruen,
+            settings.ampelFarbeGelb || DEFAULTS.ampelFarbeGelb,
+            settings.ampelFarbeRot || DEFAULTS.ampelFarbeRot
+        ];
+        const i = reihe.indexOf(farbe);
+        return String(i === -1 ? 4 : i + 1);
+    }
+
     // ------------------------------------------- DATEV-Fehlercode-Links
     // Erkennt DATEV-Meldungs-IDs (Praefix aus 2-4 Grossbuchstaben + 4-6
     // Ziffern, optional angehaengter Buchstabe: DB60012, ZK01052, INI07257,
@@ -915,14 +981,17 @@
     // einem Flex-Spalten-Container wurde dann zum vollbreiten Farbbalken.
     const BADGE_STYLE_BASE =
         "position:absolute;left:12px;top:10px;z-index:5;display:inline-flex;" +
-        "align-items:center;gap:4px;padding:3px 10px;border-radius:12px;color:#fff;" +
-        "font:700 12px/1.4 system-ui,sans-serif;white-space:nowrap;vertical-align:middle;" +
-        "box-shadow:0 1px 3px rgba(0,0,0,.25);";
+        "align-items:center;gap:5px;padding:3px 10px;border-radius:999px;color:#fff;" +
+        "font:700 12px/1.4 system-ui,sans-serif;font-variant-numeric:tabular-nums;" +
+        "white-space:nowrap;vertical-align:middle;";
 
-    // Gleiche Optik in der Ticketliste, nur kompakter (schmale Spalte)
+    // Gleiche Optik in der Ticketliste, nur kompakter (schmale Spalte).
+    // Synchron halten mit .__tt_list_age in content.css!
     const LIST_BADGE_STYLE_BASE =
-        "display:inline-block;margin-right:5px;padding:1px 6px;border-radius:9px;color:#fff;" +
-        "font:700 10px/1.5 system-ui,sans-serif;white-space:nowrap;vertical-align:middle;";
+        "display:inline-flex;align-items:center;justify-content:flex-end;gap:3px;min-width:38px;" +
+        "box-sizing:border-box;margin-right:5px;padding:1px 7px;border-radius:999px;color:#fff;" +
+        "font:700 10px/1.5 system-ui,sans-serif;font-variant-numeric:tabular-nums;" +
+        "white-space:nowrap;vertical-align:middle;";
 
     function renderWaitBadge() {
         if (settings.ftWaitBadge === false) {
@@ -963,8 +1032,8 @@
         const neutral = !erledigt && istNeutralerStatus(statusText);
         const ende = erledigt ? findNewestEntryDate() : null;
         const ms = (ende ? ende.getTime() : Date.now()) - badgeCreatedAt.getTime();
-        const symbol = erledigt ? "✓" : (statusSymbol(statusText) || "⏱");
-        const text = symbol + " " + formatAge(ms);
+        const symbol = erledigt ? "check" : (statusSymbol(statusText) || "clock");
+        const text = formatAge(ms);
         const color = (erledigt || neutral)
             ? (settings.ampelFarbeErledigt || DEFAULTS.ampelFarbeErledigt)
             : badgeColor(ms, prio);
@@ -972,16 +1041,15 @@
             ? "Bearbeitungsdauer: " + formatAge(ms) + " (erstellt " +
               badgeCreatedAt.toLocaleString("de-DE") +
               (ende ? ", erledigt " + ende.toLocaleString("de-DE") : "") + ")"
-            : "Wartezeit seit Ticketerstellung: " +
-              badgeCreatedAt.toLocaleString("de-DE") + " (Prio: " + (prio || "unbekannt") +
-              ", Basis: ältester sichtbarer Eintrag)";
+            : wartezeitTitel(ms, statusText, prio, badgeCreatedAt.toLocaleString("de-DE")) +
+              " (Basis: ältester sichtbarer Eintrag)";
         // NUR bei tatsaechlicher Aenderung schreiben! Jede DOM-Aenderung feuert
         // den MutationObserver - bedingungsloses Schreiben erzeugt eine
         // Endlosschleife (Badge -> Observer -> Badge -> ...), die den Tab
         // eingefroren hat (Bug in 2.15.3).
-        if (badge.dataset.t !== text) {
-            badge.dataset.t = text;
-            badge.textContent = text;
+        if (badge.dataset.t !== symbol + " " + text) {
+            badge.dataset.t = symbol + " " + text;
+            setBadgeContent(badge, symbol, text, 12);
         }
         if (badge.dataset.c !== color) {
             badge.dataset.c = color;
@@ -1003,14 +1071,15 @@
     function formatAgeCompact(ms) {
         const min = ms / 60000;
         if (min < 60) {
-            return Math.floor(min) + "m";
+            return Math.floor(min) + " m";
         }
         const h = min / 60;
         if (h < 48) {
-            return (h < 10 ? h.toFixed(1).replace(".", ",") : String(Math.round(h))) + "h";
+            return (h < 10 ? h.toFixed(1).replace(".", ",") : String(Math.round(h))) + " h";
         }
+        // ab 48 h in Tagen; Dezimalstelle nur unter 10 Tagen
         const d = h / 24;
-        return (d < 10 ? d.toFixed(1).replace(".", ",") : String(Math.round(d))) + "T";
+        return (d < 10 ? d.toFixed(1).replace(".", ",") : String(Math.round(d))) + " T";
     }
 
     // Diagnose: nicht lesbare "Erstellt am"-Werte EINMAL pro Variante in die
@@ -1102,13 +1171,13 @@
                 const color = (erledigt || neutral)
                     ? (settings.ampelFarbeErledigt || DEFAULTS.ampelFarbeErledigt)
                     : badgeColor(ms, prio);
-                const symbol = erledigt ? "✓" : statusSymbol(statusText);
+                const symbol = erledigt ? "check" : statusSymbol(statusText);
                 const title = erledigt
                     ? (ende
                         ? "Bearbeitungsdauer: " + formatAge(ms) + " (erstellt " + m[0] +
                           ", erledigt " + (tds[colChanged].textContent || "").trim() + ")"
                         : "Erledigt - Laufzeit seit " + m[0] + " (Spalte „Geändert am“ nicht eingeblendet)")
-                    : "Wartezeit: " + formatAge(ms) + " (erstellt " + m[0] + ", Prio: " + (prio.trim() || "unbekannt") + ")";
+                    : wartezeitTitel(ms, statusText, prio, m[0]);
 
                 // Kurzschreibweise ("26h") in Ampelfarbe VOR der Ticketnummer
                 let age = tds[colId].querySelector(".__tt_list_age");
@@ -1122,10 +1191,20 @@
                     age.className = "__tt_list_age";
                     tds[colId].insertBefore(age, tds[colId].firstChild);
                 }
-                const text = (symbol ? symbol + " " : "") + formatAgeCompact(ms);
-                if (age.dataset.x !== text) {
-                    age.dataset.x = text;
-                    age.textContent = text;
+                const text = formatAgeCompact(ms);
+                if (age.dataset.x !== symbol + " " + text) {
+                    age.dataset.x = symbol + " " + text;
+                    setBadgeContent(age, symbol, text, 9);
+                }
+                // Daten fuer die Filter-Chips (content-extras.js): Alter in
+                // Minuten, Ampelstufe, Prioritaet hoch
+                const stufe = (erledigt || neutral) ? "n" : ampelStufe(ms, prio);
+                const minuten = String(Math.floor(ms / 60000));
+                if (age.dataset.s !== stufe) {
+                    age.dataset.s = stufe;
+                }
+                if (age.dataset.m !== minuten) {
+                    age.dataset.m = minuten;
                 }
                 if (age.dataset.c !== color) {
                     age.dataset.c = color;
@@ -1361,7 +1440,7 @@
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "__tt_bew_btn";
-            btn.textContent = "⭐ Bewerten";
+            klIconText(btn, "star", "Bewerten", 12);
             btn.title = "Diese KI-Zusammenfassung bewerten (Note als Tag + interner Eintrag)";
             btn.style.cssText = BEW_BTN_STYLE;
             btn.addEventListener("click", (e) => {
@@ -1865,13 +1944,13 @@
         const hereBtn = document.createElement("button");
         hereBtn.type = "button";
         hereBtn.className = "ttr-primary";
-        hereBtn.textContent = "📍 Vom aktuellen Standort";
+        klIconText(hereBtn, "map-pin", "Vom aktuellen Standort");
         hereBtn.addEventListener("click", () => startRoute(""));
 
         const firmaBtn = document.createElement("button");
         firmaBtn.type = "button";
         firmaBtn.className = "ttr-primary";
-        firmaBtn.textContent = "🏢 Von der Firma";
+        klIconText(firmaBtn, "building-2", "Von der Firma");
         firmaBtn.addEventListener("click", () => {
             const firma = (settings.firmenAdresse || "").trim();
             if (!firma) {
@@ -1976,8 +2055,8 @@
     }
 
     async function runMakro(mk, btn) {
-        const old = btn.textContent;
-        btn.textContent = "⚡ läuft…";
+        const old = btn.__kltIcon;
+        klIconText(btn, "zap", "läuft…");
         let ok = true;
         try {
             const eintrag = (mk.eintrag || "").trim();
@@ -2015,8 +2094,8 @@
             console.warn("Ticket-Termin: Makro '" + mk.name + "' fehlgeschlagen:", err);
             ok = false;
         }
-        btn.textContent = ok ? "✓ erledigt" : "✗ Fehler";
-        setTimeout(() => { btn.textContent = old; }, 2500);
+        klIconText(btn, ok ? "check" : "x", ok ? "erledigt" : "Fehler");
+        setTimeout(() => { klIconRestore(btn, old); }, 2500);
     }
 
     // Ticket-Fenster schliessen: Titelzeile "Ticket #<nr> - ..." suchen und
@@ -2084,7 +2163,7 @@
         for (const mk of makros) {
             const b = document.createElement("button");
             b.type = "button";
-            b.textContent = "⚡ " + mk.name;
+            klIconText(b, "zap", mk.name);
             const parts = [];
             if ((mk.eintrag || "").trim()) { parts.push("Eintrag"); }
             if ((mk.status || "").trim()) { parts.push("Status: " + mk.status.trim()); }
@@ -2318,9 +2397,9 @@
                 realClick(native);
                 await sleep(400);
                 if (btn) {
-                    const old = btn.textContent;
-                    btn.textContent = "✓ Abonniert";
-                    setTimeout(() => { btn.textContent = old; }, 2500);
+                    const old = btn.__kltIcon;
+                    klIconText(btn, "check", "Abonniert");
+                    setTimeout(() => { klIconRestore(btn, old); }, 2500);
                 }
             } else {
                 console.warn("Ticket-Termin: 'Abonnieren'-Button nicht gefunden (schon abonniert?).");
@@ -2374,7 +2453,7 @@
                 btn.type = "button";
                 btn.className = "ap-button light __tt_tbtn __tt_termin_tbtn";
                 btn.title = "Aus diesem Ticket einen Outlook-Termin erstellen";
-                btn.textContent = "📅 Termin";
+                klIconText(btn, "calendar-plus", "Termin");
                 btn.addEventListener("click", () => togglePanel(btn));
                 return btn;
             });
@@ -2383,7 +2462,7 @@
                 neBtn.type = "button";
                 neBtn.className = "ap-button light __tt_tbtn __tt_ne_tbtn";
                 neBtn.title = "Ticket-Eintrag 'Nicht erreicht' anlegen und speichern";
-                neBtn.textContent = "📵 Nicht erreicht";
+                klIconText(neBtn, "phone-off", "Nicht erreicht");
                 neBtn.addEventListener("click", () => createNichtErreichtEintrag());
                 return neBtn;
             });
@@ -2392,7 +2471,7 @@
                 aboBtn.type = "button";
                 aboBtn.className = "ap-button light __tt_tbtn __tt_abo_tbtn";
                 aboBtn.title = "Dieses Ticket abonnieren (klickt den nativen Abonnieren-Button, bei Bedarf über den Abonnenten-Tab)";
-                aboBtn.textContent = "🔔 Abo";
+                klIconText(aboBtn, "bell", "Abo");
                 aboBtn.addEventListener("click", (e) => subscribeTicket(e.currentTarget));
                 return aboBtn;
             });
@@ -2401,7 +2480,7 @@
                 rBtn.type = "button";
                 rBtn.className = "ap-button light __tt_tbtn __tt_route_tbtn";
                 rBtn.title = "Anfahrt zur Kundenadresse planen (Google Maps)";
-                rBtn.textContent = "🚗 Anfahrt";
+                klIconText(rBtn, "car", "Anfahrt");
                 rBtn.addEventListener("click", () => toggleRoutePanel(rBtn));
                 return rBtn;
             });
@@ -2411,7 +2490,7 @@
                 mBtn.type = "button";
                 mBtn.className = "ap-button light __tt_tbtn __tt_makro_tbtn";
                 mBtn.title = "Aktions-Makros ausführen (konfigurierbar in den Optionen)";
-                mBtn.textContent = "⚡ Makros";
+                klIconText(mBtn, "zap", "Makros");
                 mBtn.addEventListener("click", () => toggleMakroPanel(mBtn));
                 return mBtn;
             });
@@ -2611,7 +2690,8 @@
         head.className = "tt-cal-head";
         const prev = document.createElement("button");
         prev.type = "button";
-        prev.textContent = "‹";
+        prev.className = "tt-cal-ibtn";
+        klIconText(prev, "chevron-left", "");
         prev.title = "Vorwoche";
         const label = document.createElement("span");
         const kolSelect = document.createElement("select");
@@ -2619,7 +2699,8 @@
         kolSelect.title = "Wessen Kalender wird angezeigt? Bei einem Kollegen: Frei/Belegt aus dessen Kalender, der Termin kann ihm als Einladung zugestellt werden.";
         const neuBtn = document.createElement("button");
         neuBtn.type = "button";
-        neuBtn.textContent = "↻";
+        neuBtn.className = "tt-cal-ibtn";
+        klIconText(neuBtn, "refresh-cw", "");
         neuBtn.title = "Kollegenliste neu ermitteln (Freigaben und Berechtigungen erneut prüfen)";
         neuBtn.style.display = "none";
         neuBtn.addEventListener("click", () => {
@@ -2638,7 +2719,7 @@
             for (const k of sortiert) {
                 const o = document.createElement("option");
                 o.value = k.mail;
-                o.textContent = k.name + (k.canEdit ? " ✎" : (k.readable ? " 👁" : " (Frei/Belegt)"));
+                o.textContent = k.name + (k.canEdit ? " (Schreiben)" : (k.readable ? " (Lesen)" : " (Frei/Belegt)"));
                 o.title = k.canEdit
                     ? "Kalender freigegeben mit Schreibrecht - Termin kann direkt dort angelegt werden"
                     : (k.readable ? "Kalender freigegeben (nur lesen) - Termin bei mir, Kollege wird eingeladen"
@@ -2715,7 +2796,8 @@
         todayBtn.title = "Zur aktuellen Woche";
         const next = document.createElement("button");
         next.type = "button";
-        next.textContent = "›";
+        next.className = "tt-cal-ibtn";
+        klIconText(next, "chevron-right", "");
         next.title = "Folgewoche";
         head.appendChild(prev);
         head.appendChild(label);
@@ -2796,9 +2878,11 @@
                 return null;
             }
             const b = document.createElement("div");
-            b.className = cls;
+            const hoehe = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1);
+            // ab 26 px passt der Betreff zweizeilig
+            b.className = cls + (hoehe >= 26 ? " tt-cal-hoch" : "");
             b.style.top = minutesToTop(s) + "px";
-            b.style.height = Math.max(6, (e - s) / 60 * CAL_HOUR_PX - 1) + "px";
+            b.style.height = hoehe + "px";
             if (text) {
                 b.textContent = text;
             }
@@ -2910,13 +2994,18 @@
                 ? events.filter((ev) => ownIds.indexOf(ev.id) === -1 && ev.start < selEnd && ev.end > pruefStart)
                     .map((ev) => ev.subject || "Belegt")
                 : [];
+            const panelEl = container.closest("#__tt_panel");
             if (konflikte.length > 0) {
-                info.textContent = "Überschneidung" + (kollege ? " bei " + kollege.name : "") + ": " +
-                    konflikte.slice(0, 3).join(", ") + (konflikte.length > 3 ? " …" : "");
+                klIconText(info, "triangle-alert", "Überschneidung" + (kollege ? " bei " + kollege.name : "") + ": " +
+                    konflikte.slice(0, 3).join(", ") + (konflikte.length > 3 ? " …" : ""));
                 info.classList.add("tt-cal-conflict");
             } else if (info.classList.contains("tt-cal-conflict")) {
                 info.textContent = "";
                 info.classList.remove("tt-cal-conflict");
+            }
+            // Uhrzeit-Feld rot, solange die Ueberschneidung besteht
+            if (panelEl) {
+                panelEl.classList.toggle("tt-konflikt", konflikte.length > 0);
             }
 
             for (let i = 0; i < 5; i++) {
@@ -3450,7 +3539,7 @@
         const routeBtn = document.createElement("button");
         routeBtn.type = "button";
         routeBtn.className = "tt-secondary";
-        routeBtn.textContent = "🚗 Route";
+        klIconText(routeBtn, "car", "Route");
         routeBtn.title = "Route in Google Maps öffnen (Fahrzeit gilt für die aktuelle Verkehrslage - eine geplante Uhrzeit lässt sich per Maps-Link nicht übergeben)";
         routeBtn.addEventListener("click", () => {
             const dest = document.getElementById("tt_addr").value.trim();
@@ -3488,15 +3577,19 @@
         teamsLabel.textContent = "Teams";
         teamsLabel.setAttribute("for", "tt_teams");
         const teamsWrap = document.createElement("div");
-        teamsWrap.className = "tt-time-wrap";
+        teamsWrap.className = "tt-check";
         const teamsCheck = document.createElement("input");
         teamsCheck.type = "checkbox";
         teamsCheck.id = "tt_teams";
         teamsCheck.checked = true;
         const teamsText = document.createElement("span");
-        teamsText.textContent = "Teams-Besprechung mit Einwahllink erzeugen (nur Microsoft 365)";
+        teamsText.textContent = "Teams-Besprechung erzeugen";
+        const teamsHint = document.createElement("span");
+        teamsHint.className = "tt-hint";
+        teamsHint.textContent = "mit Einwahllink, nur Microsoft 365";
         teamsWrap.appendChild(teamsCheck);
         teamsWrap.appendChild(teamsText);
+        teamsWrap.appendChild(teamsHint);
         teamsRow.appendChild(teamsLabel);
         teamsRow.appendChild(teamsWrap);
         left.appendChild(teamsRow);
@@ -3518,15 +3611,19 @@
         vbLabel.textContent = "Vorbehalt";
         vbLabel.setAttribute("for", "tt_vb");
         const vbWrap = document.createElement("div");
-        vbWrap.className = "tt-time-wrap";
+        vbWrap.className = "tt-check";
         const vbCheck = document.createElement("input");
         vbCheck.type = "checkbox";
         vbCheck.id = "tt_vb";
         vbCheck.title = "Termin als „Mit Vorbehalt“ anlegen (wirkt bei ICS und Microsoft 365 - in Outlook Web bitte manuell setzen)";
         const vbText = document.createElement("span");
-        vbText.textContent = "als „Mit Vorbehalt“ anlegen (ICS, Microsoft 365)";
+        vbText.textContent = "Mit Vorbehalt anlegen";
+        const vbHint = document.createElement("span");
+        vbHint.className = "tt-hint";
+        vbHint.textContent = "ICS, Microsoft 365";
         vbWrap.appendChild(vbCheck);
         vbWrap.appendChild(vbText);
+        vbWrap.appendChild(vbHint);
         vbRow.appendChild(vbLabel);
         vbRow.appendChild(vbWrap);
         left.appendChild(vbRow);
@@ -3541,15 +3638,19 @@
         invLabel.textContent = "Einladung";
         invLabel.setAttribute("for", "tt_inv");
         const invWrap = document.createElement("div");
-        invWrap.className = "tt-time-wrap";
+        invWrap.className = "tt-check";
         const invCheck = document.createElement("input");
         invCheck.type = "checkbox";
         invCheck.id = "tt_inv";
         invCheck.title = "Den Ansprechpartner als Teilnehmer eintragen - Outlook sendet ihm die Einladung (nur Microsoft 365)";
         const invText = document.createElement("span");
-        invText.textContent = "Ansprechpartner einladen (E-Mail aus dem Formular, nur Microsoft 365)";
+        invText.textContent = "Ansprechpartner einladen";
+        const invHint = document.createElement("span");
+        invHint.className = "tt-hint";
+        invHint.textContent = "E-Mail aus dem Formular, nur Microsoft 365";
         invWrap.appendChild(invCheck);
         invWrap.appendChild(invText);
+        invWrap.appendChild(invHint);
         invRow.appendChild(invLabel);
         invRow.appendChild(invWrap);
         left.appendChild(invRow);
@@ -3561,7 +3662,7 @@
         mailLabel.textContent = "Bestätigung";
         mailLabel.setAttribute("for", "tt_mailbest");
         const mailWrap = document.createElement("div");
-        mailWrap.className = "tt-time-wrap";
+        mailWrap.className = "tt-check";
         const mailCheck = document.createElement("input");
         mailCheck.type = "checkbox";
         mailCheck.id = "tt_mailbest";
@@ -3570,7 +3671,7 @@
         mailCheck.checked = settings.terminMailStandard === true && !!data.email;
         mailCheck.disabled = !data.email;
         const mailText = document.createElement("span");
-        mailText.textContent = data.email ? "per E-Mail an Ansprechpartner" : "nicht möglich - keine E-Mail-Adresse";
+        mailText.textContent = data.email ? "Per E-Mail bestätigen" : "Nicht möglich – keine E-Mail-Adresse";
         mailText.title = data.email
             ? "Terminbestätigung an " + data.email + " - Vorlage unter Optionen → Ticket-Termin"
             : "Im Ticket ist keine E-Mail-Adresse des Ansprechpartners hinterlegt";
@@ -3717,13 +3818,13 @@
 
         const icsBtn = document.createElement("button");
         icsBtn.type = "button";
-        icsBtn.className = "tt-primary";
+        icsBtn.className = "tt-secondary";
         icsBtn.textContent = "ICS (Outlook Desktop)";
         icsBtn.addEventListener("click", () => runCreate("ics"));
 
         const owaBtn = document.createElement("button");
         owaBtn.type = "button";
-        owaBtn.className = "tt-primary";
+        owaBtn.className = "tt-secondary";
         owaBtn.textContent = "Outlook Web";
         owaBtn.addEventListener("click", () => runCreate("owa"));
 
@@ -3732,7 +3833,7 @@
         const moreBtn = document.createElement("button");
         moreBtn.type = "button";
         moreBtn.className = "tt-secondary";
-        moreBtn.textContent = "weitere ▾";
+        klIconText(moreBtn, "chevron-down", "weitere", 14, true);
         moreBtn.style.display = "none";
         let altShown = true;
         moreBtn.addEventListener("click", () => showAlternatives(!altShown));
@@ -3743,11 +3844,11 @@
         closeBtn.textContent = "Abbrechen";
         closeBtn.addEventListener("click", closePanel);
 
-        bar.appendChild(m365Btn);
+        bar.appendChild(closeBtn);
+        bar.appendChild(moreBtn);
         bar.appendChild(icsBtn);
         bar.appendChild(owaBtn);
-        bar.appendChild(moreBtn);
-        bar.appendChild(closeBtn);
+        bar.appendChild(m365Btn);
         panel.appendChild(bar);
 
         document.documentElement.appendChild(panel);
@@ -3757,7 +3858,7 @@
             altShown = show;
             icsBtn.style.display = show ? "" : "none";
             owaBtn.style.display = show ? "" : "none";
-            moreBtn.textContent = show ? "weniger ▴" : "weitere ▾";
+            klIconText(moreBtn, show ? "chevron-up" : "chevron-down", show ? "weniger" : "weitere", 14, true);
         }
 
         const calendar = createCalendarWidget(calEl, {
@@ -4280,7 +4381,7 @@
                     const anfBtn = document.createElement("button");
                     anfBtn.type = "button";
                     anfBtn.className = "tt-primary";
-                    anfBtn.textContent = "🚗 Anfahrt in Outlook Web öffnen";
+                    klIconText(anfBtn, "car", "Anfahrt in Outlook Web öffnen");
                     anfBtn.addEventListener("click", () => {
                         openOutlookWeb(anfahrt.subject, anfahrt.body, anfahrt.start, anfahrt.end, anfahrt.ort);
                         closePanel();

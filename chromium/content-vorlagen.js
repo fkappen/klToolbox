@@ -1,6 +1,6 @@
 // Version
-// version = "1.12.0"
-// datum   = "2026-09-25"
+// version = "1.13.0"
+// datum   = "2026-11-11"
 // autor   = "FK"
 //
 // Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
@@ -11,7 +11,7 @@
     "use strict";
 
     // ------------------------------------------------- Branding (CSS-Variablen)
-    // content.css nutzt var(--klt-p/-pd/-a/-ad) mit neutralen Fallbacks;
+    // content.css nutzt var(--klt-brand-*) mit neutralen Fallbacks;
     // Firmenfarben kommen erst per Settings-Import (brandPrimary/brandAccent).
     function kltShade(hex, pct) {
         const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
@@ -24,22 +24,45 @@
         return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
     }
 
+    // Aufhellen Richtung Weiss (0..1) - helle Stufen der Primaerfarbe
+    function kltTint(hex, pct) {
+        const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+        if (!m) {
+            return hex;
+        }
+        const n = parseInt(m[1], 16);
+        const f = (v) => Math.max(0, Math.min(255, Math.round(v + (255 - v) * pct)));
+        const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+        return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+    }
+
+    // Wie im Popup: nur die Basisfarben setzen (--klt-brand-*, eigener
+    // Namensraum auf <html>), die Rollen leitet content.css daraus ab.
+    // Farbschema: html[data-klt-theme] = light|dark, ohne Attribut = System.
     function kltApplyBrand(items) {
         const root = document.documentElement;
         if (items.brandPrimary) {
-            root.style.setProperty("--klt-p", items.brandPrimary);
-            root.style.setProperty("--klt-pd", kltShade(items.brandPrimary, -0.2));
+            root.style.setProperty("--klt-brand-p", items.brandPrimary);
+            root.style.setProperty("--klt-brand-p-100", kltTint(items.brandPrimary, 0.9));
+            root.style.setProperty("--klt-brand-p-300", kltTint(items.brandPrimary, 0.4));
+            root.style.setProperty("--klt-brand-p-600", kltShade(items.brandPrimary, -0.15));
+            root.style.setProperty("--klt-brand-p-700", kltShade(items.brandPrimary, -0.3));
         }
         if (items.brandAccent) {
-            root.style.setProperty("--klt-a", items.brandAccent);
-            root.style.setProperty("--klt-ad", kltShade(items.brandAccent, -0.2));
+            root.style.setProperty("--klt-brand-a", items.brandAccent);
+        }
+        if (items.theme === "light" || items.theme === "dark") {
+            root.setAttribute("data-klt-theme", items.theme);
+        } else {
+            root.removeAttribute("data-klt-theme");
         }
     }
 
-    chrome.storage.local.get({ brandPrimary: "", brandAccent: "" }, kltApplyBrand);
+    const KLT_BRAND_KEYS = { brandPrimary: "", brandAccent: "", theme: "auto" };
+    chrome.storage.local.get(KLT_BRAND_KEYS, kltApplyBrand);
     chrome.storage.onChanged.addListener((ch, area) => {
-        if (area === "local" && (ch.brandPrimary || ch.brandAccent)) {
-            chrome.storage.local.get({ brandPrimary: "", brandAccent: "" }, kltApplyBrand);
+        if (area === "local" && (ch.brandPrimary || ch.brandAccent || ch.theme)) {
+            chrome.storage.local.get(KLT_BRAND_KEYS, kltApplyBrand);
         }
     });
 
@@ -732,7 +755,7 @@
                 btn.type = "button";
                 btn.className = "__vorlagen_tbtn";
                 btn.title = "Textvorlagen einfügen";
-                btn.textContent = "📋 Vorlagen";
+                klIconText(btn, "clipboard-list", "Vorlagen");
                 btn.__editor = t.editor || null;
                 btn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
                 btn.addEventListener("click", () => togglePanel(btn));
@@ -747,7 +770,7 @@
                 aBtn.type = "button";
                 aBtn.className = "__vorlagen_tbtn __anrede_tbtn";
                 aBtn.title = "Nur die Anrede einfügen – Tageszeit und Empfänger werden automatisch eingesetzt";
-                aBtn.textContent = "👋 Anrede";
+                klIconText(aBtn, "hand", "Anrede");
                 aBtn.__editor = t.editor || null;
                 aBtn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
                 aBtn.addEventListener("click", () => {
@@ -765,7 +788,7 @@
                 kBtn.type = "button";
                 kBtn.className = "__vorlagen_tbtn __ki_draft_tbtn";
                 kBtn.title = "KI liest den sichtbaren Ticketverlauf und entwirft eine Antwort (mit Anrede, vor der Signatur eingefügt)";
-                kBtn.textContent = "✨ KI-Antwort";
+                klIconText(kBtn, "sparkles", "KI-Antwort");
                 kBtn.__editor = t.editor || null;
                 kBtn.addEventListener("mousedown", (e) => e.preventDefault());
                 kBtn.addEventListener("click", () => draftReply(kBtn));
@@ -840,7 +863,7 @@
             btn.type = "button";
             btn.className = "__vorlagen_tbtn __vorlagen_ebtn";
             btn.title = "Eintrags-Vorlagen einfügen (eigene Liste, Optionen → Eintrags-Vorlagen)";
-            btn.textContent = "📋 Vorlagen";
+            klIconText(btn, "clipboard-list", "Vorlagen");
             btn.__editor = ed;
             btn.__kind = "entry";
             btn.addEventListener("mousedown", (e) => e.preventDefault());
@@ -908,11 +931,11 @@
             return;
         }
         btn.__busy = true;
-        const old = btn.textContent;
-        btn.textContent = "✨ entwirft…";
+        const old = btn.__kltIcon;
+        klIconText(btn, "sparkles", "entwirft…");
         chrome.runtime.sendMessage({ type: "kiDraft", history: history }, (resp) => {
             btn.__busy = false;
-            btn.textContent = old;
+            klIconRestore(btn, old);
             if (chrome.runtime.lastError || !resp || !resp.ok) {
                 const err = chrome.runtime.lastError
                     ? chrome.runtime.lastError.message
@@ -938,7 +961,7 @@
         btn.id = "__vorlagen_btn";
         btn.type = "button";
         btn.title = "Textvorlagen einfügen";
-        btn.textContent = "📋 Vorlagen";
+        klIconText(btn, "clipboard-list", "Vorlagen");
         btn.addEventListener("mousedown", (e) => e.preventDefault()); // Fokus im Editor lassen
         btn.addEventListener("click", () => togglePanel(null));
         document.documentElement.appendChild(btn);
@@ -965,8 +988,15 @@
         // Ankern weit links (z. B. Eintrags-Editor) lief das Panel sonst
         // links aus dem sichtbaren Bereich.
         const panelW = panel.offsetWidth || 340;
-        const maxRight = Math.max(8, window.innerWidth - panelW - 8);
-        panel.style.right = Math.min(Math.max(8, window.innerWidth - r.right), maxRight) + "px";
+        if (r.left < window.innerWidth / 2) {
+            // Anker in der linken Haelfte (Eintrags-Editor): linke Kanten
+            // buendig - vorher klebte das Panel am linken Fensterrand
+            panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - panelW - 8)) + "px";
+            panel.style.right = "auto";
+        } else {
+            const maxRight = Math.max(8, window.innerWidth - panelW - 8);
+            panel.style.right = Math.min(Math.max(8, window.innerWidth - r.right), maxRight) + "px";
+        }
         if (r.top < window.innerHeight / 2) {
             panel.style.top = Math.min(r.bottom + 8, window.innerHeight - 120) + "px";
             panel.style.bottom = "auto";
@@ -999,7 +1029,7 @@
         const gear = document.createElement("span");
         gear.className = "vp-gear";
         gear.title = "Vorlagen verwalten (Extension-Optionen)";
-        gear.textContent = "⚙";
+        klIconText(gear, "settings", "", 15);
         gear.addEventListener("click", () => {
             window.open(chrome.runtime.getURL("options.html"), "_blank");
         });
@@ -1184,9 +1214,15 @@
             }
         });
         // SPA: Mail-Fenster/Editor entstehen dynamisch -> Buttons nachruesten
+        // Gebuendelt statt bei JEDER DOM-Aenderung: beim Aufbau eines Tickets
+        // kommen Hunderte Aenderungen, ensureButtons misst dabei Elemente aus
+        let buttonsTimer = null;
         const obs = new MutationObserver(() => {
-            if (moduleEnabled) {
-                ensureButtons();
+            if (moduleEnabled && buttonsTimer === null) {
+                buttonsTimer = setTimeout(() => {
+                    buttonsTimer = null;
+                    ensureButtons();
+                }, 200);
             }
         });
         obs.observe(document.documentElement, { childList: true, subtree: true });

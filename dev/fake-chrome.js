@@ -21,10 +21,15 @@ window.chrome = {
     runtime: {
         sendMessage: (m, cb) => { if (cb) { cb(); } },
         getURL: (p) => p,
-        getManifest: () => ({ permissions: [] }),
+        getManifest: () => ({ permissions: [], version: "0.0.0" }),
         lastError: null,
         openOptionsPage: () => {}
     },
-    tabs: { create: () => {} },
+    tabs: {
+        create: () => {},
+        // Kundenkontext: "demoKontext" aus den Beispieldaten spielt ein offenes Ticket vor
+        query: (q, cb) => cb([{ id: 1 }]),
+        sendMessage: (id, m, cb) => cb({ ok: true, kontext: DATA.demoKontext || null })
+    },
     windows: { getCurrent: (cb) => cb({ incognito: false }), create: () => {} }
 };

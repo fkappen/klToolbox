@@ -1,6 +1,6 @@
 // Version
-// version = "1.15.0"
-// datum   = "2026-09-07"
+// version = "1.16.0"
+// datum   = "2026-11-11"
 // autor   = "FK"
 //
 // Service Worker: Kontextmenü, API-Aufrufe (DeutschlandGPT/InnoGPT/Azure OpenAI), Ergebnis-Injection.
@@ -184,8 +184,11 @@ chrome.storage.local.get({ statusSymbole: null }, (items) => {
         "Offen = ●\nIn Bearbeitung = ▶\nWarten auf Kunde = ⏳",
         "Automatisch Angelegt = ●\nAufgenommen = ●\nTermin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳"
     ];
+    // 3.46.0: Vorgabe nennt Icon-Namen statt Emoji (alte Emoji-Werte in
+    // eigenen Listen werden beim Anzeigen weiter erkannt)
+    alteVorgaben.push("Termin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳");
     if (typeof items.statusSymbole === "string" && alteVorgaben.indexOf(items.statusSymbole) !== -1) {
-        chrome.storage.local.set({ statusSymbole: "Termin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳" });
+        chrome.storage.local.set({ statusSymbole: "Termin vereinbart = calendar\nIn Bearbeitung = play\nWarten auf = hourglass" });
     }
 });
 
@@ -393,6 +396,7 @@ async function clipPage(tab) {
 
 // ---------------------------------------------------------------- Ticket-Modul (dynamisch)
 //
+// (Module: icons.js, content-vorlagen.js, content-termin.js, content-extras.js)
 // Das Ticketsystem steht NICHT im Manifest (neutrale Auslieferung, interne
 // Hostnamen bleiben unsichtbar). Stattdessen: Die Ticket-URL kommt per
 // Settings-Import (linkTemplate), die Optionsseite holt die optionale
@@ -436,7 +440,8 @@ async function syncTicketContentScripts() {
         const desired = {
             id: TICKET_SCRIPT_ID,
             matches: [match],
-            js: ["content-vorlagen.js", "content-termin.js"],
+            // icons.js zuerst: stellt klIcon/klIconText fuer die Module bereit
+            js: ["icons.js", "content-vorlagen.js", "content-termin.js", "content-extras.js"],
             css: ["content.css"],
             allFrames: true,
             runAt: "document_idle",

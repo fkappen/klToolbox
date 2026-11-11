@@ -1,6 +1,6 @@
 // Version
-// version = "2.7.3"
-// datum   = "2026-09-07"
+// version = "2.8.0"
+// datum   = "2026-11-11"
 // autor   = "FK"
 //
 // Kombinierte Options-Seite: KI-Umformulierer, Ticket-Termin, Ticket-Vorlagen.
@@ -78,7 +78,11 @@ const FT_DEFAULTS = {
     ftKiAntwort: true,
     ftVorlagenEintrag: true,
     ftFehlercodes: true,
-    ftKiBewertung: true
+    ftKiBewertung: true,
+    // neu in 3.46.0 - Kuerzel standardmaessig aus (einzelne Tasten loesen
+    // Aktionen aus), Filter-Chips an
+    ftTastatur: false,
+    ftFilterChips: true
 };
 
 // Wartezeit-Ampel: vier Stufen (gruen -> gelb -> rot -> lila). Schwellwerte
@@ -92,13 +96,13 @@ const AMPEL_DEFAULTS = {
     ampelNormalGelbTage: 3,
     ampelNormalRotTage: 10,
     ampelFarbeGruen: "#1a7f37",
-    ampelFarbeGelb: "#b58900",
-    ampelFarbeRot: "#b3261e",
+    ampelFarbeGelb: "#9d6613",
+    ampelFarbeRot: "#c0392b",
     ampelFarbeLila: "#7b2fbf",
-    ampelFarbeErledigt: "#6b7880",
+    ampelFarbeErledigt: "#757575",
     erledigtStatus: "Erledigt",
     neutralStatus: "Warten auf",
-    statusSymbole: "Termin vereinbart = 📅\nIn Bearbeitung = ▶\nWarten auf = ⏳"
+    statusSymbole: "Termin vereinbart = calendar\nIn Bearbeitung = play\nWarten auf = hourglass"
 };
 
 // Bei diesen Feldern ist LEER eine gueltige Angabe (= Funktion aus) und darf
@@ -507,6 +511,8 @@ const TERMIN_DEFAULTS = {
     bodyTemplate: "Ansprechpartner: %ANSPRECHPARTNER%\nTelefon: %TELEFON%\nE-Mail: %EMAIL%\n\nTicket: %TICKETLINK%",
     linkTemplate: "",
     kundenLinkTemplate: "",
+    // Kundenkontext im Popup: "Name = URL" je Zeile, {kundennr}/{kunde}
+    kundenZiele: "",
     datevSearchTemplate: "https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%",
     datevDocTemplate: "https://wissensplattform.apps.datev.de/help/document/%DOKNR%",
     selBezeichnung: "input.css-uzb1jv",
@@ -638,6 +644,7 @@ function loadAll() {
         document.getElementById("bodyTemplate").value = items.bodyTemplate;
         document.getElementById("linkTemplate").value = items.linkTemplate;
         document.getElementById("kundenLinkTemplate").value = items.kundenLinkTemplate;
+        document.getElementById("kundenZiele").value = items.kundenZiele || "";
         document.getElementById("datevSearchTemplate").value = items.datevSearchTemplate;
         document.getElementById("datevDocTemplate").value = items.datevDocTemplate;
         document.getElementById("selBezeichnung").value = items.selBezeichnung;
@@ -1138,6 +1145,7 @@ function saveTermin() {
         bodyTemplate: document.getElementById("bodyTemplate").value || TERMIN_DEFAULTS.bodyTemplate,
         linkTemplate: document.getElementById("linkTemplate").value.trim(),
         kundenLinkTemplate: document.getElementById("kundenLinkTemplate").value.trim(),
+        kundenZiele: document.getElementById("kundenZiele").value.trim(),
         datevSearchTemplate: document.getElementById("datevSearchTemplate").value.trim() || TERMIN_DEFAULTS.datevSearchTemplate,
         datevDocTemplate: document.getElementById("datevDocTemplate").value.trim(),
         selBezeichnung: document.getElementById("selBezeichnung").value.trim() || TERMIN_DEFAULTS.selBezeichnung,
@@ -1284,6 +1292,36 @@ function sectionLinkRow(links, i) {
     url.style.flex = "2";
     url.addEventListener("input", () => { links[i].url = url.value; });
 
+    // Eigenes Symbol (Lucide, icons.js) statt Favicon - leer = automatisch
+    const sym = document.createElement("select");
+    sym.title = "Symbol der Kachel – „automatisch“ nimmt das Favicon der Seite";
+    sym.style.cssText = "flex:none; width:130px;";
+    const symAuto = document.createElement("option");
+    symAuto.value = "";
+    symAuto.textContent = "Symbol: automatisch";
+    sym.appendChild(symAuto);
+    for (const [wert, text] of KL_LINK_ICONS) {
+        const o = document.createElement("option");
+        o.value = wert;
+        o.textContent = text;
+        sym.appendChild(o);
+    }
+    sym.value = links[i].icon || "";
+    const symBild = document.createElement("span");
+    symBild.style.cssText = "flex:none; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center;";
+    const zeigeSymbol = () => {
+        symBild.textContent = "";
+        const svg = klIcon(sym.value, 18);
+        if (svg) {
+            symBild.appendChild(svg);
+        }
+    };
+    zeigeSymbol();
+    sym.addEventListener("change", () => {
+        links[i].icon = sym.value;
+        zeigeSymbol();
+    });
+
     const cbBox = (label, key) => {
         const cbLabel = document.createElement("label");
         cbLabel.style.cssText = "display:flex; align-items:center; gap:4px; font-weight:400; margin:0; white-space:nowrap;";
@@ -1308,6 +1346,8 @@ function sectionLinkRow(links, i) {
 
     row.appendChild(name);
     row.appendChild(url);
+    row.appendChild(symBild);
+    row.appendChild(sym);
     row.appendChild(cbBox("Start", "start"));
     row.appendChild(cbBox("Privat", "privat"));
     row.appendChild(del);
@@ -1394,12 +1434,19 @@ function saveSections() {
         .map((sec) => ({
             name: (sec.name || "").trim(),
             links: (Array.isArray(sec.links) ? sec.links : [])
-                .map((l) => ({
-                    name: (l.name || "").trim(),
-                    url: (l.url || "").trim(),
-                    start: l.start === true,
-                    privat: l.privat === true
-                }))
+                .map((l) => {
+                    const link = {
+                        name: (l.name || "").trim(),
+                        url: (l.url || "").trim(),
+                        start: l.start === true,
+                        privat: l.privat === true
+                    };
+                    // Symbol nur speichern, wenn eines gewaehlt ist
+                    if (typeof l.icon === "string" && l.icon.trim()) {
+                        link.icon = l.icon.trim();
+                    }
+                    return link;
+                })
                 .filter((l) => l.url.length > 0)
         }))
         .filter((sec) => sec.name.length > 0 && sec.links.length > 0);

@@ -89,7 +89,10 @@
         .brand-mark { width: 22px; height: 22px; object-fit: contain; flex: none; }
         .brand-dark { display: none; }
         .brand b { font-size: 17px; font-weight: 600; color: var(--text-heading); letter-spacing: .01em; white-space: nowrap; }
-        .brand span { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .brand span { flex: 1; min-width: 0; font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Start als kleine Pille ganz rechts im Kopf (nur wenn Start-Links markiert sind) */
+        .brand #startBtn { flex: none; margin-left: auto; width: auto; height: 26px; padding: 0 12px; gap: 6px; font: 600 12px/1 var(--font-core); }
+        .brand #startBtn .ico { width: 13px; height: 13px; }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) .brand-light { display: none; }
             :root:not([data-theme="light"]) .brand-dark { display: block; }
@@ -104,7 +107,8 @@
         .block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line-hairline); }
 
         h2 { display: flex; align-items: baseline; gap: 8px; margin: 0; font: 600 11px/1.3 var(--font-core); letter-spacing: .12em; text-transform: uppercase; color: var(--text-heading); }
-        h2 .note { font: 400 11px/1.3 var(--font-core); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+        h2 .note { display: inline-flex; align-items: center; gap: 4px; font: 400 11px/1.3 var(--font-core); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+        h2 .note .ico { width: 10px; height: 10px; }
         .empty { color: var(--text-muted); font-size: 12px; }
 
         /* Primary / Secondary (Pill, Small) */
@@ -114,9 +118,16 @@
         .btn-secondary { display: flex; width: 100%; height: 30px; padding: 0 16px; gap: 8px; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; color: var(--text-link); border: 1px solid currentColor; border-radius: 999px; font: 600 13px/1 var(--font-core); }
         .btn-secondary:hover { background: var(--surface-accent-soft); }
 
+        /* 2.1 Kundenkontext: aktiver Tab ist ein Ticket -> Kunde + Ziele */
+        #kontext { display: none; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line-hairline); }
+        #kontext .kunde { font: 600 13px/1.3 var(--font-core); color: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #kontext .ziele { display: flex; flex-wrap: wrap; gap: 6px; }
+        #kontext .ziele button { height: 26px; padding: 0 12px; border-radius: 999px; background: transparent; color: var(--text-link); border: 1px solid var(--line-default); font: 600 12px/1 var(--font-core); }
+        #kontext .ziele button:hover { background: var(--surface-accent-soft); border-color: var(--line-accent); }
+
         /* 2.2 Raster + 2.3 Kachel */
         .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-        .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 5px; min-width: 0; background: var(--surface-card); border: 1px solid var(--line-default); border-radius: 8px; color: var(--text-body); font: 500 11px/1.2 var(--font-core); }
+        .tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; padding: 6px 4px 5px; min-width: 0; background: var(--surface-card); border: 1px solid var(--line-default); border-radius: 12px; color: var(--text-body); font: 500 11px/1.2 var(--font-core); }
         .tile:hover { border-color: var(--line-accent); background: var(--surface-tint); }
         .tile img { width: 20px; height: 20px; border-radius: 4px; }
         /* Platzhalter, bis das Symbol da ist (Netzabrufe starten erst nach dem Anzeigen) */
@@ -128,19 +139,28 @@
         body.dense .tile { padding: 5px 4px 4px; gap: 3px; }
         body.dense .content { gap: 8px; }
         body.dense .section { gap: 4px; }
-        .tile > span:not(.letter) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Name: bis zu zwei Zeilen - nur Zeilen mit langen Namen wachsen */
+        .tile .label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow: hidden; overflow-wrap: anywhere; text-align: center; line-height: 1.15; max-width: 100%; }
+        /* eigenes Symbol je Link (Optionen -> Popup-Bereiche) */
+        .tile .sym { width: 20px; height: 20px; color: var(--text-link); }
         .tile.private { border-style: dashed; }
+        .tile .priv { position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; color: var(--text-muted); }
+        /* Tippen im Suchfeld filtert: nicht passende Kacheln treten zurueck */
+        .tile.dim { opacity: .3; }
 
         /* 2.4 Suche */
         .field { position: relative; }
         .field .ico { position: absolute; left: 12px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-        #searchInput { display: block; width: 100%; height: 36px; padding: 0 12px 0 38px; box-sizing: border-box; font: 400 16px var(--font-core); color: var(--text-body); background: var(--surface-field); border: 1px solid var(--line-default); border-radius: 5px; box-shadow: var(--shadow-inset-field); transition: var(--transition-control); }
+        #searchInput { display: block; width: 100%; height: 36px; padding: 0 12px 0 38px; box-sizing: border-box; font: 400 16px var(--font-core); color: var(--text-body); background: var(--surface-field); border: 1px solid var(--line-default); border-radius: 999px; box-shadow: var(--shadow-inset-field); transition: var(--transition-control); }
         #searchInput::placeholder { color: var(--text-subtle); }
-        #searchInput:focus { border-color: var(--line-field-focus); box-shadow: var(--ring-focus); outline: none; }
+        /* Fokusring nur bei Tastaturbedienung: autofocus loest in Chromium
+           :focus-visible aus, deshalb erst nach der ersten Taste (body.kbd) */
+        #searchInput:focus { border-color: var(--line-field-focus); box-shadow: var(--shadow-inset-field); outline: none; }
+        body.kbd #searchInput:focus-visible { box-shadow: var(--ring-focus); }
         .search-btns { display: flex; gap: 6px; }
         .search-btns button { flex: 1; height: 28px; padding: 0 8px; border-radius: 999px; font: 600 12.5px/1 var(--font-core); background: transparent; color: var(--text-body); border: 1px solid var(--line-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .search-btns button:hover { background: var(--surface-accent-soft); }
-        .search-btns button.default { border-color: var(--line-accent); background: var(--surface-accent-soft); color: var(--text-link); }
+        .search-btns button.default { border-color: transparent; background: var(--surface-accent-soft); color: var(--text-link); }
         #searchGo { display: none; min-width: 78px; }
         #searchGo.kunde { background: var(--surface-kunde); color: #fff; }
         #searchGo.kunde:hover { background: var(--brand-a); }
@@ -148,7 +168,7 @@
         #hint:empty { display: none; }
 
         /* 3. Balken (Marke): Werkzeuge links als Icons, Optionen + Hilfe rechts */
-        .bar { margin-top: auto; flex: none; background: var(--bar-fill); border-top: 4px solid var(--bar-strip-fill); height: 36px; display: flex; align-items: center; gap: 2px; padding: 0 10px; }
+        .bar { margin-top: auto; flex: none; background: var(--bar-fill); border-top: 4px solid var(--bar-strip-fill); height: 36px; display: flex; align-items: center; gap: 4px; padding: 0 10px; }
         .bar .spacer { flex: 1; }
         .bar button { display: inline-flex; align-items: center; justify-content: center; height: 26px; padding: 0 10px; gap: 5px; border-radius: 999px; border: 0; background: transparent; color: #fff; font: 600 12px/1 var(--font-core); }
         .bar button:hover { background: var(--bar-hover); }
@@ -170,14 +190,14 @@
         <img class="brand-mark brand-light" src="icon32.png" alt="">
         <img class="brand-mark brand-dark" src="icon32.png" alt="">
         <b id="brandName">klToolbox</b><span id="brandSub"></span>
+        <button id="startBtn" class="btn-primary" style="display:none;" title="Alle als Start markierten Links öffnen">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
+            Start
+        </button>
     </div>
 
     <div class="content">
-        <button id="startBtn" class="btn-primary" title="Alle als Start markierten Links öffnen">
-            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
-            Start – alle öffnen
-        </button>
-
+        <div id="kontext"></div>
         <div id="sectionsHost"></div>
 
         <div class="block">
@@ -221,6 +241,7 @@
             Hilfe
         </button>
     </div>
+    <script src="icons.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

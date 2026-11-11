@@ -3,6 +3,12 @@
 Werkzeuge für die Entwicklung. Nichts hiervon landet im Paket (`Build-All.ps1`
 verpackt nur `chromium/` bzw. `firefox/`).
 
+## Build-Icons.ps1
+
+Erzeugt `chromium/icons.js` (Lucide-Icons als Inline-SVG, ISC-Lizenz) aus
+`lucide-static` in fester Version. Neue Icons in der Liste im Script ergänzen
+und neu erzeugen – `icons.js` nicht von Hand ändern.
+
 ## Render-Popup.ps1
 
 Rendert `chromium/popup.html` ohne installierte Erweiterung als Screenshot,

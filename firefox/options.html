@@ -102,6 +102,8 @@
             <label><input type="checkbox" id="ftVorlagenEintrag"> 📋 Vorlagen (Eintrags-Editor)</label>
             <label><input type="checkbox" id="ftFehlercodes"> 🔗 DATEV-Fehlercode-Links</label>
             <label><input type="checkbox" id="ftKiBewertung"> ⭐ KI-Bewertung (Eintragskopf)</label>
+            <label title="j/k = Zeile vor/zurück, Enter = öffnen; im Ticket t = Termin, n = Nicht erreicht, m = Makros; ? zeigt die Übersicht"><input type="checkbox" id="ftTastatur"> Tastaturkürzel (Liste und Ticket) – neu</label>
+            <label title="Schnellfilter über der Ticketliste: Überfällig, Älter als 7 Tage, Heute neu, Wartet / erledigt"><input type="checkbox" id="ftFilterChips"> Filter-Chips (Ticketliste) – neu</label>
         </div>
         <span id="statusFt" class="status"></span>
     </fieldset>
@@ -270,6 +272,10 @@
     <label for="kundenLinkTemplate">Kundenlink-Vorlage (Kundensuche im Popup)</label>
     <input type="text" id="kundenLinkTemplate" placeholder="https://…?customerReference=%KDNR%">
     <div class="hint"><code>%KDNR%</code> wird durch die eingegebene Kundennummer ersetzt. Kommt normalerweise per Settings-Import.</div>
+
+    <label for="kundenZiele">Kundenziele im Popup (bei geöffnetem Ticket)</label>
+    <textarea id="kundenZiele" style="min-height:70px" placeholder="Doku = https://doku.example/suche?q={kundennr}&#10;Wiki = https://wiki.example/{kunde}"></textarea>
+    <div class="hint">Eine Zeile je Ziel: <code>Name = Adresse</code>. Ist der aktive Tab ein Ticket, zeigt das Popup Kundennummer und Name mit je einem Knopf pro Ziel. <code>{kundennr}</code> und <code>{kunde}</code> werden ersetzt. Der Kundenlink oben erscheint dort automatisch als „Kunde“.</div>
 
     <label for="datevSearchTemplate">DATEV-Wissensplattform-Suche (Popup)</label>
     <input type="text" id="datevSearchTemplate" placeholder="https://wissensplattform.apps.datev.de/help/search/helpcenter?q=%SUCHE%">
@@ -450,7 +456,7 @@
     <fieldset>
         <legend>Symbole je Status</legend>
         <p class="hint">Ein Symbol vor der Zeitangabe macht <b>Ausnahmezustände</b> in der Liste auf einen Blick erkennbar. Pro Zeile eine Zuordnung <code>Status = Symbol</code>; es genügt, wenn der Status den Begriff enthält, bei mehreren Treffern gewinnt der genauere. Erledigte Tickets bekommen immer ✓. Tipp: dem Normalfall („Aufgenommen“) kein Symbol geben — was in fast jeder Zeile steht, fällt nicht mehr auf.</p>
-        <textarea id="statusSymbole" style="min-height:90px" placeholder="Termin vereinbart = 📅&#10;In Bearbeitung = ▶&#10;Warten auf = ⏳"></textarea>
+        <textarea id="statusSymbole" style="min-height:90px" placeholder="Termin vereinbart = calendar&#10;In Bearbeitung = play&#10;Warten auf = hourglass"></textarea>
         <div class="hint">Ein Schlüssel wie <code>Warten auf</code> deckt alle Wartezustände auf einmal ab. Soll einer davon ein eigenes Symbol bekommen, genügt eine zusätzliche, genauere Zeile — etwa <code>Warten auf Hersteller = 🏭</code>.</div>
     </fieldset>
 
@@ -577,6 +583,7 @@
         <span class="hint">Setzt die Extension in den neutralen Auslieferungszustand zurück: entfernt API-Keys, Links, Vorlagen, Branding, Ticketsystem-Konfiguration und die erteilte Website-Berechtigung.</span>
     </div>
 
-    <script src="options.js"></script>
+    <script src="icons.js"></script>
+<script src="options.js"></script>
 </body>
 </html>

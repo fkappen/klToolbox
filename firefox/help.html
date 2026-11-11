@@ -239,14 +239,21 @@
 
     <h3>DATEV-Fehlercode-Links</h3>
     <p>Meldungs-IDs wie <code>DB60012</code>, <code>ZK01052</code> oder <code>INI07257</code> werden in den Ticket-Einträgen automatisch erkannt und verlinkt — ein Klick öffnet die Suche in der DATEV Wissensplattform. Abschaltbar über die Feinschalter.</p>
+    <h3>Tastaturkürzel (neu, standardmäßig aus)</h3>
+    <p>Einschalten unter Optionen → Ticketsystem-Funktionen einzeln. In der Ticketliste: <code>j</code>/<code>k</code> markiert die nächste bzw. vorige Zeile, <code>Enter</code> öffnet das markierte Ticket. Im geöffneten Ticket: <code>t</code> Termin, <code>n</code> Nicht erreicht (mit Rückfrage, weil sofort ein Eintrag entsteht), <code>m</code> Makros. <code>?</code> zeigt die Übersicht. Die Kürzel wirken nicht, solange in einem Feld oder im Editor getippt wird.</p>
+    <h3>Filter-Chips über der Ticketliste (neu)</h3>
+    <p>Schnellfilter „Überfällig“, „Älter als 7 Tage“, „Heute neu“ und „Wartet“ rechts unten in der Filterleiste (bei schmalem Fenster ausgeblendet). Sie blenden nur die bereits geladenen Zeilen aus und nutzen die Daten der Wartezeit-Anzeige — die Wartezeit-Ampeln müssen dafür eingeschaltet sein. Ein zweiter Klick hebt den Filter auf.</p>
+    <h3>Kundenkontext im Popup</h3>
+    <p>Ist der aktive Tab ein geöffnetes Ticket, zeigt das Popup oben Kundennummer und Name mit je einem Knopf pro Ziel: den Kundenlink sowie alle unter Optionen → Ticket-Termin → „Kundenziele im Popup“ eingetragenen Adressen (<code>{kundennr}</code>, <code>{kunde}</code>).</p>
 
     <h2 id="popup">Popup (Klick aufs Toolbar-Icon)</h2>
     <ul>
-        <li><b>Start-Leiste:</b> öffnet alle als „Start“ markierten Links auf einmal (bereichsübergreifend).</li>
-        <li><b>Bereiche:</b> frei definierbare Link-Gruppen (Optionen → Popup-Bereiche): eigener Name, beliebig viele Kacheln, Reihenfolge per ↑/↓; gestrichelte Kacheln öffnen im privaten Fenster.</li>
+        <li><b>Start (oben rechts):</b> öffnet alle als „Start“ markierten Links auf einmal (bereichsübergreifend). Ohne markierte Links ist der Knopf ausgeblendet.</li>
+        <li><b>Bereiche:</b> frei definierbare Link-Gruppen (Optionen → Popup-Bereiche): eigener Name, beliebig viele Kacheln, Reihenfolge per ↑/↓; gestrichelte Kacheln mit dem durchgestrichenen Auge öffnen im privaten Fenster. Lange Namen laufen über zwei Zeilen.</li>
+        <li><b>Tippen filtert:</b> Schon beim Tippen im Suchfeld treten alle Kacheln zurück, deren Name den Text nicht enthält. Bleibt genau eine Kachel übrig, öffnet Enter diese — sonst sucht Enter wie gewohnt im Standard-Ziel.</li>
         <li><b>Suche (ein Feld):</b> erkennt die Eingabe automatisch — genau 5 Ziffern öffnen den Kunden, 6 das Ticket, 7 den Artikel der DATEV Wissensplattform (Button wechselt Beschriftung und Farbe), Freitext sucht per Enter im Standard-Ziel (einstellbar unter Darstellung) oder über die drei Buttons.</li>
         <li><b>Balken unten:</b> links die Werkzeuge als Symbole — KI-Chat (nur sichtbar, wenn ein API-Key hinterlegt ist), Clipper, Browserdaten, ggf. Inkognito-Reset (Beschriftung erscheint beim Zeigen) — rechts Optionen und Hilfe. Das Popup ist auf die Browser-Höchsthöhe ausgelegt und scrollt nicht; bei sehr vielen Kacheln rücken sie enger zusammen.</li>
-        <li><b>Kachel-Symbole:</b> kommen aus dem Favicon-Speicher des Browsers und stehen damit sofort da. Für noch nie besuchte Seiten erscheint kurz ein Platzhalter, das Symbol wird nachgeladen, sobald das Popup steht — eine nicht erreichbare Seite (etwa ohne VPN) hält das Popup nicht mehr auf. Findet sich kein Symbol, zeigt die Kachel den Anfangsbuchstaben.</li>
+        <li><b>Kachel-Symbole:</b> kommen aus dem Favicon-Speicher des Browsers und stehen damit sofort da. Für noch nie besuchte Seiten erscheint kurz ein Platzhalter, das Symbol wird nachgeladen, sobald das Popup steht — eine nicht erreichbare Seite (etwa ohne VPN) hält das Popup nicht mehr auf. Findet sich kein Symbol, zeigt die Kachel den Anfangsbuchstaben. Wer mehrere Links mit demselben Seiten-Symbol hat, wählt unter Optionen → Popup-Bereiche je Link ein eigenes Symbol aus; es ersetzt das Seiten-Symbol.</li>
         <li><b>Darstellung:</b> Das Popup folgt dem hellen oder dunklen Farbschema des Systems; unter Optionen → Darstellung → Farbschema lässt sich stattdessen fest „Hell“ oder „Dunkel“ wählen. Firmenfarben und Marke kommen per Settings-Import (<code>brandPrimary</code>, <code>brandAccent</code>, <code>brandIcon</code>, optional <code>brandIconDark</code> für die Marke im dunklen Modus).</li>
         <li><b>🧹 Browserdaten:</b> öffnet den Browser-Dialog „Browserdaten löschen“ (Firefox: Strg+Umschalt+Entf).</li>
         <li><b>🕶 Inkognito-Reset:</b> nur in privaten Fenstern sichtbar — verwirft die private Sitzung (Cookies, Logins) und öffnet automatisch ein frisches privates Fenster.</li>
