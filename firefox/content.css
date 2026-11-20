@@ -1,4 +1,4 @@
-/* Version 3.0.0 - 2026-11-11 - FK
+/* Version 3.1.0 - 2026-11-20 - FK
    Module im Ticketsystem (Vorlagen, Termin, Anfahrt, Makros, Zusatzfunktionen)
    im selben Design wie das Popup: Tokens, Dosis, Pillen, Balken-Motiv,
    heller und dunkler Modus, Lucide statt Emoji.
@@ -457,6 +457,34 @@ tr.__klt_cursor > td {
 tr.__klt_cursor > td:first-child {
     box-shadow: inset 2px 0 0 var(--klt-brand-p, #46626F), inset 0 2px 0 var(--klt-brand-p, #46626F), inset 0 -2px 0 var(--klt-brand-p, #46626F);
 }
+
+/* Teilen: Knopf im Projektfenster + Menue */
+.__klt_share_pbtn { margin-right: 6px; }
+.__klt_share_pbtn .klt-ico { margin-right: 5px; }
+#__klt_share {
+    z-index: 2147483646;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 230px;
+}
+#__klt_share button {
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    height: auto;
+    border: 0;
+    background: transparent;
+    padding: 7px 10px;
+    border-radius: 5px;
+    font: 600 13px/1.4 var(--font-core);
+    color: var(--text-body);
+}
+#__klt_share button:hover { background: var(--surface-tint); }
+#__klt_share button:disabled { opacity: .5; cursor: default; background: transparent; }
+#__klt_share button .klt-ico { color: var(--text-link); }
+#__klt_share .klt-foot { padding: 4px 10px 6px; color: var(--text-muted); font-size: 12px; max-width: 240px; }
 
 /* Kuerzel-Uebersicht */
 #__klt_keys {

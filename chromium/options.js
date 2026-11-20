@@ -82,7 +82,8 @@ const FT_DEFAULTS = {
     // neu in 3.46.0 - Kuerzel standardmaessig aus (einzelne Tasten loesen
     // Aktionen aus), Filter-Chips an
     ftTastatur: false,
-    ftFilterChips: true
+    ftFilterChips: true,
+    ftTeilen: true
 };
 
 // Wartezeit-Ampel: vier Stufen (gruen -> gelb -> rot -> lila). Schwellwerte

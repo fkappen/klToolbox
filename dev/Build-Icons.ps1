@@ -24,7 +24,7 @@ try {
         "ticket", "user", "file-text", "calendar", "calendar-plus", "phone-off", "bell", "car",
         "zap", "clock", "hourglass", "chevron-left", "chevron-right", "chevron-down",
         "refresh-cw", "triangle-alert", "alarm-clock", "timer", "clipboard-list", "hand",
-        "sparkles", "map-pin", "building-2", "check", "x", "phone", "filter", "keyboard", "star", "chevron-up"
+        "sparkles", "map-pin", "building-2", "check", "x", "phone", "filter", "keyboard", "star", "chevron-up", "share-2", "link", "copy"
     )
     # Auswahl fuer "Symbol" je Link (Optionen -> Popup-Bereiche): Name = Anzeigetext
     $auswahl = [ordered]@{

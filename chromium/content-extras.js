@@ -1,6 +1,6 @@
 // Version
-// version = "1.0.0"  (Modul Ticket-Extras, klToolbox)
-// datum   = "2026-11-11"
+// version = "1.1.0"  (Modul Ticket-Extras, klToolbox)
+// datum   = "2026-11-20"
 // autor   = "FK"
 //
 // Content-Script: Zusatzfunktionen im Ticketsystem, jede einzeln schaltbar
@@ -9,6 +9,9 @@
 //                   (t Termin, n Nicht erreicht, m Makros, ? Uebersicht)
 //   ftFilterChips - Filter-Chips ueber der Ticketliste (nutzen die Daten der
 //                   Wartezeit-Anzeige aus content-termin.js)
+//   ftTeilen      - Knopf "Teilen" im Ticket (Toolbar) und im Projekt-Dialog
+//                   (neben "Speichern"): Link kopieren, Link mit Titel
+//                   kopieren, per E-Mail senden
 // Ausserdem beantwortet es die Popup-Anfrage "ticketKontext" (Kunde und
 // Ticketnummer der offenen Ticketansicht).
 //
@@ -28,7 +31,10 @@
         // Kuerzel bewusst standardmaessig AUS: einzelne Tasten loesen Aktionen
         // aus - das soll jeder selbst einschalten. Chips sind unaufdringlich.
         ftTastatur: false,
-        ftFilterChips: true
+        ftFilterChips: true,
+        ftTeilen: true,
+        // Ticketlink-Vorlage (%TICKETNR%) - kommt per Settings-Import
+        linkTemplate: ""
     };
     let settings = Object.assign({}, DEFAULTS);
 
@@ -112,6 +118,218 @@
         }
         return false;
     });
+
+    // ---------------------------------------------------------- Teilen
+    // Ticket: Link aus der Ticketlink-Vorlage. Projekt: /projects?id=<ID>
+    // (Direktlink geprueft 2026-11-20); die ID liefert der Seiten-Hook als
+    // html[data-klt-row] bzw. steht nach einem Direktaufruf in der Adresse.
+    // Projekte oeffnen als DHTMLX-Fenster "Projekt <Name> aendern" ohne
+    // Toolbar - der Knopf sitzt dort vor "Speichern".
+
+    function fensterTitel(re) {
+        for (const el of document.querySelectorAll(".dhtmlx_wins_title")) {
+            const m = re.exec((el.textContent || "").trim());
+            if (m && isVisible(el)) {
+                return { el: el, m: m };
+            }
+        }
+        return null;
+    }
+
+    function ticketDaten() {
+        const k = ticketKontext();
+        if (!k || !k.ticketnr) {
+            return null;
+        }
+        let bez = "";
+        for (const el of document.querySelectorAll("div, span")) {
+            if (el.childElementCount === 0 && isVisible(el)) {
+                const m = /^Ticket #\d+\s*-\s*(.+)$/.exec((el.textContent || "").trim());
+                if (m) {
+                    bez = m[1].trim();
+                    break;
+                }
+            }
+        }
+        const tpl = (settings.linkTemplate || "").trim();
+        return {
+            titel: "Ticket #" + k.ticketnr + (bez ? " – " + bez : "") +
+                (k.kundennr ? " (" + k.kundennr + (k.kunde ? " " + k.kunde : "") + ")" : ""),
+            url: tpl ? tpl.replace(/%TICKETNR%/g, k.ticketnr) : "",
+            ohneLink: "Ticketlink-Vorlage fehlt (Optionen → Ticket-Termin)"
+        };
+    }
+
+    function projektDaten() {
+        const t = fensterTitel(/^Projekt (.+) ändern$/);
+        if (!t) {
+            return null;
+        }
+        const name = t.m[1].trim();
+        let id = "";
+        if (/\/projects\/?$/.test(location.pathname)) {
+            const row = (document.documentElement.getAttribute("data-klt-row") || "").split("|");
+            if (row.length === 2 && row[0] === location.pathname && /^\d+$/.test(row[1])) {
+                // Gegenprobe: die markierte Zeile muss den Projektnamen tragen
+                const sel = document.querySelector(".gridbox tr.rowselected");
+                if (!sel || (sel.textContent || "").indexOf(name) !== -1) {
+                    id = row[1];
+                }
+            } else {
+                const m = /[?&]id=(\d+)/.exec(location.search);
+                if (m) {
+                    id = m[1];
+                }
+            }
+        }
+        return {
+            titel: "Projekt – " + name,
+            url: id ? location.origin + "/projects?id=" + id : "",
+            ohneLink: "Projektnummer nicht ermittelbar – Projekt über die Projektliste öffnen"
+        };
+    }
+
+    function schliesseTeilen() {
+        const p = document.getElementById("__klt_share");
+        if (p) {
+            p.remove();
+            return true;
+        }
+        return false;
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    async function kopiere(text, html) {
+        if (html && typeof ClipboardItem === "function" && navigator.clipboard && navigator.clipboard.write) {
+            try {
+                await navigator.clipboard.write([new ClipboardItem({
+                    "text/plain": new Blob([text], { type: "text/plain" }),
+                    "text/html": new Blob([html], { type: "text/html" })
+                })]);
+                return;
+            } catch (err) {
+                console.warn("klToolbox: Kopieren mit Formatierung nicht möglich, nehme reinen Text:", err);
+            }
+        }
+        await navigator.clipboard.writeText(text);
+    }
+
+    function quittiere(anchor, ok) {
+        const merk = anchor.__kltIcon;
+        klIconText(anchor, ok ? "check" : "x", ok ? "Kopiert" : "Fehler");
+        setTimeout(() => {
+            if (anchor.isConnected) {
+                klIconRestore(anchor, merk);
+            }
+        }, 2000);
+    }
+
+    function zeigeTeilen(anchor, daten) {
+        if (schliesseTeilen() || !daten) {
+            return;
+        }
+        const panel = document.createElement("div");
+        panel.id = "__klt_share";
+        panel.className = "klt-panel klt-scope";
+        const eintrag = (icon, text, aktion) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            klIconText(b, icon, text, 15);
+            if (!daten.url) {
+                b.disabled = true;
+                b.title = daten.ohneLink;
+            }
+            b.addEventListener("click", () => {
+                schliesseTeilen();
+                aktion();
+            });
+            panel.appendChild(b);
+        };
+        eintrag("link", "Link kopieren", () => {
+            kopiere(daten.url, "").then(() => quittiere(anchor, true)).catch((err) => {
+                console.warn("klToolbox: Link nicht kopiert:", err);
+                quittiere(anchor, false);
+            });
+        });
+        eintrag("copy", "Link mit Titel kopieren", () => {
+            kopiere(daten.titel + "\n" + daten.url,
+                '<a href="' + escHtml(daten.url) + '">' + escHtml(daten.titel) + "</a>")
+                .then(() => quittiere(anchor, true)).catch((err) => {
+                    console.warn("klToolbox: Link nicht kopiert:", err);
+                    quittiere(anchor, false);
+                });
+        });
+        eintrag("mail", "Per E-Mail senden", () => {
+            const a = document.createElement("a");
+            a.href = "mailto:?subject=" + encodeURIComponent(daten.titel) +
+                "&body=" + encodeURIComponent(daten.titel + "\n" + daten.url + "\n");
+            a.click();
+        });
+        if (!daten.url) {
+            const hint = document.createElement("div");
+            hint.className = "klt-foot";
+            hint.textContent = daten.ohneLink;
+            panel.appendChild(hint);
+        }
+        document.documentElement.appendChild(panel);
+        const r = anchor.getBoundingClientRect();
+        const w = panel.offsetWidth || 230;
+        panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+        if (r.top < window.innerHeight / 2) {
+            panel.style.top = (r.bottom + 6) + "px";
+        } else {
+            panel.style.bottom = (window.innerHeight - r.top + 6) + "px";
+        }
+    }
+
+    document.addEventListener("mousedown", (e) => {
+        const p = document.getElementById("__klt_share");
+        if (p && !p.contains(e.target) && !(e.target.closest && e.target.closest(".__klt_share_btn"))) {
+            schliesseTeilen();
+        }
+    }, true);
+
+    function ensureTeilen() {
+        const an = aktiv("ftTeilen");
+        // Ticket: Knopf in der Toolbar
+        const tb = an ? ticketToolbar() : null;
+        if (tb && !tb.querySelector(".__klt_share_btn")) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "ap-button light __tt_tbtn __klt_share_btn";
+            btn.title = "Link zu diesem Ticket teilen (kopieren oder per E-Mail)";
+            klIconText(btn, "share-2", "Teilen");
+            btn.addEventListener("click", () => zeigeTeilen(btn, ticketDaten()));
+            (tb.firstElementChild || tb).appendChild(btn);
+        }
+        // Projekt: Knopf vor "Speichern" im Projektfenster
+        const pt = an ? fensterTitel(/^Projekt (.+) ändern$/) : null;
+        const fenster = pt ? pt.el.closest(".dhtmlx_window_active, .dhtmlx_window_inactive") : null;
+        if (fenster && !fenster.querySelector(".__klt_share_btn")) {
+            const save = Array.from(fenster.querySelectorAll("button"))
+                .find((b) => (b.textContent || "").trim() === "Speichern" && isVisible(b));
+            if (save && save.parentElement) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                // Klassen des Nachbarknopfs uebernehmen = nativer Look
+                btn.className = String(save.className || "ap-button") + " __klt_share_btn __klt_share_pbtn";
+                btn.title = "Link zu diesem Projekt teilen (kopieren oder per E-Mail)";
+                klIconText(btn, "share-2", "Teilen");
+                btn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    zeigeTeilen(btn, projektDaten());
+                });
+                save.parentElement.insertBefore(btn, save);
+            }
+        }
+        if (!an) {
+            document.querySelectorAll(".__klt_share_btn").forEach((b) => b.remove());
+            schliesseTeilen();
+        }
+    }
 
     // ---------------------------------------------------------- Filter-Chips
 
@@ -353,6 +571,13 @@
     }
 
     function onKey(e) {
+        // Esc schliesst zuerst das Teilen-Menue (ohne dass das Ticketsystem
+        // seine "Aenderungen verwerfen?"-Rueckfrage zeigt)
+        if (e.key === "Escape" && schliesseTeilen()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         if (!aktiv("ftTastatur") || e.ctrlKey || e.altKey || e.metaKey || e.defaultPrevented) {
             return;
         }
@@ -412,6 +637,11 @@
             ensureChips();
         } catch (err) {
             console.warn("klToolbox: Filter-Chips fehlgeschlagen:", err);
+        }
+        try {
+            ensureTeilen();
+        } catch (err) {
+            console.warn("klToolbox: Teilen-Knopf fehlgeschlagen:", err);
         }
     }
     function schedule() {

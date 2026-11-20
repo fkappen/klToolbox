@@ -1,6 +1,6 @@
 // Version
-// version = "1.2.0"  (Modul Ticket-Datenhook, klToolbox)
-// datum   = "2026-09-08"
+// version = "1.3.0"  (Modul Ticket-Datenhook, klToolbox)
+// datum   = "2026-11-20"
 // autor   = "FK"
 //
 // Laeuft im MAIN world der Ticketsystem-Seite (document_start): liest die
@@ -199,6 +199,26 @@
             return origSend.apply(this, arguments);
         };
     }
+
+    // ------------------------------------------------------------ Zeilen-ID
+    // Die Listen sind DHTMLX-Grids; die Datensatz-ID einer Zeile steht nur als
+    // JS-Eigenschaft (tr.idd) an der Zeile - das isolierte Script sieht sie
+    // nicht. Beim Anklicken/Oeffnen einer Zeile wird sie deshalb als Attribut
+    // an <html> gelegt: "Pfad|ID". Gebraucht fuer den Projekt-Link der
+    // Teilen-Funktion (/projects?id=<ID>, geprueft 2026-11-20).
+    function merkeZeile(evt) {
+        try {
+            const t = evt.target;
+            const tr = (t && typeof t.closest === "function") ? t.closest(".gridbox .objbox tr") : null;
+            if (tr && tr.idd !== undefined && tr.idd !== null && /^\d+$/.test(String(tr.idd))) {
+                document.documentElement.setAttribute("data-klt-row", location.pathname + "|" + String(tr.idd));
+            }
+        } catch (err) {
+            console.debug("[klToolbox] Zeilen-ID nicht lesbar", err);
+        }
+    }
+    document.addEventListener("mousedown", merkeZeile, true);
+    document.addEventListener("dblclick", merkeZeile, true);
 
     // ------------------------------------------------------------ Diagnose
     // In der Browserkonsole der Ticketseite: __klToolboxSchema("Ticket")
