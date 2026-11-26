@@ -1,6 +1,6 @@
 // Version
-// version = "1.26.0"  (Modul Ticket-Termin, klToolbox)
-// datum   = "2026-11-11"
+// version = "1.27.0"  (Modul Ticket-Termin, klToolbox)
+// datum   = "2026-11-26"
 // autor   = "FK"
 //
 // Content-Script: extrahiert Kunde, TicketNR, Bezeichnung und Ansprechpartner
@@ -181,10 +181,13 @@
     });
 
     // ---------------------------------------------------------- Extraktion
+    // WICHTIG: immer in klTicketRoot() suchen (aktives Ticketfenster, siehe
+    // content-vorlagen.js), nie im ganzen Dokument - geparkte Ticketfenster
+    // stehen davor und liefern sonst die Daten eines anderen Tickets.
 
     // Kunde: <strong>12345 - Muster GmbH</strong>
     function extractKunde() {
-        for (const s of document.querySelectorAll("strong")) {
+        for (const s of klTicketRoot().querySelectorAll("strong")) {
             const m = (s.textContent || "").trim().match(/^(\d{3,8})\s*-\s*(.{2,})$/);
             if (m) {
                 return { nr: m[1], name: m[2].trim() };
@@ -195,7 +198,7 @@
 
     // TicketNR: <li>123456<button><i class="... ap-icon-arrow-join"></i></button></li>
     function extractTicketNr() {
-        for (const li of document.querySelectorAll("li")) {
+        for (const li of klTicketRoot().querySelectorAll("li")) {
             if (li.querySelector("i.ap-icon-arrow-join")) {
                 const m = (li.textContent || "").trim().match(/^(\d{4,10})/);
                 if (m) {
@@ -208,7 +211,7 @@
 
     // Bezeichnung: Input-Feld (Selektor in den Optionen anpassbar)
     function extractBezeichnung() {
-        const el = document.querySelector(settings.selBezeichnung);
+        const el = klTicketRoot().querySelector(settings.selBezeichnung);
         if (el && typeof el.value === "string" && el.value.trim()) {
             return el.value.trim();
         }
@@ -233,7 +236,7 @@
     // zutreffen - deshalb alle Treffer pruefen und den ersten mit Wert nehmen.
     function extractAnsprechpartner() {
         const sel = settings.selAnsprechpartner || DEFAULTS.selAnsprechpartner;
-        for (const el of document.querySelectorAll(sel)) {
+        for (const el of klTicketRoot().querySelectorAll(sel)) {
             const v = inputValue(el);
             if (v) {
                 return v;
@@ -251,7 +254,7 @@
     // zeigt alle Selektor-Treffer und alle "Ansprechpartner:"-Label-Zeilen.
     function logApDiagnose(sel) {
         try {
-            const els = Array.from(document.querySelectorAll(sel));
+            const els = Array.from(klTicketRoot().querySelectorAll(sel));
             console.warn(
                 "Ticket-Termin: Ansprechpartner leer. Selektor '" + sel + "' -> " + els.length + " Treffer:",
                 els.map((e) => ({
@@ -260,7 +263,7 @@
                     sichtbar: e.getBoundingClientRect().width > 0
                 }))
             );
-            const labels = Array.from(document.querySelectorAll("div")).filter((d) =>
+            const labels = Array.from(klTicketRoot().querySelectorAll("div")).filter((d) =>
                 d.childElementCount === 0 && /^ansprechpartner:?$/i.test((d.textContent || "").trim())
             );
             console.warn(
@@ -284,7 +287,7 @@
     // Sucht ein "Blatt-Div", dessen eigener Text exakt dem Label entspricht,
     // und liefert den Wert aus dem Geschwister-Container.
     function labelValue(labels) {
-        for (const d of document.querySelectorAll("div")) {
+        for (const d of klTicketRoot().querySelectorAll("div")) {
             if (d.childElementCount !== 0) {
                 continue;
             }
@@ -344,7 +347,7 @@
         }
         // Nur Menue-Eintraege pruefen (kurze <a>-Texte mit @) - kein Scan
         // ueber den kompletten Seitentext.
-        for (const a of document.querySelectorAll("a")) {
+        for (const a of klTicketRoot().querySelectorAll("a")) {
             const t = (a.textContent || "").trim();
             if (t.length > 150 || t.indexOf("@") === -1) {
                 continue;
@@ -372,7 +375,7 @@
         // Fallback: erster mailto-Link auf der Seite - Adressen der eigenen
         // Domain (Einstellung ownEmailDomain, z. B. Support-Postfach) ignorieren.
         const ownDomain = (settings.ownEmailDomain || "").trim().replace(/^@/, "").toLowerCase();
-        for (const a of document.querySelectorAll("a[href^='mailto:']")) {
+        for (const a of klTicketRoot().querySelectorAll("a[href^='mailto:']")) {
             const href = a.getAttribute("href") || "";
             const mail = href.replace(/^mailto:/i, "").split("?")[0].trim();
             if (!mail) {
@@ -586,7 +589,7 @@
     // Eintragsformular unten finden (CKEditor + Speichern-Button im Umfeld);
     // das Mail-Fenster (Senden/Verwerfen ohne Speichern) wird uebersprungen.
     function findEntryForm() {
-        const editors = Array.from(document.querySelectorAll(".ck-editor__editable")).filter(isVisible);
+        const editors = Array.from(klTicketRoot().querySelectorAll(".ck-editor__editable")).filter(isVisible);
         for (const ed of editors) {
             let node = ed.parentElement;
             let depth = 0;
@@ -748,7 +751,7 @@
     let badgeCreatedAt = null;
 
     function getPrioText() {
-        const el = document.querySelector(".ap-select[type='apTicketPriority'] .one-liner");
+        const el = klTicketRoot().querySelector(".ap-select[type='apTicketPriority'] .one-liner");
         return el ? (el.textContent || "").trim() : "";
     }
 
@@ -1001,7 +1004,9 @@
             }
             return;
         }
-        const tb = document.querySelector(".ap-toolbar--fullscreen-at-top");
+        // Badge gehoert zum aktiven Ticketfenster (nicht zum ersten im Dokument)
+        const wurzel = klTicketRoot();
+        const tb = wurzel.querySelector(".ap-toolbar--fullscreen-at-top");
         if (!tb) {
             return;
         }
@@ -1009,7 +1014,7 @@
         // wir das Badge in ihren Eltern-Container (graues Band ueber die
         // volle Breite) und positionieren es absolut an dessen linker Kante.
         const host = tb.parentElement || tb;
-        let badge = document.querySelector(".__tt_wait_badge");
+        let badge = wurzel.querySelector(".__tt_wait_badge");
         if (!badgeCreatedAt) {
             if (badge) {
                 badge.remove();
@@ -1290,7 +1295,7 @@
         const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
         const timeRe = /^(\d{1,2}):(\d{2})\s*Uhr$/;
         let newest = null;
-        for (const s of document.querySelectorAll("strong")) {
+        for (const s of klTicketRoot().querySelectorAll("strong")) {
             const m = dateRe.exec((s.textContent || "").trim());
             if (!m) {
                 continue;
@@ -1322,7 +1327,7 @@
         const timeRe = /^(\d{1,2}):(\d{2})\s*Uhr$/;
         let oldest = null;
 
-        for (const s of document.querySelectorAll("strong")) {
+        for (const s of klTicketRoot().querySelectorAll("strong")) {
             const m = dateRe.exec((s.textContent || "").trim());
             if (!m) {
                 continue;
@@ -1884,7 +1889,7 @@
     // Kundenadresse: Text NACH dem <strong>NR - Name</strong> in der Kunde-Zeile,
     // z. B. ", Rennweg 60, 56626 Andernach" (Icons/Buttons haben keinen Text)
     function extractKundenAdresse() {
-        for (const s of document.querySelectorAll("strong")) {
+        for (const s of klTicketRoot().querySelectorAll("strong")) {
             const m = (s.textContent || "").trim().match(/^(\d{3,8})\s*-\s*(.{2,})$/);
             if (m && s.parentElement) {
                 let txt = (s.parentElement.textContent || "").replace(s.textContent, "");
@@ -2104,7 +2109,7 @@
     // stehende Symbol der Titelleiste (dort sitzt das X).
     async function closeTicketWindow() {
         let titleLeaf = null;
-        for (const el of document.querySelectorAll("div, span")) {
+        for (const el of klTicketRoot().querySelectorAll("div, span")) {
             if (el.childElementCount === 0 && /^Ticket #\d+/.test((el.textContent || "").trim()) && isVisible(el)) {
                 titleLeaf = el;
                 break;
@@ -2342,7 +2347,7 @@
     // <i class="... ap-icon-add ..."></i>Abonnieren</button>.
     // Eigene Toolbar-Buttons (__tt_tbtn) sind ausgeschlossen.
     function findAbonnierenButton() {
-        for (const b of document.querySelectorAll("button")) {
+        for (const b of klTicketRoot().querySelectorAll("button")) {
             if (b.classList.contains("__tt_tbtn")) {
                 continue;
             }
@@ -2357,7 +2362,7 @@
     // moeglichst tiefes Element nehmen (Eltern-Container matchen auch).
     function findTab(re) {
         let best = null;
-        for (const el of document.querySelectorAll("li, [role='tab'], a, button, div, span")) {
+        for (const el of klTicketRoot().querySelectorAll("li, [role='tab'], a, button, div, span")) {
             const t = (el.textContent || "").trim();
             if (t.length > 30 || !re.test(t) || !isVisible(el)) {
                 continue;

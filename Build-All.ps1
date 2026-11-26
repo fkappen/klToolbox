@@ -6,8 +6,8 @@ param(
 )
 
 #Version
-$version = "2.2.0"
-$datum = "2026-10-02"
+$version = "2.2.1"
+$datum = "2026-11-26"
 $autor = "Felix Kappen"
 
 # Gesamt-Build der klToolbox:
@@ -39,7 +39,10 @@ $xpiBaseUrl = "https://raw.githubusercontent.com/fkappen/klToolbox/main/releases
 $geckoId = "app@kltoolbox.dev"
 
 function Get-RepoSlug {
-    $url = (& git remote get-url origin 2>$null | Select-Object -First 1)
+    # -C $PSScriptRoot: das Repo des SCRIPTS fragen, nicht das des Aufruf-
+    # Ordners. Aus einem anderen Repo gestartet, kam sonst dessen Name
+    # heraus -> Releases-Abruf 404 -> updates.json nur noch mit einer Version.
+    $url = (& git -C $PSScriptRoot remote get-url origin 2>$null | Select-Object -First 1)
     if ($null -ne $url -and $url -match "github\.com[:/]+([^/]+/[^/\s]+?)(\.git)?$") {
         return $Matches[1]
     }
@@ -237,6 +240,10 @@ try {
         $null = $_.Name -match '^kl-toolbox-firefox-v([0-9\.]+)\.xpi$'
         $entries[$Matches[1]] = $xpiBaseUrl + $_.Name
     }
+    # Schlaegt der Abruf der Releases fehl, bleibt die vorhandene updates.json
+    # unangetastet: eine nur aus releases\ erzeugte Datei verliert alle
+    # Versionen, deren .xpi als Release-Asset liegt (Firefox-Updates brechen).
+    $relsOk = $false
     try {
         # Paginiert: die API liefert je Seite max. 100 Releases (Default 30) -
         # ohne Schleife fielen ab dem 31. Release die aeltesten xpi-Versionen
@@ -255,10 +262,13 @@ try {
                 }
             }
         }
+        $relsOk = $true
     } catch {
-        Write-Warning ("Release-Assets konnten nicht gelistet werden (updates.json nur aus releases\): " + $_.Exception.Message)
+        Write-Warning ("Release-Assets von " + $slug + " konnten nicht gelistet werden - updates.json bleibt unveraendert: " + $_.Exception.Message)
     }
-    if ($entries.Count -gt 0) {
+    if (-not $relsOk) {
+        Write-Warning "updates.json NICHT neu erzeugt (Abruf der Releases fehlgeschlagen)."
+    } elseif ($entries.Count -gt 0) {
         $updates = @()
         foreach ($k in ($entries.Keys | Sort-Object { [version]$_ })) {
             $updates += @{ version = $k; update_link = $entries[$k] }

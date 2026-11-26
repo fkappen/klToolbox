@@ -1,11 +1,54 @@
 // Version
-// version = "1.13.0"
-// datum   = "2026-11-11"
+// version = "1.14.0"
+// datum   = "2026-11-26"
 // autor   = "FK"
 //
 // Content-Script: Vorlagen-Button im Mail-Fenster des Ticketsystems
 // (Host wird zur Laufzeit registriert, siehe background.js).
 // Fuegt die gewaehlte Vorlage vor der Signatur bzw. am Cursor ein.
+
+// ------------------------------------------------- Aktives Ticketfenster
+// Gemeinsam fuer alle Ticket-Module (dieses Script laedt als erstes Modul).
+// Das Ticketsystem haelt mehrere Ticketfenster gleichzeitig im Dokument:
+// geparkte (minimierte) Fenster bleiben erhalten und stehen VOR dem aktiven.
+// Wer im ganzen Dokument sucht, liest deshalb Kunde, Ticketnummer und
+// Ansprechpartner des geparkten Tickets (Fehlermeldung 2026-11-26: Termin
+// im Ticket A zeigte die Daten von Ticket B). Alle Auslese-Stellen suchen
+// darum nur im aktiven Ticketfenster:
+//   - DHTMLX-Fenster (.dhtmlx_window_active/_inactive) mit Ticket-Toolbar,
+//   - nicht geparkt (geparkt = nur die Titelzeile, ca. 30 px hoch),
+//   - das aktive, sonst das mit dem hoechsten z-index (z. B. wenn gerade
+//     das Mail-Fenster aktiv ist).
+// Ohne passendes Fenster gilt das ganze Dokument (bisheriges Verhalten).
+var klTicketRootCache = null;
+var klTicketRootAt = 0;
+function klTicketRoot() {
+    var jetzt = Date.now();
+    if (klTicketRootCache && jetzt - klTicketRootAt < 200 &&
+        (klTicketRootCache === document || klTicketRootCache.isConnected)) {
+        return klTicketRootCache;
+    }
+    var best = null;
+    var bestZ = -Infinity;
+    var toolbars = document.querySelectorAll(".ap-toolbar--fullscreen-at-top");
+    for (var i = 0; i < toolbars.length; i++) {
+        var win = toolbars[i].closest(".dhtmlx_window_active, .dhtmlx_window_inactive");
+        if (!win || win.getBoundingClientRect().height < 80) {
+            continue;
+        }
+        var z = Number(getComputedStyle(win).zIndex) || 0;
+        if (win.classList.contains("dhtmlx_window_active")) {
+            z += 1000000;
+        }
+        if (z >= bestZ) {
+            bestZ = z;
+            best = win;
+        }
+    }
+    klTicketRootCache = best || document;
+    klTicketRootAt = jetzt;
+    return klTicketRootCache;
+}
 
 (function () {
     "use strict";
@@ -884,7 +927,7 @@
         const dateRe = /^(?:Mo|Di|Mi|Do|Fr|Sa|So)\.\s*\d{1,2}\.\d{1,2}\.\d{4}$/;
         const blocks = [];
         const used = [];
-        for (const s of document.querySelectorAll("strong")) {
+        for (const s of klTicketRoot().querySelectorAll("strong")) {
             if (!dateRe.test((s.textContent || "").trim())) {
                 continue;
             }

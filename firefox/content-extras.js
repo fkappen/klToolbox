@@ -1,6 +1,6 @@
 // Version
-// version = "1.1.0"  (Modul Ticket-Extras, klToolbox)
-// datum   = "2026-11-20"
+// version = "1.2.0"  (Modul Ticket-Extras, klToolbox)
+// datum   = "2026-11-26"
 // autor   = "FK"
 //
 // Content-Script: Zusatzfunktionen im Ticketsystem, jede einzeln schaltbar
@@ -54,7 +54,7 @@
 
     // Ticketansicht offen? (Toolbar der Vollbild-Ansicht)
     function ticketToolbar() {
-        const tb = document.querySelector(".ap-toolbar--fullscreen-at-top");
+        const tb = klTicketRoot().querySelector(".ap-toolbar--fullscreen-at-top");
         return (tb && isVisible(tb)) ? tb : null;
     }
 
@@ -87,7 +87,7 @@
             return null;
         }
         const out = { kundennr: "", kunde: "", ticketnr: "" };
-        for (const s of document.querySelectorAll("strong")) {
+        for (const s of klTicketRoot().querySelectorAll("strong")) {
             const m = (s.textContent || "").trim().match(/^(\d{3,8})\s*-\s*(.{2,})$/);
             if (m && isVisible(s)) {
                 out.kundennr = m[1];
@@ -95,7 +95,7 @@
                 break;
             }
         }
-        for (const el of document.querySelectorAll("div, span")) {
+        for (const el of klTicketRoot().querySelectorAll("div, span")) {
             if (el.childElementCount === 0) {
                 const m = /^Ticket #(\d+)/.exec((el.textContent || "").trim());
                 if (m && isVisible(el)) {
@@ -142,7 +142,7 @@
             return null;
         }
         let bez = "";
-        for (const el of document.querySelectorAll("div, span")) {
+        for (const el of klTicketRoot().querySelectorAll("div, span")) {
             if (el.childElementCount === 0 && isVisible(el)) {
                 const m = /^Ticket #\d+\s*-\s*(.+)$/.exec((el.textContent || "").trim());
                 if (m) {
